@@ -1,6 +1,4 @@
-# 3) Build output folders + copy resources
-New-Item -ItemType Directory -Force -Path "target\classes" | Out-Null
-Copy-Item -Recurse -Force "src\main\resources\*" "target\classes\"# OVERRIDE — *The Last Real Mind*
+# OVERRIDE — *The Last Real Mind*
 
 A JavaFX prototype for a story-based educational game on the dark future of AI dependence. Built as a final-year visual programming project. **SDG 4 — Quality Education** is the primary alignment.
 
@@ -31,9 +29,9 @@ This v0.1 build ships a **playable end-to-end vertical slice** of Chapter 1 plus
 | Chapter ending screen | ✅ | `EndingScreen.java` |
 | HUD (HP / Dependency / Coins) | ✅ | `UIFactory.hud()` |
 | Chapters 2 – 4 + Final Mission | 🟡 stubs | `ChapterMapScreen.java` |
-| Spring Boot backend | 📋 specced | see "Backend hook-up" below |
+| Spring Boot backend | ✅ | `backend/` directory |
 
-> The build compiles **clean** against `javafx.controls 11+` with zero warnings. Tested against OpenJFX 11.0.11 and 21.0.2.
+> The build compiles **clean** against JavaFX 26.0.1 on JDK 26.
 
 ---
 
@@ -107,33 +105,83 @@ java --module-path "$JFX" --add-modules javafx.controls,javafx.fxml \
 
 ```
 override-game/
-├── pom.xml
+├── pom.xml                          ← JavaFX frontend build
 ├── README.md
-└── src/main/
-    ├── java/com/override/
-    │   ├── Main.java                ← entry point + scene manager
-    │   ├── model/
-    │   │   ├── Player.java          ← stats + level + HP
-    │   │   ├── GameCharacter.java   ← roster of selectable personas
-    │   │   └── GameState.java       ← singleton: coins, dependency, progress
-    │   ├── service/
-    │   │   ├── SaveService.java     ← save/load to ~/.override/save.properties
-    │   │   └── BkashMockService.java← simulated bKash payment dialog
-    │   └── ui/
-    │       ├── UIFactory.java       ← shared buttons, HUD, typewriter
-    │       ├── MainMenuScreen.java
-    │       ├── CharacterSelectScreen.java
-    │       ├── ShopScreen.java
-    │       ├── IntroStoryScreen.java
-    │       ├── ChapterMapScreen.java
-    │       ├── ChapterOneScreen.java← chapter 1 hub + room transitions
-    │       ├── DialogueOverlay.java ← reusable typewriter dialogue
-    │       ├── PuzzleScreen.java    ← Chapter 1 logic puzzle
-    │       ├── StealthScreen.java   ← Chapter 1 stealth section
-    │       ├── CombatScreen.java    ← turn-based boss fight
-    │       └── EndingScreen.java
-    └── resources/
-        └── styles/main.css          ← entire dark cyber theme
+├── docs/
+│   └── PROJECT_BRIEF.md             ← full project specification
+├── src/main/                        ← JavaFX frontend
+│   ├── java/com/override/
+│   │   ├── Main.java                ← entry point + scene manager
+│   │   ├── model/
+│   │   │   ├── Player.java          ← stats + level + HP
+│   │   │   ├── GameCharacter.java   ← roster of selectable personas
+│   │   │   └── GameState.java       ← singleton: coins, dependency, progress
+│   │   ├── service/
+│   │   │   ├── SaveService.java     ← save/load to ~/.override/save.properties
+│   │   │   └── BkashMockService.java← simulated bKash payment dialog
+│   │   └── ui/
+│   │       ├── UIFactory.java       ← shared buttons, HUD, typewriter
+│   │       ├── MainMenuScreen.java
+│   │       ├── CharacterSelectScreen.java
+│   │       ├── ShopScreen.java
+│   │       ├── IntroStoryScreen.java
+│   │       ├── ChapterMapScreen.java
+│   │       ├── ChapterOneScreen.java← chapter 1 hub + room transitions
+│   │       ├── DialogueOverlay.java ← reusable typewriter dialogue
+│   │       ├── PuzzleScreen.java    ← Chapter 1 logic puzzle
+│   │       ├── StealthScreen.java   ← Chapter 1 stealth section
+│   │       ├── CombatScreen.java    ← turn-based boss fight
+│   │       └── EndingScreen.java
+│   └── resources/
+│       └── styles/main.css          ← entire dark cyber theme
+└── backend/                         ← Spring Boot backend
+    ├── pom.xml
+    └── src/main/
+        ├── java/com/override/backend/
+        │   ├── OverrideBackendApplication.java
+        │   ├── config/
+        │   │   ├── SecurityConfig.java
+        │   │   └── GlobalExceptionHandler.java
+        │   ├── controller/
+        │   │   ├── AuthController.java
+        │   │   ├── PlayerController.java
+        │   │   ├── SaveController.java
+        │   │   ├── ProgressController.java
+        │   │   └── LeaderboardController.java
+        │   ├── dto/
+        │   │   ├── RegisterRequest.java
+        │   │   ├── LoginRequest.java
+        │   │   ├── AuthResponse.java
+        │   │   ├── SaveRequest.java
+        │   │   ├── ProgressRequest.java
+        │   │   └── LeaderboardResponse.java
+        │   ├── entity/
+        │   │   ├── User.java
+        │   │   ├── PlayerProfile.java
+        │   │   ├── GameSave.java
+        │   │   ├── ChapterProgress.java
+        │   │   ├── Achievement.java
+        │   │   └── LeaderboardEntry.java
+        │   ├── repository/
+        │   │   ├── UserRepository.java
+        │   │   ├── PlayerProfileRepository.java
+        │   │   ├── GameSaveRepository.java
+        │   │   ├── ChapterProgressRepository.java
+        │   │   ├── AchievementRepository.java
+        │   │   └── LeaderboardRepository.java
+        │   ├── security/
+        │   │   ├── JwtUtils.java
+        │   │   ├── JwtAuthFilter.java
+        │   │   └── AppUserDetailsService.java
+        │   └── service/
+        │       ├── AuthService.java
+        │       ├── PlayerService.java
+        │       ├── SaveService.java
+        │       ├── ProgressService.java
+        │       └── LeaderboardService.java
+        └── resources/
+            ├── application.properties
+            └── db/schema.sql
 ```
 
 ---
@@ -189,36 +237,58 @@ The hard part (engine pieces) is done. Chapters 2–4 are mostly content authori
 
 ---
 
-## Backend hook-up (Spring Boot)
+## Spring Boot Backend
 
-The prototype saves locally to `~/.override/save.properties`. Swapping that for a Spring Boot REST backend is a 1-file change:
+The backend lives in the `backend/` directory. It provides user authentication (JWT), game save/load, chapter progress tracking, and a leaderboard.
+
+### Running the backend
+
+Open a **separate terminal** from the game:
+
+```powershell
+cd D:\override-game\backend
+mvn spring-boot:run
+```
+
+The backend starts on `http://localhost:8080` with an embedded H2 database (zero setup needed). The H2 console is available at `http://localhost:8080/h2`.
+
+To switch to MySQL for production, edit `backend/src/main/resources/application.properties` and uncomment the MySQL section.
+
+### REST API
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/auth/register` | No | Register (username, email, password) |
+| POST | `/api/auth/login` | No | Login, returns JWT token |
+| GET | `/api/player/me` | Yes | Get player profile + stats |
+| PUT | `/api/player/update` | Yes | Update profile / stats |
+| POST | `/api/save` | Yes | Save game state |
+| GET | `/api/save` | Yes | Load all saves for current user |
+| GET | `/api/progress` | Yes | Get chapter progress |
+| POST | `/api/progress/update` | Yes | Update chapter progress |
+| GET | `/api/leaderboard` | No | Top 20 leaderboard |
+
+### Database
+
+Uses H2 (file-based) for development, MySQL for production. Schema auto-created by JPA. Full SQL schema available at `backend/src/main/resources/db/schema.sql`.
+
+**Tables:** users, player_profiles, game_saves, chapter_progress, achievements, leaderboard_entries
+
+### Connecting the game to the backend
+
+The JavaFX frontend currently saves locally to `~/.override/save.properties`. To connect it to the backend, update `SaveService.java` to make HTTP calls:
 
 ```java
-// SaveService.java — replace save() body with:
+// Example: save game to backend
 String json = serializeState();
 HttpRequest req = HttpRequest.newBuilder()
     .uri(URI.create("http://localhost:8080/api/save"))
     .header("Authorization", "Bearer " + token)
+    .header("Content-Type", "application/json")
     .POST(BodyPublishers.ofString(json))
     .build();
 HttpClient.newHttpClient().send(req, BodyHandlers.discarding());
 ```
-
-Suggested backend endpoints (matches the original spec):
-
-```
-POST  /api/auth/register
-POST  /api/auth/login
-GET   /api/player/me
-POST  /api/save
-GET   /api/save/{playerId}
-GET   /api/leaderboard
-GET   /api/achievements/{playerId}
-POST  /api/payment/bkash/init    ← real bKash integration goes here
-POST  /api/payment/bkash/execute
-```
-
-Suggested DB schema is in the original project brief and does not need to change.
 
 ---
 

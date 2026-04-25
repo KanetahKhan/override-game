@@ -3,7 +3,8 @@
     "allow": [
       "Read(//c//**)",
       "Read(//d/c/**)",
-      "Read(//c/Users/User/Downloads/**)"
+      "Read(//c/Users/User/Downloads/**)",
+      "Bash(cd D:/override-game/backend && E:/apache-maven-3.9.15-bin/apache-maven-3.9.15/bin/mvn compile -q 2>&1 | tail -20)"
     ]
   }
 }
