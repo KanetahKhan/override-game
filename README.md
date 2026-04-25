@@ -1,4 +1,6 @@
-# OVERRIDE — *The Last Real Mind*
+# 3) Build output folders + copy resources
+New-Item -ItemType Directory -Force -Path "target\classes" | Out-Null
+Copy-Item -Recurse -Force "src\main\resources\*" "target\classes\"# OVERRIDE — *The Last Real Mind*
 
 A JavaFX prototype for a story-based educational game on the dark future of AI dependence. Built as a final-year visual programming project. **SDG 4 — Quality Education** is the primary alignment.
 
@@ -39,19 +41,46 @@ This v0.1 build ships a **playable end-to-end vertical slice** of Chapter 1 plus
 
 ### Prerequisites
 
-* JDK 17+ (project uses 17 as source/target; works fine on 21)
-* Either:
-  * **Maven 3.8+** with internet access, OR
-  * **JavaFX SDK** locally + `javac` / `java`
+* **JDK 26** (project uses 26 as source/target)
+* **Apache Maven 3.9+** — download the **Binary zip archive** from https://maven.apache.org/download.cgi
 
-### Option A — with Maven (recommended)
+### Step 1 — Install JDK 26
 
-```bash
-cd override-game
+Download and install JDK 26 from https://www.oracle.com/java/technologies/downloads/. Note the installation path (e.g. `E:\java`).
+
+### Step 2 — Install Maven
+
+1. Download `apache-maven-3.9.15-bin.zip` from https://maven.apache.org/download.cgi
+2. Extract the zip to a folder (e.g. `E:\apache-maven-3.9.15-bin\`)
+3. Add Maven's `bin` directory to your system PATH:
+
+   **Windows (permanent) — run once in PowerShell:**
+   ```powershell
+   [Environment]::SetEnvironmentVariable("Path", $env:PATH + ";E:\apache-maven-3.9.15-bin\apache-maven-3.9.15\bin", "User")
+   ```
+
+   **Windows (temporary, current session only):**
+   ```powershell
+   $env:PATH += ";E:\apache-maven-3.9.15-bin\apache-maven-3.9.15\bin"
+   ```
+
+   > Adjust the path above to match where you extracted Maven.
+
+4. **Open a new terminal** and verify:
+   ```powershell
+   mvn --version
+   ```
+
+### Step 3 — Run the game
+
+```powershell
+cd D:\override-game
 mvn javafx:run
 ```
 
-### Option B — without Maven
+Maven will automatically download JavaFX dependencies on the first run (requires internet). After that, the game window should launch.
+
+### Alternative — without Maven (Linux/macOS)
 
 Install OpenJFX (`apt install openjfx` on Debian/Ubuntu, or download from https://openjfx.io), then:
 

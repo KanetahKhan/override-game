@@ -104,8 +104,10 @@ public class UIFactory {
         Label coins = new Label(String.valueOf(s.getCoins()));
         coins.getStyleClass().add("hud-coins");
 
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
+        Region spacer1 = new Region();
+        HBox.setHgrow(spacer1, Priority.ALWAYS);
+        Region spacer2 = new Region();
+        HBox.setHgrow(spacer2, Priority.ALWAYS);
 
         HBox left = new HBox(8, dot, name, hp);
         left.setAlignment(Pos.CENTER_LEFT);
@@ -116,7 +118,7 @@ public class UIFactory {
         HBox right = new HBox(6, coinIcon, coins);
         right.setAlignment(Pos.CENTER_RIGHT);
 
-        HBox bar = new HBox(20, left, spacer, mid, spacer, right);
+        HBox bar = new HBox(20, left, spacer1, mid, spacer2, right);
         bar.setAlignment(Pos.CENTER_LEFT);
         bar.setPadding(new Insets(10, 24, 10, 24));
         bar.getStyleClass().add("hud");
