@@ -1,8 +1,6 @@
 package com.override.backend.entity;
 
 import jakarta.persistence.*;
-import java.util.HashSet;
-import java.util.Set;
 
 @Entity
 @Table(name = "achievements")
@@ -20,9 +18,6 @@ public class Achievement {
 
     @Column(length = 255)
     private String description;
-
-    @ManyToMany(mappedBy = "achievements")
-    private Set<PlayerProfile> players = new HashSet<>();
 
     public Achievement() {}
 
