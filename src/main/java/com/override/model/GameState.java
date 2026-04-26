@@ -30,8 +30,8 @@ public class GameState {
      */
     private int dependency = 0;
 
-    /** Highest chapter unlocked. 1 = Silent Classroom only. */
-    private int chapterUnlocked = 1;
+    /** Highest chapter unlocked. Set to 5 for dev/testing, 1 for release. */
+    private int chapterUnlocked = 5;
     /** Highest chapter completed. */
     private int chapterCompleted = 0;
 

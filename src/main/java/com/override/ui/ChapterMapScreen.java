@@ -94,12 +94,16 @@ public class ChapterMapScreen {
         play.setOnAction(e -> {
             if (chNum == 1) {
                 Main.switchScene(new ChapterOneScreen().build());
+            } else if (chNum == 2) {
+                Main.switchScene(new ChapterTwoScreen().build());
+            } else if (chNum == 3) {
+                Main.switchScene(new ChapterThreeScreen().build());
             } else {
                 new javafx.scene.control.Alert(
                     javafx.scene.control.Alert.AlertType.INFORMATION,
                     "Chapter " + label + ": " + name + "\n\n" +
                     "Not implemented in this prototype build.\n" +
-                    "The chapter map and progression logic are wired — the gameplay screens for Chapters 2-4 + final mission are scaffolded for the team to fill in next."
+                    "The chapter map and progression logic are wired — the gameplay screens for Chapters 3-4 + final mission are scaffolded for the team to fill in next."
                 ).showAndWait();
             }
         });

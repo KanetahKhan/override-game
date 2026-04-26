@@ -14,13 +14,12 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 
 /**
- * Chapter 2 stealth — Drone Tower Infiltration.
+ * Chapter 3 stealth — Hospital Restricted Wing.
  *
- * Two surveillance drones patrol the field. The player must reach
- * the tower control panel (top) without being spotted. Drones patrol
- * in opposite horizontal directions with wider vision cones than Ch1.
+ * Two med-patrol units and a stationary camera. The player navigates
+ * a narrower corridor layout with cover objects (desks/beds).
  */
-public class DroneStealthScreen {
+public class HospitalStealthScreen {
 
     private static final double W = 1000;
     private static final double H = 520;
@@ -28,17 +27,21 @@ public class DroneStealthScreen {
 
     private double px = W / 2, py = H - 30;
 
-    // Drone 1 — patrols upper area
-    private double d1x = 100, d1y = 100;
-    private double d1Speed = 2.2;
-    private boolean d1Right = true;
+    // Patrol 1 — horizontal upper
+    private double p1x = 150, p1y = 130;
+    private double p1Speed = 2.0;
+    private boolean p1Right = true;
 
-    // Drone 2 — patrols middle area
-    private double d2x = W - 100, d2y = 280;
-    private double d2Speed = 2.8;
-    private boolean d2Right = false;
+    // Patrol 2 — vertical middle
+    private double p2x = 700, p2y = 200;
+    private double p2Speed = 1.8;
+    private boolean p2Down = true;
 
-    private double coneW = 70, coneH = 180;
+    // Stationary camera at center
+    private double camX = W / 2, camY = 260;
+    private double camRadius = 90;
+
+    private double coneW = 60, coneH = 170;
 
     private boolean[] keys = new boolean[256];
     private double mouseX = -1, mouseY = -1;
@@ -50,19 +53,19 @@ public class DroneStealthScreen {
     private AnimationTimer timer;
     private int alerts = 0;
 
-    public DroneStealthScreen(Runnable onComplete) {
+    public HospitalStealthScreen(Runnable onComplete) {
         this.onComplete = onComplete;
     }
 
     public Parent build() {
-        Label tag = new Label("STEALTH — DRONE TOWER PERIMETER");
+        Label tag = new Label("STEALTH — RESTRICTED WING");
         tag.getStyleClass().add("scene-tag");
 
-        Label header = UIFactory.title("Drone Surveillance");
+        Label header = UIFactory.title("Hospital Infiltration");
 
         Label hint = UIFactory.body(
-            "Reach the tower entrance at the top.\nMove your mouse over the game area to guide the player.\n"
-            + "Two drones patrol the area — avoid their scan zones."
+            "Reach Dr. Hana's holding room at the top.\nWASD or arrow keys to move.\n"
+            + "Avoid two patrol units and the stationary camera (circle)."
         );
         hint.setMaxWidth(800);
 
@@ -75,7 +78,7 @@ public class DroneStealthScreen {
         canvas.setOnKeyPressed(e -> { keys[e.getCode().getCode() & 0xFF] = true; e.consume(); });
         canvas.setOnKeyReleased(e -> { keys[e.getCode().getCode() & 0xFF] = false; e.consume(); });
 
-        status = new Label("Stay low. Two drones active.");
+        status = new Label("Two patrols. One camera. Stay silent.");
         status.getStyleClass().add("puzzle-feedback");
 
         VBox center = new VBox(10, tag, header, hint, canvas, status);
@@ -111,37 +114,36 @@ public class DroneStealthScreen {
     }
 
     private void update() {
-        double speed = 3.0;
+        double speed = 2.8;
         if (keys[javafx.scene.input.KeyCode.W.getCode() & 0xFF] || keys[javafx.scene.input.KeyCode.UP.getCode() & 0xFF]) py -= speed;
         if (keys[javafx.scene.input.KeyCode.S.getCode() & 0xFF] || keys[javafx.scene.input.KeyCode.DOWN.getCode() & 0xFF]) py += speed;
         if (keys[javafx.scene.input.KeyCode.A.getCode() & 0xFF] || keys[javafx.scene.input.KeyCode.LEFT.getCode() & 0xFF]) px -= speed;
         if (keys[javafx.scene.input.KeyCode.D.getCode() & 0xFF] || keys[javafx.scene.input.KeyCode.RIGHT.getCode() & 0xFF]) px += speed;
-
-        if (mouseActive) {
-            double dx = mouseX - px, dy = mouseY - py;
-            double dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist > 4) { px += speed * dx / dist; py += speed * dy / dist; }
-        }
-
         px = Math.max(PLAYER_R, Math.min(W - PLAYER_R, px));
         py = Math.max(PLAYER_R, Math.min(H - PLAYER_R, py));
 
-        // Drone 1 patrol
-        if (d1Right) { d1x += d1Speed; if (d1x > W - 80) d1Right = false; }
-        else          { d1x -= d1Speed; if (d1x < 80) d1Right = true; }
+        // Patrol 1 — horizontal
+        if (p1Right) { p1x += p1Speed; if (p1x > W - 100) p1Right = false; }
+        else          { p1x -= p1Speed; if (p1x < 100) p1Right = true; }
 
-        // Drone 2 patrol
-        if (d2Right) { d2x += d2Speed; if (d2x > W - 80) d2Right = false; }
-        else          { d2x -= d2Speed; if (d2x < 80) d2Right = true; }
+        // Patrol 2 — vertical
+        if (p2Down) { p2y += p2Speed; if (p2y > H - 100) p2Down = false; }
+        else         { p2y -= p2Speed; if (p2y < 100) p2Down = true; }
 
-        // Detection check for both drones
-        if (inCone(d1x, d1y) || inCone(d2x, d2y)) {
+        // Detection — patrol vision cones
+        boolean detected = inConeLR(p1x, p1y) || inConeUD(p2x, p2y);
+
+        // Detection — camera circle
+        double dx = px - camX, dy = py - camY;
+        if (Math.sqrt(dx * dx + dy * dy) < camRadius) detected = true;
+
+        if (detected) {
             alerts++;
-            status.setText("⚠ DRONE ALERT  ·  detections: " + alerts + "  ·  reset to start");
+            status.setText("⚠ ALERT  ·  detections: " + alerts + "  ·  reset to entrance");
             px = W / 2; py = H - 30;
             GameState.get().increaseDependency(2);
             if (alerts >= 4) {
-                status.setText("Multiple alerts. Perimeter lockdown triggered. (Dependency +5)");
+                status.setText("Lockdown triggered. Security notified. (Dependency +5)");
                 GameState.get().increaseDependency(5);
             }
         }
@@ -149,55 +151,80 @@ public class DroneStealthScreen {
         // Goal
         if (py < 45 && px > W / 2 - 60 && px < W / 2 + 60) {
             timer.stop();
-            int xp = alerts == 0 ? 35 : 18;
+            int xp = alerts == 0 ? 40 : 20;
             GameState.get().getPlayer().addXp(xp);
             if (alerts == 0) {
                 GameState.get().addIndependentXp(xp);
                 GameState.get().getPlayer().buffAwareness(2);
             }
-            int coinReward = alerts == 0 ? 45 : 25;
+            int coinReward = alerts == 0 ? 50 : 25;
             GameState.get().addCoins(coinReward);
 
             Alert a = new Alert(Alert.AlertType.INFORMATION,
-                (alerts == 0 ? "Ghost run. No drone saw you. +2 Awareness.\n\n"
-                             : "You reached the tower. Drones spotted you " + alerts + " time(s).\n\n")
+                (alerts == 0 ? "Perfect infiltration. No alerts. +2 Awareness.\n\n"
+                             : "You reached the holding room. Alerts triggered: " + alerts + ".\n\n")
                 + "+" + xp + " XP   +" + coinReward + " ◈"
             );
-            a.setHeaderText("Tower reached");
+            a.setHeaderText("Restricted wing accessed");
             a.showAndWait();
             onComplete.run();
         }
     }
 
-    private boolean inCone(double dx, double dy) {
-        double cx1 = dx - coneW / 2, cx2 = dx + coneW / 2;
-        double cy1 = dy, cy2 = dy + coneH;
+    private boolean inConeLR(double ex, double ey) {
+        double cx1 = ex - coneW / 2, cx2 = ex + coneW / 2;
+        double cy1 = ey, cy2 = ey + coneH;
+        return px > cx1 && px < cx2 && py > cy1 && py < cy2;
+    }
+
+    private boolean inConeUD(double ex, double ey) {
+        // Vertical patrol — cone extends to the left
+        double cx1 = ex - coneH, cx2 = ex;
+        double cy1 = ey - coneW / 2, cy2 = ey + coneW / 2;
         return px > cx1 && px < cx2 && py > cy1 && py < cy2;
     }
 
     private void draw(GraphicsContext g) {
-        g.setFill(Color.web("#0a1208"));
+        g.setFill(Color.web("#0a0e14"));
         g.fillRect(0, 0, W, H);
 
-        // Goal — tower entrance
+        // Goal door
         g.setFill(Color.web("#28e0c044"));
         g.fillRect(W / 2 - 60, 0, 120, 30);
         g.setStroke(Color.web("#28e0c0"));
         g.setLineWidth(2);
         g.strokeRect(W / 2 - 60, 0, 120, 30);
 
-        // Draw field rows (decorative)
-        g.setStroke(Color.web("#1a3010"));
+        // Hospital floor lines
+        g.setStroke(Color.web("#151e28"));
         g.setLineWidth(1);
-        for (int y = 60; y < H; y += 40) {
-            g.strokeLine(0, y, W, y);
-        }
+        for (int y = 50; y < H; y += 50) g.strokeLine(0, y, W, y);
+        for (int x = 50; x < W; x += 50) g.strokeLine(x, 0, x, H);
 
-        // Drone 1 vision cone + body
-        drawDrone(g, d1x, d1y, "#ff8c00");
+        // Camera circle
+        g.setFill(Color.web("#ffd66e22"));
+        g.fillOval(camX - camRadius, camY - camRadius, camRadius * 2, camRadius * 2);
+        g.setStroke(Color.web("#ffd66e44"));
+        g.strokeOval(camX - camRadius, camY - camRadius, camRadius * 2, camRadius * 2);
+        // Camera icon
+        g.setFill(Color.web("#ffd66e"));
+        g.fillRect(camX - 6, camY - 6, 12, 12);
 
-        // Drone 2 vision cone + body
-        drawDrone(g, d2x, d2y, "#ff5e5e");
+        // Patrol 1 — horizontal, cone below
+        g.setFill(Color.web("#ff5e5e33"));
+        g.fillRect(p1x - coneW / 2, p1y, coneW, coneH);
+        g.setStroke(Color.web("#ff5e5e66"));
+        g.strokeRect(p1x - coneW / 2, p1y, coneW, coneH);
+        g.setFill(Color.web("#ff5e5e"));
+        g.fillOval(p1x - 12, p1y - 12, 24, 24);
+
+        // Patrol 2 — vertical, cone to the left
+        g.setFill(Color.web("#ff8c0033"));
+        g.fillRect(p2x - coneH, p2y - coneW / 2, coneH, coneW);
+        g.setStroke(Color.web("#ff8c0066"));
+        g.strokeRect(p2x - coneH, p2y - coneW / 2, coneH, coneW);
+        g.setFill(Color.web("#ff8c00"));
+        g.fillOval(p2x - 12, p2y - 12, 24, 24);
 
         // Player
         g.setFill(Color.web("#28e0c0"));
@@ -207,20 +234,5 @@ public class DroneStealthScreen {
         g.setStroke(Color.web("#28e0c044"));
         g.setLineWidth(1);
         g.strokeRect(0, 0, W, H);
-    }
-
-    private void drawDrone(GraphicsContext g, double dx, double dy, String color) {
-        // Vision cone
-        g.setFill(Color.web(color + "33"));
-        g.fillRect(dx - coneW / 2, dy, coneW, coneH);
-        g.setStroke(Color.web(color + "66"));
-        g.setLineWidth(1);
-        g.strokeRect(dx - coneW / 2, dy, coneW, coneH);
-
-        // Drone body (diamond shape)
-        g.setFill(Color.web(color));
-        double[] xpts = {dx, dx + 12, dx, dx - 12};
-        double[] ypts = {dy - 14, dy, dy + 14, dy};
-        g.fillPolygon(xpts, ypts, 4);
     }
 }

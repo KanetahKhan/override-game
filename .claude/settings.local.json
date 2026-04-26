@@ -4,7 +4,12 @@
       "Read(//c//**)",
       "Read(//d/c/**)",
       "Read(//c/Users/User/Downloads/**)",
-      "Bash(cd D:/override-game/backend && E:/apache-maven-3.9.15-bin/apache-maven-3.9.15/bin/mvn compile -q 2>&1 | tail -20)"
+      "Bash(cd D:/override-game/backend && E:/apache-maven-3.9.15-bin/apache-maven-3.9.15/bin/mvn compile -q 2>&1 | tail -20)",
+      "Bash(cd D:/override-game && E:/apache-maven-3.9.15-bin/apache-maven-3.9.15/bin/mvn compile 2>&1 | tail -15)",
+      "Bash(cd D:/override-game && E:/apache-maven-3.9.15-bin/apache-maven-3.9.15/bin/mvn clean compile 2>&1 | tail -15)",
+      "Bash(cd D:/override-game && mvn clean compile 2>&1 | tail -30)",
+      "Bash(cd D:/override-game && E:/apache-maven-3.9.15-bin/apache-maven-3.9.15/bin/mvn clean compile 2>&1 | tail -30)",
+      "Bash(cd D:/override-game && E:/apache-maven-3.9.15-bin/apache-maven-3.9.15/bin/mvn compile 2>&1 | tail -5)"
     ]
   }
 }

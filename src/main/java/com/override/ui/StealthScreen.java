@@ -46,6 +46,8 @@ public class StealthScreen {
     private double coneH = 220;
 
     private boolean[] keys = new boolean[256];
+    private double mouseX = -1, mouseY = -1;
+    private boolean mouseActive = false;
 
     private final Runnable onComplete;
     private Canvas canvas;
@@ -64,14 +66,18 @@ public class StealthScreen {
         Label header = UIFactory.title("Avoid the Sentinel");
 
         Label hint = UIFactory.body(
-            "Reach the green door at the top.\nWASD or arrow keys to move.\nDo not enter the bot's vision cone."
+            "Reach the green door at the top.\nMove your mouse over the game area to guide the player.\nDo not enter the bot's vision cone."
         );
         hint.setMaxWidth(800);
 
         canvas = new Canvas(W, H);
         canvas.setFocusTraversable(true);
-        canvas.setOnKeyPressed(e -> keys[e.getCode().getCode() & 0xFF] = true);
-        canvas.setOnKeyReleased(e -> keys[e.getCode().getCode() & 0xFF] = false);
+        canvas.setOnMouseClicked(e -> canvas.requestFocus());
+        canvas.setOnMouseMoved(e -> { mouseX = e.getX(); mouseY = e.getY(); mouseActive = true; });
+        canvas.setOnMouseDragged(e -> { mouseX = e.getX(); mouseY = e.getY(); mouseActive = true; });
+        canvas.setOnMouseExited(e -> mouseActive = false);
+        canvas.setOnKeyPressed(e -> { keys[e.getCode().getCode() & 0xFF] = true; e.consume(); });
+        canvas.setOnKeyReleased(e -> { keys[e.getCode().getCode() & 0xFF] = false; e.consume(); });
 
         status = new Label("Stay quiet.");
         status.getStyleClass().add("puzzle-feedback");
@@ -85,6 +91,21 @@ public class StealthScreen {
 
         StackPane sp = UIFactory.backdrop(wrap);
 
+        // Capture keys at the scene level so focus issues don't block movement
+        // Use event filters — these fire regardless of which node has focus
+        sp.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED,
+            e -> { keys[e.getCode().getCode() & 0xFF] = true; e.consume(); });
+        sp.addEventFilter(javafx.scene.input.KeyEvent.KEY_RELEASED,
+            e -> { keys[e.getCode().getCode() & 0xFF] = false; e.consume(); });
+
+        // Also listen at Scene level once attached
+        sp.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                newScene.setOnKeyPressed(e -> keys[e.getCode().getCode() & 0xFF] = true);
+                newScene.setOnKeyReleased(e -> keys[e.getCode().getCode() & 0xFF] = false);
+            }
+        });
+
         // Start animation loop
         timer = new AnimationTimer() {
             @Override public void handle(long now) {
@@ -94,18 +115,27 @@ public class StealthScreen {
         };
         timer.start();
 
-        // Focus canvas after layout
-        javafx.application.Platform.runLater(canvas::requestFocus);
         return sp;
     }
 
     private void update() {
-        // Player movement
+        // Player movement — keyboard
         double speed = 3.2;
         if (keys[javafx.scene.input.KeyCode.W.getCode() & 0xFF] || keys[javafx.scene.input.KeyCode.UP.getCode() & 0xFF]) py -= speed;
         if (keys[javafx.scene.input.KeyCode.S.getCode() & 0xFF] || keys[javafx.scene.input.KeyCode.DOWN.getCode() & 0xFF]) py += speed;
         if (keys[javafx.scene.input.KeyCode.A.getCode() & 0xFF] || keys[javafx.scene.input.KeyCode.LEFT.getCode() & 0xFF]) px -= speed;
         if (keys[javafx.scene.input.KeyCode.D.getCode() & 0xFF] || keys[javafx.scene.input.KeyCode.RIGHT.getCode() & 0xFF]) px += speed;
+
+        // Player movement — mouse (move toward cursor)
+        if (mouseActive) {
+            double dx = mouseX - px, dy = mouseY - py;
+            double dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 4) {
+                px += speed * dx / dist;
+                py += speed * dy / dist;
+            }
+        }
+
         px = Math.max(PLAYER_R, Math.min(W - PLAYER_R, px));
         py = Math.max(PLAYER_R, Math.min(H - PLAYER_R, py));
 
