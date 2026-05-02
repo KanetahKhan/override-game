@@ -17,8 +17,7 @@ import javafx.scene.layout.VBox;
  * Shows the four major chapters plus the final mission. Only the current
  * unlocked chapter is selectable; completed chapters get a checkmark.
  *
- * In the prototype only Chapter 1 is fully implemented — the others stub
- * out to a "coming soon" dialog so the menu structure is wired correctly.
+ * All five entries (Ch 1-4 + Final) route to real gameplay screens.
  */
 public class ChapterMapScreen {
 
@@ -92,18 +91,15 @@ public class ChapterMapScreen {
         Button play = UIFactory.compact(done ? "Replay" : "Play");
         play.setDisable(!unlocked);
         play.setOnAction(e -> {
-            if (chNum == 1) {
-                Main.switchScene(new ChapterOneScreen().build());
-            } else if (chNum == 2) {
-                Main.switchScene(new ChapterTwoScreen().build());
-            } else if (chNum == 3) {
-                Main.switchScene(new ChapterThreeScreen().build());
-            } else {
-                new javafx.scene.control.Alert(
+            switch (chNum) {
+                case 1 -> Main.switchScene(new ChapterOneScreen().build());
+                case 2 -> Main.switchScene(new ChapterTwoScreen().build());
+                case 3 -> Main.switchScene(new ChapterThreeScreen().build());
+                case 4 -> Main.switchScene(new ChapterFourScreen().build());
+                case 5 -> Main.switchScene(new FinalMissionScreen().build());
+                default -> new javafx.scene.control.Alert(
                     javafx.scene.control.Alert.AlertType.INFORMATION,
-                    "Chapter " + label + ": " + name + "\n\n" +
-                    "Not implemented in this prototype build.\n" +
-                    "The chapter map and progression logic are wired — the gameplay screens for Chapters 3-4 + final mission are scaffolded for the team to fill in next."
+                    "Chapter " + label + ": " + name + "\n\nUnknown chapter."
                 ).showAndWait();
             }
         });
