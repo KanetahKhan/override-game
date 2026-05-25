@@ -28,7 +28,7 @@ This v0.1 build ships a **playable end-to-end vertical slice** of Chapter 1 plus
 | Save / Load (Properties file) | ✅ | `SaveService.java` |
 | Chapter ending screen | ✅ | `EndingScreen.java` |
 | HUD (HP / Dependency / Coins) | ✅ | `UIFactory.hud()` |
-| Chapters 2 – 4 + Final Mission | 🟡 stubs | `ChapterMapScreen.java` |
+| Chapters 2 – 5 + Final Mission | ✅ wired up | `chapter2/` … `chapter5/` |
 | Spring Boot backend | ✅ | `backend/` directory |
 
 > The build compiles **clean** against JavaFX 26.0.1 on JDK 26.
@@ -37,66 +37,24 @@ This v0.1 build ships a **playable end-to-end vertical slice** of Chapter 1 plus
 
 ## Running the game
 
-### Prerequisites
+> **Full setup lives in [`setup.md`](setup.md)** — prerequisites, install, run,
+> tests, and troubleshooting. Quick version below.
 
-* **JDK 26** (project uses 26 as source/target)
-* **Apache Maven 3.9+** — download the **Binary zip archive** from https://maven.apache.org/download.cgi
-
-### Step 1 — Install JDK 26
-
-Download and install JDK 26 from https://www.oracle.com/java/technologies/downloads/. Note the installation path (e.g. `E:\java`).
-
-### Step 2 — Install Maven
-
-1. Download `apache-maven-3.9.15-bin.zip` from https://maven.apache.org/download.cgi
-2. Extract the zip to a folder (e.g. `E:\apache-maven-3.9.15-bin\`)
-3. Add Maven's `bin` directory to your system PATH:
-
-   **Windows (permanent) — run once in PowerShell:**
-   ```powershell
-   [Environment]::SetEnvironmentVariable("Path", $env:PATH + ";E:\apache-maven-3.9.15-bin\apache-maven-3.9.15\bin", "User")
-   ```
-
-   **Windows (temporary, current session only):**
-   ```powershell
-   $env:PATH += ";E:\apache-maven-3.9.15-bin\apache-maven-3.9.15\bin"
-   ```
-
-   > Adjust the path above to match where you extracted Maven.
-
-4. **Open a new terminal** and verify:
-   ```powershell
-   mvn --version
-   ```
-
-### Step 3 — Run the game
-
-```powershell
-cd D:\override-game
-mvn javafx:run
-```
-
-Maven will automatically download JavaFX dependencies on the first run (requires internet). After that, the game window should launch.
-
-### Alternative — without Maven (Linux/macOS)
-
-Install OpenJFX (`apt install openjfx` on Debian/Ubuntu, or download from https://openjfx.io), then:
+**Prerequisites:** JDK 26 and Maven 3.9+ (JavaFX is downloaded by Maven; no
+separate SDK needed).
 
 ```bash
+git clone https://github.com/KanetahKhan/override-game.git
 cd override-game
-JFX=/usr/share/openjfx/lib   # adjust path to your JavaFX install
+mvn javafx:run          # launches the game
+```
 
-# Compile
-mkdir -p target/classes
-cp -r src/main/resources/* target/classes/
-javac --module-path "$JFX" --add-modules javafx.controls,javafx.fxml \
-  -d target/classes \
-  $(find src/main/java -name "*.java")
+The Spring Boot backend (optional — accounts, cloud saves, leaderboard) runs in
+a separate terminal:
 
-# Run
-java --module-path "$JFX" --add-modules javafx.controls,javafx.fxml \
-  -cp target/classes \
-  com.override.Main
+```bash
+cd backend
+mvn spring-boot:run     # starts http://localhost:8080
 ```
 
 ---
@@ -112,26 +70,15 @@ override-game/
 ├── src/main/                        ← JavaFX frontend
 │   ├── java/com/override/
 │   │   ├── Main.java                ← entry point + scene manager
-│   │   ├── model/
-│   │   │   ├── Player.java          ← stats + level + HP
-│   │   │   ├── GameCharacter.java   ← roster of selectable personas
-│   │   │   └── GameState.java       ← singleton: coins, dependency, progress
-│   │   ├── service/
-│   │   │   ├── SaveService.java     ← save/load to ~/.override/save.properties
-│   │   │   └── BkashMockService.java← simulated bKash payment dialog
-│   │   └── ui/
-│   │       ├── UIFactory.java       ← shared buttons, HUD, typewriter
-│   │       ├── MainMenuScreen.java
-│   │       ├── CharacterSelectScreen.java
-│   │       ├── ShopScreen.java
-│   │       ├── IntroStoryScreen.java
-│   │       ├── ChapterMapScreen.java
-│   │       ├── ChapterOneScreen.java← chapter 1 hub + room transitions
-│   │       ├── DialogueOverlay.java ← reusable typewriter dialogue
-│   │       ├── PuzzleScreen.java    ← Chapter 1 logic puzzle
-│   │       ├── StealthScreen.java   ← Chapter 1 stealth section
-│   │       ├── CombatScreen.java    ← turn-based boss fight
-│   │       └── EndingScreen.java
+│   │   ├── shared/
+│   │   │   ├── model/               ← Player, GameCharacter, GameState
+│   │   │   ├── service/             ← SaveService, BkashMockService
+│   │   │   └── ui/                  ← menus, dialogue overlay, HUD, shared screens
+│   │   ├── chapter1/                ← ChapterOne + Puzzle / Stealth / Combat screens
+│   │   ├── chapter2/                ← ChapterTwo + Crop / Drone / AgroBoss screens
+│   │   ├── chapter3/                ← ChapterThree + Triage / Hospital / MedBoss screens
+│   │   ├── chapter4/                ← ChapterFour + Code / Server / CodeBoss screens
+│   │   └── chapter5/                ← FinalMission, AstraBoss, FinalEnding
 │   └── resources/
 │       └── styles/main.css          ← entire dark cyber theme
 └── backend/                         ← Spring Boot backend
@@ -139,46 +86,15 @@ override-game/
     └── src/main/
         ├── java/com/override/backend/
         │   ├── OverrideBackendApplication.java
-        │   ├── config/
-        │   │   ├── SecurityConfig.java
-        │   │   └── GlobalExceptionHandler.java
-        │   ├── controller/
-        │   │   ├── AuthController.java
-        │   │   ├── PlayerController.java
-        │   │   ├── SaveController.java
-        │   │   ├── ProgressController.java
-        │   │   └── LeaderboardController.java
-        │   ├── dto/
-        │   │   ├── RegisterRequest.java
-        │   │   ├── LoginRequest.java
-        │   │   ├── AuthResponse.java
-        │   │   ├── SaveRequest.java
-        │   │   ├── ProgressRequest.java
-        │   │   └── LeaderboardResponse.java
-        │   ├── entity/
-        │   │   ├── User.java
-        │   │   ├── PlayerProfile.java
-        │   │   ├── GameSave.java
-        │   │   ├── ChapterProgress.java
-        │   │   ├── Achievement.java
-        │   │   └── LeaderboardEntry.java
-        │   ├── repository/
-        │   │   ├── UserRepository.java
-        │   │   ├── PlayerProfileRepository.java
-        │   │   ├── GameSaveRepository.java
-        │   │   ├── ChapterProgressRepository.java
-        │   │   ├── AchievementRepository.java
-        │   │   └── LeaderboardRepository.java
-        │   ├── security/
-        │   │   ├── JwtUtils.java
-        │   │   ├── JwtAuthFilter.java
-        │   │   └── AppUserDetailsService.java
-        │   └── service/
-        │       ├── AuthService.java
-        │       ├── PlayerService.java
-        │       ├── SaveService.java
-        │       ├── ProgressService.java
-        │       └── LeaderboardService.java
+        │   ├── config/               ← SecurityConfig, GlobalExceptionHandler
+        │   ├── security/             ← JwtUtils, JwtAuthFilter, AppUserDetailsService
+        │   ├── dto/                  ← request/response objects
+        │   ├── entity/               ← User, PlayerProfile, GameSave, ChapterProgress, Achievement, LeaderboardEntry
+        │   ├── repository/           ← Spring Data JPA repositories
+        │   ├── shared/
+        │   │   ├── controller/       ← Auth, Player, Save, Leaderboard controllers
+        │   │   └── service/          ← Auth, Player, Save, Leaderboard services
+        │   └── chapter1..5/          ← Chapter{N}ProgressController + Chapter{N}ProgressService
         └── resources/
             ├── application.properties
             └── db/schema.sql
@@ -225,15 +141,16 @@ Mapped 1-to-1 with the design doc. Buffed by:
 
 ---
 
-## Adding the remaining chapters
+## Chapter structure
 
-`ChapterMapScreen.java` already routes Chapters 2–4 + the final mission to a "not implemented" dialog. To wire them up:
+All five chapters are implemented and wired up — `ChapterMapScreen.java` routes
+each tile straight to its chapter screen (`ChapterOneScreen` … `FinalMissionScreen`).
+Every chapter lives in its own package (`chapter1/` … `chapter5/`) and reuses the
+shared engine pieces in `shared/ui` (`DialogueOverlay`, HUD, typewriter) plus its
+own puzzle / stealth / boss screens.
 
-1. Create `ChapterTwoScreen.java`, `ChapterThreeScreen.java`, etc. modeled on `ChapterOneScreen.java`.
-2. In `ChapterMapScreen.buildRow`, replace the stub `Alert` with `Main.switchScene(new ChapterTwoScreen().build())`.
-3. Each chapter reuses the existing `DialogueOverlay`, `PuzzleScreen`, `StealthScreen`, `CombatScreen` — just feed them new content.
-
-The hard part (engine pieces) is done. Chapters 2–4 are mostly content authoring + a couple of new puzzle types per chapter.
+To add a new chapter or a new puzzle type, model it on an existing
+`chapter*/` package and add a route in `ChapterMapScreen`.
 
 ---
 
@@ -243,10 +160,10 @@ The backend lives in the `backend/` directory. It provides user authentication (
 
 ### Running the backend
 
-Open a **separate terminal** from the game:
+Open a **separate terminal** from the game (full details in [`setup.md`](setup.md#6-run)):
 
-```powershell
-cd D:\override-game\backend
+```bash
+cd backend
 mvn spring-boot:run
 ```
 
@@ -264,8 +181,7 @@ To switch to MySQL for production, edit `backend/src/main/resources/application.
 | PUT | `/api/player/update` | Yes | Update profile / stats |
 | POST | `/api/save` | Yes | Save game state |
 | GET | `/api/save` | Yes | Load all saves for current user |
-| GET | `/api/progress` | Yes | Get chapter progress |
-| POST | `/api/progress/update` | Yes | Update chapter progress |
+| POST | `/api/chapter{1..5}/progress/update` | Yes | Update per-chapter progress |
 | GET | `/api/leaderboard` | No | Top 20 leaderboard |
 
 ### Database
