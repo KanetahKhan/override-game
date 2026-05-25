@@ -218,7 +218,8 @@ Controls:
 | `ENTER` | Reboot / instant restart on the game-over screen |
 | `ESC` | Exit (reports the result to the chapter) |
 
-Run it standalone:
+In the full game it is **Chapter 1 → Logic Lab** (replaces the old puzzle room).
+Or run it standalone:
 
 ```bash
 mvn javafx:run -Djavafx.mainClass=com.override.game.minigames.KernelPanicDemo
