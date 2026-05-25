@@ -1,7 +1,7 @@
 package com.override;
 
-import com.override.model.GameState;
-import com.override.ui.MainMenuScreen;
+import com.override.shared.model.GameState;
+import com.override.shared.ui.MainMenuScreen;
 import javafx.animation.FadeTransition;
 import javafx.application.Application;
 import javafx.scene.Parent;
