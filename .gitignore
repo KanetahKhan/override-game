@@ -1,0 +1,29 @@
+# ----- Build output -----
+target/
+**/target/
+*.class
+
+# ----- Local database (H2 file store) -----
+backend/data/
+*.mv.db
+*.trace.db
+
+# ----- Secrets / local config -----
+.env
+backend/.env
+
+# ----- Logs -----
+*.log
+logs/
+
+# ----- IDE / editor -----
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# ----- OS cruft -----
+.DS_Store
+Thumbs.db
