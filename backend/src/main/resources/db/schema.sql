@@ -72,6 +72,17 @@ CREATE TABLE IF NOT EXISTS leaderboard_entries (
     FOREIGN KEY (player_id) REFERENCES player_profiles(id)
 );
 
+-- One row per mini-game (e.g. 'kernel-panic'); tracks the global best run.
+CREATE TABLE IF NOT EXISTS high_scores (
+    id                    BIGINT AUTO_INCREMENT PRIMARY KEY,
+    game_type             VARCHAR(50) NOT NULL UNIQUE,
+    best_score            INT     DEFAULT 0,
+    best_combo            INT     DEFAULT 0,
+    best_wave             INT     DEFAULT 0,
+    best_run_was_assisted BOOLEAN DEFAULT FALSE,
+    achieved_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Seed achievements
 INSERT INTO achievements (code, title, description) VALUES
     ('FIRST_PUZZLE',    'First Steps',          'Solved your first puzzle without AI help'),

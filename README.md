@@ -29,6 +29,9 @@ This v0.1 build ships a **playable end-to-end vertical slice** of Chapter 1 plus
 | Chapter ending screen | ✅ | `EndingScreen.java` |
 | HUD (HP / Dependency / Coins) | ✅ | `UIFactory.hud()` |
 | Chapters 2 – 5 + Final Mission | ✅ wired up | `chapter2/` … `chapter5/` |
+| **Kernel Panic** reflex mini-game (Chapter 1) | ✅ playable | `game/minigames/KernelPanicGame.java` |
+| Mini-game framework (Canvas + AnimationTimer) | ✅ | `game/minigames/MiniGame.java` |
+| Persisted mini-game high scores | ✅ | `HighScore` entity + `/api/highscore` |
 | Spring Boot backend | ✅ | `backend/` directory |
 
 > The build compiles **clean** against JavaFX 26.0.1 on JDK 26.
@@ -188,6 +191,8 @@ To switch to MySQL for production, edit `backend/src/main/resources/application.
 | GET | `/api/save` | Yes | Load all saves for current user |
 | POST | `/api/chapter{1..5}/progress/update` | Yes | Update per-chapter progress |
 | GET | `/api/leaderboard` | No | Top 20 leaderboard |
+| GET | `/api/highscore/{gameType}` | No | Best mini-game run (e.g. `kernel-panic`) |
+| POST | `/api/highscore` | No | Submit a mini-game run (raises stored best) |
 
 ### Database
 
