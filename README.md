@@ -20,11 +20,9 @@ This v0.1 build ships a **playable end-to-end vertical slice** of Chapter 1 plus
 | Chapter map with progression | ✅ | `ChapterMapScreen.java` |
 | **Chapter 1 — The Silent Classroom** | ✅ playable | `ChapterOneScreen.java` |
 | Reusable dialogue overlay with choices | ✅ | `DialogueOverlay.java` |
-| Logic puzzle (3-way: solve / hint / Astra) | ✅ | `PuzzleScreen.java` |
-| Stealth: avoid sentinel vision cone | ✅ | `StealthScreen.java` |
-| Boss combat (turn-based) | ✅ | `CombatScreen.java` |
+| Chapter 1 mini-games (rebuilding on the new framework) | 🟡 in progress | Kernel Panic done; more to follow |
 | Dependency Meter + Independent XP | ✅ | `GameState.java` |
-| Hint system using coins | ✅ | inside `PuzzleScreen.java` |
+| Astra Assist (EMP) with a dependency cost | ✅ | inside `KernelPanicGame.java` |
 | Save / Load (Properties file) | ✅ | `SaveService.java` |
 | Chapter ending screen | ✅ | `EndingScreen.java` |
 | HUD (HP / Dependency / Coins) | ✅ | `UIFactory.hud()` |

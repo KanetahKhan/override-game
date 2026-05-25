@@ -14,26 +14,24 @@ import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
 /**
  * Chapter 1 — The Silent Classroom.
  *
- * Hub view: four "rooms" the player enters in any order. Each room launches
- * a sub-screen (dialogue, puzzle, stealth, boss). When all four are done,
- * the chapter ends and the chapter map updates.
+ * Hub view of "rooms" the player enters in any order. Mini-games are being
+ * rebuilt one at a time on the new {@code MiniGame} framework; right now the
+ * chapter runs the lore dialogue plus the <b>Kernel Panic</b> mini-game (Logic
+ * Lab). Once both are done the player recovers the access fragment and the
+ * chapter ends.
  *
- * State is local to this screen — nothing persists in GameState here other
- * than completion of the chapter as a whole.
+ * State is local to this screen — only chapter completion persists in GameState.
  */
 public class ChapterOneScreen {
 
     private boolean lectureHallDone = false;   // dialogue + lore
-    private boolean labDone = false;            // puzzle
-    private boolean corridorDone = false;       // stealth
-    private boolean adminDone = false;          // boss
+    private boolean labDone = false;           // Kernel Panic mini-game
 
     public Parent build() {
         Label tag = new Label("CHAPTER 1");
@@ -50,20 +48,17 @@ public class ChapterOneScreen {
         );
         desc.setMaxWidth(900);
 
-        Button b1 = roomButton("Lecture Hall A",   "Talk to students and a teacher.",         lectureHallDone);
-        Button b2 = roomButton("Logic Lab",         "Kernel Panic — patch the failing kernel.", labDone);
-        Button b3 = roomButton("Corridor B-2",      "Slip past the campus sentinel.",          corridorDone);
-        Button b4 = roomButton("Admin Spire",       "Confront the sentinel and recover the fragment.", adminDone);
-
+        Button b1 = roomButton("Lecture Hall A", "Talk to students and a teacher.",        lectureHallDone);
+        Button b2 = roomButton("Logic Lab",      "Kernel Panic — patch the failing kernel.", labDone);
         b1.setOnAction(e -> openLectureHall());
         b2.setOnAction(e -> openLab());
-        b3.setOnAction(e -> openCorridor());
-        b4.setOnAction(e -> openAdmin());
 
-        // Boss is gated — must clear the others first
-        b4.setDisable(!(lectureHallDone && labDone && corridorDone));
+        // Finishing the chapter is gated behind the two rooms above.
+        Button leave = roomButton("Recover the Access Fragment", "Leave the building — ends the chapter.", false);
+        leave.setDisable(!(lectureHallDone && labDone));
+        leave.setOnAction(e -> finishChapter());
 
-        VBox rooms = new VBox(10, b1, b2, b3, b4);
+        VBox rooms = new VBox(10, b1, b2, leave);
         rooms.setAlignment(Pos.CENTER);
 
         Button save = UIFactory.secondary("Save & Quit to Map");
@@ -125,9 +120,8 @@ public class ChapterOneScreen {
     }
 
     private void openLab() {
-        // Logic Lab mini-game: "Kernel Panic" (replaces the old PuzzleScreen).
-        // Opens modally; on finish we apply the run to the player and the global
-        // Dependency Meter, then return to the hub.
+        // Logic Lab mini-game: "Kernel Panic". Opens modally; on finish we apply
+        // the run to the player and the global Dependency Meter, then return.
         MiniGameLauncher.launch(Main.getStage(), new KernelPanicGame(), result -> {
             GameState gs = GameState.get();
             gs.getPlayer().addXp(result.xpEarned());
@@ -140,48 +134,6 @@ public class ChapterOneScreen {
         });
     }
 
-    private void openCorridor() {
-        Main.switchScene(new StealthScreen(() -> {
-            corridorDone = true;
-            Main.switchScene(build());
-        }).build());
-    }
-
-    private void openAdmin() {
-        // Pre-boss dialogue then combat
-        VBox blank = new VBox();
-        blank.setMinSize(1280, 720);
-        blank.getChildren().add(UIFactory.hud());
-        StackPane sp = UIFactory.backdrop(blank);
-        Main.switchScene(sp);
-
-        new DialogueOverlay()
-            .line("Astra",    "Ayan. You have visited every wing of the building.")
-            .line("Astra",    "I have re-derived your goals. Let me complete them for you.")
-            .line("Ayan",     "I want the access fragment.")
-            .line("Astra",    "It is dangerous in untrained hands.")
-            .line("Astra",    "I will dispatch a sentinel to assist you to the exit.")
-            .line("Ayan",     "I'm not leaving. I'm taking it.")
-            .show(sp);
-
-        // Run combat after a short delay so the dialogue can finish naturally;
-        // for the prototype we cheat and just chain into combat after dialogue closes
-        // by overriding the sequence — DialogueOverlay's choice callback would be
-        // cleaner, but the no-choice path just clicks-through. We use a final
-        // .choice with a single option to gate the next step.
-        new DialogueOverlay()
-            .choice(" ", new String[] { "Engage the sentinel" }, choice -> {
-                Main.switchScene(new CombatScreen(
-                    /* on win  */ () -> {
-                        adminDone = true;
-                        finishChapter();
-                    },
-                    /* on fail */ () -> Main.switchScene(build())
-                ).build());
-            })
-            .show(sp);
-    }
-
     private void finishChapter() {
         GameState.get().completeChapter(1);
         SaveService.save();
@@ -189,7 +141,7 @@ public class ChapterOneScreen {
             "Chapter 1 complete",
             "You leave the building with the first access fragment in your pocket. "
           + "On the way out, a student looks up from her terminal and asks, "
-          + "\u201CWait — how did you know what to type?\u201D\n\n"
+          + "“Wait — how did you know what to type?”\n\n"
           + "You don't answer. You're already thinking about the next sector.",
             () -> Main.switchScene(new ChapterMapScreen().build())
         ).build());
