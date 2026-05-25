@@ -31,6 +31,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**", "/h2/**").permitAll()
                 .requestMatchers("/api/leaderboard").permitAll()
+                .requestMatchers("/api/highscore/**").permitAll()
                 .anyRequest().authenticated()
             )
             .headers(h -> h.frameOptions(fo -> fo.sameOrigin()))
