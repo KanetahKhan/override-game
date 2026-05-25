@@ -117,6 +117,7 @@ public final class KernelPanicGame extends MiniGame {
 
     @Override
     protected void init() {
+        KernelPanicAssets.preload();
         persistedBest = highScore.loadBest();
         highScore.refreshFromBackendAsync();        // refresh local cache for later
         resetRun();
@@ -461,7 +462,7 @@ public final class KernelPanicGame extends MiniGame {
 
     @Override
     protected void render() {
-        clearScreen();
+        KernelPanicAssets.drawBackground(g, width, height);
 
         g.save();
         if (shakeTime > 0) {
@@ -475,19 +476,21 @@ public final class KernelPanicGame extends MiniGame {
         if (empActive) drawShockwave();
         g.restore();
 
+        if (comboCrack > 0) {
+            KernelPanicAssets.drawScreenGlitch(g, width, height, 0.5 * (comboCrack / 0.5));
+        }
+        if (empTint > 0) {
+            KernelPanicAssets.drawAstraInterference(g, width, height, 0.45 * (empTint / 0.5));
+        }
         drawScanlines();
         drawVignette();
-        if (empTint > 0) {
-            g.setGlobalAlpha(0.45 * (empTint / 0.5));
-            g.setFill(theme.accent());
-            g.fillRect(0, 0, width, height);
-            g.setGlobalAlpha(1);
-        }
+        KernelPanicAssets.drawCrtBezel(g, width, height);
         drawHud();
         if (state == State.GAME_OVER) drawGameOver();
     }
 
     private void drawLanes() {
+        KernelPanicAssets.drawLaneDividers(g, LANES, laneW, height);
         for (int i = 0; i < LANES; i++) {
             double x = i * laneW;
             if (laneFlash[i] > 0) {
@@ -685,8 +688,7 @@ public final class KernelPanicGame extends MiniGame {
     }
 
     private void drawGameOver() {
-        g.setFill(Color.rgb(0, 0, 0, 0.78));
-        g.fillRect(0, 0, width, height);
+        KernelPanicAssets.drawGameOver(g, width, height);
 
         g.setTextAlign(TextAlignment.CENTER);
         g.setFill(theme.danger());
