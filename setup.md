@@ -54,13 +54,42 @@ cd override-game
 
 The **frontend needs no environment variables.**
 
-The **backend** reads its configuration from
-`backend/src/main/resources/application.properties`, which ships with safe
-local-development defaults (embedded H2 database, a development JWT secret). You
-can run everything locally with **zero** environment setup.
+For **local development the backend needs none either** — `application.properties`
+ships with safe defaults (embedded H2, a dev-only JWT secret), so it runs out of
+the box. The variables below only **override** those defaults and are
+**required for any shared or production deployment** (never ship the dev secret).
 
-For any shared or production deployment you **must** override the JWT signing
-secret and the database credentials — see [Database / config](#5-database--config).
+| Variable | Required? | Example | What it's for |
+|---|---|---|---|
+| `APP_JWT_SECRET` | Prod | `a-random-256-bit-string…` | Signing key for auth tokens (≥ 32 chars / 256 bits). |
+| `APP_JWT_EXPIRATION_MS` | No | `86400000` | Token lifetime in ms (default 24h). |
+| `MYSQL_URL` | MySQL only | `jdbc:mysql://localhost:3306/override_db` | JDBC URL, if you switch from H2 to MySQL. |
+| `MYSQL_USER` | MySQL only | `root` | MySQL username. |
+| `MYSQL_PASSWORD` | MySQL only | `s3cret` | MySQL password. |
+
+**Set them up:**
+
+1. Copy the template and edit your values (`.env` is git-ignored — never commit it):
+   ```bash
+   cp .env.example .env
+   ```
+2. Spring Boot does **not** read `.env` automatically. Load it into your
+   environment before starting the backend:
+
+   **Windows (PowerShell):**
+   ```powershell
+   Get-Content .env | Where-Object { $_ -match '^\s*[^#].*=' } | ForEach-Object {
+     $name, $value = $_ -split '=', 2
+     Set-Item -Path "env:$($name.Trim())" -Value $value.Trim().Trim('"', "'")
+   }
+   ```
+
+   **macOS/Linux (bash/zsh):**
+   ```bash
+   set -a; . ./.env; set +a
+   ```
+
+   Then start the backend in the same terminal (see [Run](#6-run)).
 
 ---
 
