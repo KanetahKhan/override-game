@@ -171,6 +171,11 @@ The backend starts on `http://localhost:8080` with an embedded H2 database (zero
 
 To switch to MySQL for production, edit `backend/src/main/resources/application.properties` and uncomment the MySQL section.
 
+> **Secrets:** the JWT signing key and DB credentials are read from environment
+> variables (`APP_JWT_SECRET`, `MYSQL_*`) with dev-only defaults baked in for
+> local runs. For any shared/production deployment, copy `.env.example` to `.env`
+> and set real values — see [`setup.md` § Environment](setup.md#3-environment).
+
 ### REST API
 
 | Method | Endpoint | Auth | Description |
