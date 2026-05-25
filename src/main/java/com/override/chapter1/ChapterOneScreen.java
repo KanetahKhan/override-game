@@ -1,6 +1,8 @@
 package com.override.chapter1;
 
 import com.override.Main;
+import com.override.game.minigames.KernelPanicGame;
+import com.override.game.minigames.MiniGameLauncher;
 import com.override.shared.model.GameState;
 import com.override.shared.service.SaveService;
 import com.override.shared.ui.ChapterMapScreen;
@@ -49,7 +51,7 @@ public class ChapterOneScreen {
         desc.setMaxWidth(900);
 
         Button b1 = roomButton("Lecture Hall A",   "Talk to students and a teacher.",         lectureHallDone);
-        Button b2 = roomButton("Logic Lab",         "Bypass the sequence-locked terminal.",    labDone);
+        Button b2 = roomButton("Logic Lab",         "Kernel Panic — patch the failing kernel.", labDone);
         Button b3 = roomButton("Corridor B-2",      "Slip past the campus sentinel.",          corridorDone);
         Button b4 = roomButton("Admin Spire",       "Confront the sentinel and recover the fragment.", adminDone);
 
@@ -123,10 +125,19 @@ public class ChapterOneScreen {
     }
 
     private void openLab() {
-        Main.switchScene(new PuzzleScreen(() -> {
+        // Logic Lab mini-game: "Kernel Panic" (replaces the old PuzzleScreen).
+        // Opens modally; on finish we apply the run to the player and the global
+        // Dependency Meter, then return to the hub.
+        MiniGameLauncher.launch(Main.getStage(), new KernelPanicGame(), result -> {
+            GameState gs = GameState.get();
+            gs.getPlayer().addXp(result.xpEarned());
+            gs.increaseDependency(result.dependencyUsed());
+            gs.addCoins(Math.max(5, result.score() / 100));
+            // Solving it without leaning on Astra is the whole point of the game.
+            if (result.dependencyUsed() == 0) gs.addIndependentXp(15);
             labDone = true;
             Main.switchScene(build());
-        }).build());
+        });
     }
 
     private void openCorridor() {
