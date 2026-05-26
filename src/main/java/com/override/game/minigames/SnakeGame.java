@@ -108,6 +108,7 @@ public final class SnakeGame extends MiniGame {
 
     @Override
     protected void init() {
+        SnakeAssets.preload();
         persistedBest = highScore.loadBest();
         highScore.refreshFromBackendAsync();
         resetRun();
@@ -400,14 +401,7 @@ public final class SnakeGame extends MiniGame {
 
     @Override
     protected void render() {
-        // STEP 1 (mandatory): paint an OPAQUE full-canvas background. This is
-        // the line that prevents the "transparent checkerboard" bug — every
-        // frame, every state, no matter what.
-        g.setFill(theme.background());
-        g.fillRect(0, 0, width, height);
-
-        // subtle phosphor scanline / dotted grid behind the play area
-        drawTerminalBackdrop();
+        SnakeAssets.drawBackground(g, width, height);
 
         g.save();
         if (shakeTime > 0) {
@@ -431,32 +425,11 @@ public final class SnakeGame extends MiniGame {
         if (state == State.GAME_OVER) drawGameOver();
     }
 
-    private void drawTerminalBackdrop() {
-        // very faint dim-on-dark grid dots for a "classroom monitor" feel
-        g.setFill(theme.dim().deriveColor(0, 1, 1, 0.28));
-        for (int x = 0; x < cols; x++) {
-            for (int y = 0; y < rows; y++) {
-                g.fillRect(x * cell + cell / 2.0 - 1, y * cell + cell / 2.0 - 1, 2, 2);
-            }
-        }
-        // frame inset
-        g.setStroke(theme.dim());
-        g.setLineWidth(1);
-        g.strokeRect(0.5, 0.5, width - 1, height - 1);
-    }
-
     private void drawBits() {
         for (Bit b : bits) {
-            double pulse = 0.5 + 0.5 * Math.sin(time * 4 + b.phase);
-            double pad = 3 + pulse * 1.2;
-            // halo
-            g.setGlobalAlpha(0.35 + 0.35 * pulse);
-            g.setFill(theme.accent());
-            g.fillRect(b.x * cell, b.y * cell, cell, cell);
-            g.setGlobalAlpha(1);
-            // core
-            g.setFill(theme.glow());
-            g.fillRect(b.x * cell + pad, b.y * cell + pad, cell - 2 * pad, cell - 2 * pad);
+            double alpha = 0.6 + 0.4 * Math.sin(time * 4 + b.phase);
+            int variant = (int) (b.phase * 3) % 3;
+            SnakeAssets.drawFood(g, b.x, b.y, cell, variant, alpha);
         }
     }
 
@@ -464,20 +437,14 @@ public final class SnakeGame extends MiniGame {
         int i = 0;
         int n = body.size();
         for (int[] seg : body) {
-            boolean head = (i == 0);
-            Color c;
-            if (head) {
-                // blink between glow and accent so it reads as a terminal cursor
-                boolean on = headBlink < 0.55;
-                c = on ? theme.glow() : theme.accent();
+            if (i == 0) {
+                boolean blinkOn = headBlink < 0.55;
+                SnakeAssets.drawHead(g, seg[0], seg[1], cell, blinkOn);
             } else {
-                // body fades toward dim as the trail grows
                 double t = (double) i / Math.max(1, n);
-                c = theme.foreground().interpolate(theme.dim(), Math.min(0.55, 0.15 + 0.4 * t));
+                double alpha = 1.0 - 0.55 * Math.min(1, 0.15 + 0.4 * t);
+                SnakeAssets.drawBody(g, seg[0], seg[1], cell, alpha);
             }
-            g.setFill(c);
-            // inset 2px for that pixel-cursor look
-            g.fillRect(seg[0] * cell + 2, seg[1] * cell + 2, cell - 4, cell - 4);
             i++;
         }
     }
@@ -549,9 +516,7 @@ public final class SnakeGame extends MiniGame {
     }
 
     private void drawGameOver() {
-        // Centered dim overlay — keep the play area visible behind for context.
-        g.setFill(Color.rgb(0, 0, 0, 0.55));
-        g.fillRect(0, 0, width, height);
+        SnakeAssets.drawGameOver(g, width, height);
 
         g.setTextAlign(TextAlignment.CENTER);
         g.setTextBaseline(VPos.CENTER);
