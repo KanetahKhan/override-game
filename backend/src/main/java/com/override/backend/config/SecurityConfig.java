@@ -32,6 +32,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**", "/h2/**").permitAll()
                 .requestMatchers("/api/leaderboard").permitAll()
                 .requestMatchers("/api/highscore/**").permitAll()
+                .requestMatchers("/api/snake-highscore/**").permitAll()
                 .anyRequest().authenticated()
             )
             .headers(h -> h.frameOptions(fo -> fo.sameOrigin()))

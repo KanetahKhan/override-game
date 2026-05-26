@@ -2,7 +2,10 @@ package com.override.chapter1;
 
 import com.override.Main;
 import com.override.game.minigames.KernelPanicGame;
+import com.override.game.minigames.MiniGame;
 import com.override.game.minigames.MiniGameLauncher;
+import com.override.game.minigames.MiniGameResult;
+import com.override.game.minigames.SnakeGame;
 import com.override.shared.model.GameState;
 import com.override.shared.service.SaveService;
 import com.override.shared.ui.ChapterMapScreen;
@@ -20,18 +23,21 @@ import javafx.scene.layout.VBox;
 /**
  * Chapter 1 — The Silent Classroom.
  *
- * Hub view of "rooms" the player enters in any order. Mini-games are being
- * rebuilt one at a time on the new {@code MiniGame} framework; right now the
- * chapter runs the lore dialogue plus the <b>Kernel Panic</b> mini-game (Logic
- * Lab). Once both are done the player recovers the access fragment and the
- * chapter ends.
- *
- * State is local to this screen — only chapter completion persists in GameState.
+ * Hub view of "rooms" the player enters in order:
+ * <ol>
+ *   <li>Lecture Hall A — dialogue + lore</li>
+ *   <li>Logic Lab — <b>Kernel Panic</b> mini-game (Chapter 1, game #1)</li>
+ *   <li>Practice Terminal — <b>Syntax Snake</b> mini-game (Chapter 1, game #2),
+ *       unlocked after Kernel Panic so the two mini-games play in sequence</li>
+ * </ol>
+ * Recovering the access fragment requires all three; only chapter completion
+ * persists in {@link GameState}, the room flags live for the screen's lifetime.
  */
 public class ChapterOneScreen {
 
     private boolean lectureHallDone = false;   // dialogue + lore
-    private boolean labDone = false;           // Kernel Panic mini-game
+    private boolean labDone = false;           // Kernel Panic
+    private boolean terminalDone = false;      // Syntax Snake
 
     public Parent build() {
         Label tag = new Label("CHAPTER 1");
@@ -48,17 +54,23 @@ public class ChapterOneScreen {
         );
         desc.setMaxWidth(900);
 
-        Button b1 = roomButton("Lecture Hall A", "Talk to students and a teacher.",        lectureHallDone);
-        Button b2 = roomButton("Logic Lab",      "Kernel Panic — patch the failing kernel.", labDone);
+        Button b1 = roomButton("Lecture Hall A", "Talk to students and a teacher.",        lectureHallDone, false);
+        Button b2 = roomButton("Logic Lab",      "Kernel Panic — patch the failing kernel.", labDone, false);
+        Button b3 = roomButton("Practice Terminal",
+                labDone ? "Syntax Snake — drive the blinking cursor and harvest knowledge bits."
+                        : "LOCKED — complete the Logic Lab first.",
+                terminalDone, !labDone);
         b1.setOnAction(e -> openLectureHall());
         b2.setOnAction(e -> openLab());
+        b3.setOnAction(e -> openTerminal());
 
-        // Finishing the chapter is gated behind the two rooms above.
-        Button leave = roomButton("Recover the Access Fragment", "Leave the building — ends the chapter.", false);
-        leave.setDisable(!(lectureHallDone && labDone));
+        // Finishing the chapter is gated behind all three rooms above.
+        Button leave = roomButton("Recover the Access Fragment", "Leave the building — ends the chapter.", false, false);
+        boolean allDone = lectureHallDone && labDone && terminalDone;
+        leave.setDisable(!allDone);
         leave.setOnAction(e -> finishChapter());
 
-        VBox rooms = new VBox(10, b1, b2, leave);
+        VBox rooms = new VBox(10, b1, b2, b3, leave);
         rooms.setAlignment(Pos.CENTER);
 
         Button save = UIFactory.secondary("Save & Quit to Map");
@@ -76,10 +88,12 @@ public class ChapterOneScreen {
         return UIFactory.backdrop(wrap);
     }
 
-    private Button roomButton(String title, String hint, boolean done) {
-        Button b = new Button((done ? "✓ " : "▶ ") + title + "  —  " + hint);
+    private Button roomButton(String title, String hint, boolean done, boolean locked) {
+        String prefix = locked ? "🔒 " : (done ? "✓ " : "▶ ");
+        Button b = new Button(prefix + title + "  —  " + hint);
         b.getStyleClass().add(done ? "room-done" : "room-open");
         b.setMinWidth(640);
+        if (locked) b.setDisable(true);
         return b;
     }
 
@@ -120,18 +134,41 @@ public class ChapterOneScreen {
     }
 
     private void openLab() {
-        // Logic Lab mini-game: "Kernel Panic". Opens modally; on finish we apply
-        // the run to the player and the global Dependency Meter, then return.
-        MiniGameLauncher.launch(Main.getStage(), new KernelPanicGame(), result -> {
-            GameState gs = GameState.get();
-            gs.getPlayer().addXp(result.xpEarned());
-            gs.increaseDependency(result.dependencyUsed());
-            gs.addCoins(Math.max(5, result.score() / 100));
-            // Solving it without leaning on Astra is the whole point of the game.
-            if (result.dependencyUsed() == 0) gs.addIndependentXp(15);
+        // Logic Lab mini-game #1: Kernel Panic.
+        launchMiniGame(new KernelPanicGame(), result -> {
+            applyMiniGameResult(result);
             labDone = true;
             Main.switchScene(build());
         });
+    }
+
+    private void openTerminal() {
+        // Practice Terminal mini-game #2: Syntax Snake. Only reachable once the
+        // Logic Lab is done (the button is locked above), so the two mini-games
+        // always play in sequence: Kernel Panic → Snake.
+        if (!labDone) return;
+        launchMiniGame(new SnakeGame(), result -> {
+            applyMiniGameResult(result);
+            terminalDone = true;
+            Main.switchScene(build());
+        });
+    }
+
+    private void launchMiniGame(MiniGame game, com.override.game.minigames.ResultListener listener) {
+        MiniGameLauncher.launch(Main.getStage(), game, listener);
+    }
+
+    /**
+     * Apply a mini-game result to the player and global state:
+     * XP and coins for a strong run, dependency for using Astra, independence
+     * bonus for solving it without leaning on the assist.
+     */
+    private void applyMiniGameResult(MiniGameResult result) {
+        GameState gs = GameState.get();
+        gs.getPlayer().addXp(result.xpEarned());
+        gs.increaseDependency(result.dependencyUsed());
+        gs.addCoins(Math.max(5, result.score() / 100));
+        if (result.dependencyUsed() == 0) gs.addIndependentXp(15);
     }
 
     private void finishChapter() {
