@@ -12,6 +12,7 @@ import com.override.shared.ui.ChapterMapScreen;
 import com.override.shared.ui.DialogueOverlay;
 import com.override.shared.ui.EndingScreen;
 import com.override.shared.ui.UIFactory;
+import com.override.shared.ui.WalkTransitionScreen;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
@@ -57,9 +58,8 @@ public class ChapterOneScreen {
         Button b1 = roomButton("Lecture Hall A", "Talk to students and a teacher.",        lectureHallDone, false);
         Button b2 = roomButton("Logic Lab",      "Kernel Panic — patch the failing kernel.", labDone, false);
         Button b3 = roomButton("Practice Terminal",
-                labDone ? "Syntax Snake — drive the blinking cursor and harvest knowledge bits."
-                        : "LOCKED — complete the Logic Lab first.",
-                terminalDone, !labDone);
+                "Syntax Snake — drive the blinking cursor and harvest knowledge bits.",
+                terminalDone, false);
         b1.setOnAction(e -> openLectureHall());
         b2.setOnAction(e -> openLab());
         b3.setOnAction(e -> openTerminal());
@@ -128,7 +128,7 @@ public class ChapterOneScreen {
                     GameState.get().addIndependentXp(10);
                     GameState.get().addCoins(15);
                     lectureHallDone = true;
-                    Main.switchScene(build());
+                    WalkTransitionScreen.walkTo("Back to the corridor...", () -> Main.switchScene(build()));
                 })
             .show(sp);
     }
@@ -138,19 +138,18 @@ public class ChapterOneScreen {
         launchMiniGame(new KernelPanicGame(), result -> {
             applyMiniGameResult(result);
             labDone = true;
-            Main.switchScene(build());
+            WalkTransitionScreen.walkTo("Leaving the Logic Lab...", () -> Main.switchScene(build()));
         });
     }
 
     private void openTerminal() {
-        // Practice Terminal mini-game #2: Syntax Snake. Only reachable once the
-        // Logic Lab is done (the button is locked above), so the two mini-games
-        // always play in sequence: Kernel Panic → Snake.
-        if (!labDone) return;
+        // Practice Terminal mini-game #2: Syntax Snake. Available alongside the
+        // Logic Lab — the recommended order is still Kernel Panic → Snake, but
+        // the player can pick the rooms in any order.
         launchMiniGame(new SnakeGame(), result -> {
             applyMiniGameResult(result);
             terminalDone = true;
-            Main.switchScene(build());
+            WalkTransitionScreen.walkTo("Leaving the Practice Terminal...", () -> Main.switchScene(build()));
         });
     }
 
