@@ -120,8 +120,13 @@ public final class SnakeGame extends MiniGame {
         bits.clear();
         floats.clear();
 
+        // Lay the snake out so the head is on the right and the body trails to
+        // the left, matching the initial RIGHT direction. Adding to the back
+        // (head=false) leaves the head fixed at (cx, cy) and grows the tail
+        // leftwards — so the first step walks into empty space, not the body.
         int cx = cols / 2, cy = rows / 2;
-        for (int i = 0; i < START_LEN; i++) addSegment(cx - i, cy, true);  // head first
+        addSegment(cx, cy, true);                                        // head
+        for (int i = 1; i < START_LEN; i++) addSegment(cx - i, cy, false); // body to the left
         dir = queuedDir = Dir.RIGHT;
         step = START_STEP;
         stepAccum = 0;
