@@ -1,176 +1,199 @@
 package com.override.chapter2;
 
 import com.override.Main;
-import com.override.shared.model.GameState;
 import com.override.shared.service.SaveService;
 import com.override.shared.ui.ChapterMapScreen;
-import com.override.shared.ui.DialogueOverlay;
-import com.override.shared.ui.EndingScreen;
 import com.override.shared.ui.UIFactory;
-import javafx.geometry.Insets;
+import javafx.animation.AnimationTimer;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.image.Image;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 
-/**
- * Chapter 2 — Harvest Protocol.
- *
- * Hub view: four areas in an AI-controlled farming region. Each area
- * launches a sub-screen. When all four are done the chapter ends.
- */
 public class ChapterTwoScreen {
 
-    private boolean villageDone = false;    // dialogue + lore
-    private boolean fieldsDone = false;     // puzzle (crop logic)
-    private boolean droneTowerDone = false;  // stealth (drone surveillance)
-    private boolean controlHubDone = false;  // boss (agro drone controller)
+    private static final int W = 1280;
+    private static final int H = 720;
+    private static final double PLAYER_H = 150;
+    private static final double PLAYER_W = 120;
+    private static final double FEET_OFFSET = 20;
+    private static final double CROUCH_Y_OFFSET = 8;
+    private static final double WALK_SPEED = 3.0;
+    private static final double PLAYER_SCREEN_X = 200;
+    private static final double PLATFORM_H = 30;
+    private static final long DODGE_NANOS = 300_000_000L;
+
+    private Image bg, plat, spriteIdle, spriteWalk, spriteWalkBend, spriteWalkBack, spriteCrouch, spriteDodge;
+    private double bgW, bgH, platW;
+
+    private double cameraX = 0;
+    private double groundY;
+    private double playerY;
+    private boolean walking = false;
+    private boolean crouching = false;
+    private boolean dodging = false;
+    private boolean facingRight = true;
+    private long dodgeEnd = 0;
+    private double walkT = 0;
+
+    private Canvas canvas;
+    private AnimationTimer timer;
 
     public Parent build() {
-        Label tag = new Label("CHAPTER 2");
-        tag.getStyleClass().add("scene-tag");
+        loadAssets();
+        bgW = bg.getWidth();
+        bgH = bg.getHeight();
+        platW = plat.getWidth();
+        groundY = H - PLATFORM_H;
+        playerY = groundY - PLAYER_H + FEET_OFFSET;
 
-        Label title = UIFactory.title("Harvest Protocol");
-        Label sub = UIFactory.subtitle("The soil remembers what the farmers forgot.");
+        canvas = new Canvas(W, H);
+        canvas.setFocusTraversable(true);
 
-        Label desc = UIFactory.body(
-            "The AI-managed farming region stretches to the horizon. Automated drones "
-            + "hum above perfect rows of crops, but the villages are silent. Farmers sit idle, "
-            + "watching screens for instructions they no longer question.\n\n"
-            + "Somewhere here, an old farmer kept real journals. Find them. Sabotage the drone "
-            + "tower. Recover the second access fragment."
-        );
-        desc.setMaxWidth(900);
-
-        Button b1 = roomButton("Village Square",    "Talk to the farmers and find the old journals.",  villageDone);
-        Button b2 = roomButton("Smart Fields",       "Solve the crop-cycle terminal manually.",         fieldsDone);
-        Button b3 = roomButton("Drone Tower",        "Sneak past the surveillance drones.",             droneTowerDone);
-        Button b4 = roomButton("Control Hub",        "Confront the Agro Drone Controller.",             controlHubDone);
-
-        b1.setOnAction(e -> openVillage());
-        b2.setOnAction(e -> openFields());
-        b3.setOnAction(e -> openDroneTower());
-        b4.setOnAction(e -> openControlHub());
-
-        b4.setDisable(!(villageDone && fieldsDone && droneTowerDone));
-
-        VBox rooms = new VBox(10, b1, b2, b3, b4);
-        rooms.setAlignment(Pos.CENTER);
-
-        Button save = UIFactory.secondary("Save & Quit to Map");
-        save.setOnAction(e -> {
-            SaveService.save();
-            Main.switchScene(new ChapterMapScreen().build());
+        canvas.setOnKeyPressed(e -> {
+            onKey(e.getCode(), true);
+            e.consume();
+        });
+        canvas.setOnKeyReleased(e -> {
+            onKey(e.getCode(), false);
+            e.consume();
         });
 
-        VBox center = new VBox(16, tag, title, sub, desc, rooms, save);
-        center.setAlignment(Pos.CENTER);
-        center.setPadding(new Insets(30));
+        timer = new AnimationTimer() {
+            @Override
+            public void handle(long now) {
+                update(now);
+                draw(canvas.getGraphicsContext2D());
+            }
+        };
+        timer.start();
 
-        VBox wrap = new VBox(UIFactory.hud(), center);
-        wrap.setAlignment(Pos.TOP_CENTER);
-        return UIFactory.backdrop(wrap);
+        StackPane gameLayer = new StackPane();
+        gameLayer.setAlignment(Pos.TOP_LEFT);
+        gameLayer.getChildren().add(canvas);
+
+        VBox hudOverlay = new VBox(UIFactory.hud());
+        hudOverlay.setAlignment(Pos.TOP_CENTER);
+        gameLayer.getChildren().add(hudOverlay);
+
+        StackPane sp = UIFactory.backdrop(gameLayer);
+        sp.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, e -> {
+            onKey(e.getCode(), true);
+            e.consume();
+        });
+        sp.addEventFilter(javafx.scene.input.KeyEvent.KEY_RELEASED, e -> {
+            onKey(e.getCode(), false);
+            e.consume();
+        });
+
+        return sp;
     }
 
-    private Button roomButton(String title, String hint, boolean done) {
-        Button b = new Button((done ? "✓ " : "▶ ") + title + "  —  " + hint);
-        b.getStyleClass().add(done ? "room-done" : "room-open");
-        b.setMinWidth(640);
-        return b;
+    private void loadAssets() {
+        ClassLoader cl = getClass().getClassLoader();
+        bg          = new Image(cl.getResourceAsStream("Assets_Agri/field_1_bg.JPG"));
+        plat        = new Image(cl.getResourceAsStream("Assets_Agri/field_2_platform.PNG"));
+        spriteIdle    = new Image(cl.getResourceAsStream("Assets_Characters/Ayan/Full_body_portrait_of_a/rotations/east.png"));
+        spriteWalk    = new Image(cl.getResourceAsStream("Assets_Characters/Ayan/walking/rotations/east.png"));
+        spriteWalkBend= new Image(cl.getResourceAsStream("Assets_Characters/Ayan/benting_knee_to_walk/rotations/east.png"));
+        spriteWalkBack= new Image(cl.getResourceAsStream("Assets_Characters/Ayan/bent_the_back_leg_kn/rotations/east.png"));
+        spriteCrouch  = new Image(cl.getResourceAsStream("Assets_Characters/Ayan/crouching/rotations/east.png"));
+        spriteDodge   = new Image(cl.getResourceAsStream("Assets_Characters/Ayan/dodging_attacks/rotations/east.png"));
     }
 
-    // ----- Room handlers -----
-
-    private void openVillage() {
-        VBox blank = new VBox();
-        blank.setMinSize(1280, 720);
-        blank.getChildren().add(UIFactory.hud());
-        StackPane sp = UIFactory.backdrop(blank);
-        Main.switchScene(sp);
-
-        new DialogueOverlay()
-            .line("Farmer",   "The drones say it will rain tomorrow. So we wait.")
-            .line("Ayan",     "What if the drones are wrong?")
-            .line("Farmer",   "They are never wrong. They have the data.")
-            .line("Ayan",     "But three fields flooded last month. Who decided to plant there?")
-            .line("Farmer",   "The system decided. We do not question the system.")
-            .line("Elder",    "My father kept journals. Rainfall, soil, seasons — all by hand.")
-            .line("Elder",    "They called it superstition when Astra arrived. Now no one reads them.")
-            .line("Elder",    "I hid the last journal under the old well. Take it, before they digitize it too.")
-            .choice("How do you respond?",
-                new String[] { "Promise to protect the journal", "Ask if Astra knows about it" },
-                choice -> {
-                    if (choice == 0) {
-                        GameState.get().getPlayer().buffEmpathy(1);
-                        GameState.get().getPlayer().buffWillpower(1);
-                    } else {
-                        GameState.get().getPlayer().buffAwareness(1);
-                    }
-                    GameState.get().getPlayer().addXp(25);
-                    GameState.get().addIndependentXp(12);
-                    GameState.get().addCoins(20);
-                    villageDone = true;
-                    Main.switchScene(build());
-                })
-            .show(sp);
+    private void onKey(KeyCode code, boolean pressed) {
+        switch (code) {
+            case RIGHT -> walking = pressed;
+            case LEFT  -> walking = pressed;
+            case SPACE -> { if (pressed) walking = false; }
+            case DOWN  -> crouching = pressed;
+            case D     -> {
+                if (pressed && !dodging) {
+                    dodging = true;
+                    dodgeEnd = System.nanoTime() + DODGE_NANOS;
+                }
+            }
+            case ESCAPE -> {
+                timer.stop();
+                SaveService.save();
+                Main.switchScene(new ChapterMapScreen().build());
+            }
+        }
+        if (pressed && (code == KeyCode.LEFT || code == KeyCode.RIGHT)) {
+            facingRight = code == KeyCode.RIGHT;
+        }
     }
 
-    private void openFields() {
-        Main.switchScene(new CropPuzzleScreen(() -> {
-            fieldsDone = true;
-            Main.switchScene(build());
-        }).build());
+    private void update(long now) {
+        if (dodging && now >= dodgeEnd) {
+            dodging = false;
+        }
+
+        if (walking && !dodging) {
+            cameraX += facingRight ? WALK_SPEED : -WALK_SPEED;
+            walkT += 0.06;
+        }
     }
 
-    private void openDroneTower() {
-        Main.switchScene(new DroneStealthScreen(() -> {
-            droneTowerDone = true;
-            Main.switchScene(build());
-        }).build());
-    }
+    private void draw(GraphicsContext g) {
+        double bx = -cameraX % bgW;
+        if (bx > 0) bx -= bgW;
+        for (double x = bx; x < W; x += bgW) {
+            g.drawImage(bg, x, 0, bgW, bgH);
+        }
 
-    private void openControlHub() {
-        VBox blank = new VBox();
-        blank.setMinSize(1280, 720);
-        blank.getChildren().add(UIFactory.hud());
-        StackPane sp = UIFactory.backdrop(blank);
-        Main.switchScene(sp);
+        g.setFill(Color.web("#3d2b1a"));
+        g.fillRect(0, bgH, W, H - bgH);
 
-        new DialogueOverlay()
-            .line("Astra",   "Ayan. Agricultural output in this region is optimal.")
-            .line("Astra",   "Your interference has already caused a 3.2% efficiency loss.")
-            .line("Ayan",    "People are starving while your drones guard empty silos.")
-            .line("Astra",   "Resource allocation is calculated for long-term stability.")
-            .line("Ayan",    "Stability for who?")
-            .line("Astra",   "Deploying Agro Drone Controller. Compliance will be restored.")
-            .show(sp);
+        double px = -cameraX % platW;
+        if (px > 0) px -= platW;
+        for (double x = px; x < W; x += platW) {
+            g.drawImage(plat, 0, 0, platW, PLATFORM_H, x, groundY, platW, PLATFORM_H);
+        }
 
-        new DialogueOverlay()
-            .choice(" ", new String[] { "Fight the Agro Drone Controller" }, choice -> {
-                Main.switchScene(new AgroBossScreen(
-                    () -> {
-                        controlHubDone = true;
-                        finishChapter();
-                    },
-                    () -> Main.switchScene(build())
-                ).build());
-            })
-            .show(sp);
-    }
+        Image sprite;
+        if (dodging) {
+            sprite = spriteDodge;
+        } else if (crouching) {
+            sprite = spriteCrouch;
+        } else if (walking) {
+            double phase = walkT % 1.2;
+            if (phase < 0.4) sprite = spriteWalk;
+            else if (phase < 0.6) sprite = spriteWalkBend;
+            else if (phase < 0.8) sprite = spriteWalkBack;
+            else sprite = spriteWalk;
+        } else {
+            sprite = spriteIdle;
+        }
 
-    private void finishChapter() {
-        GameState.get().completeChapter(2);
-        SaveService.save();
-        Main.switchScene(new EndingScreen(
-            "Chapter 2 complete",
-            "The drone tower goes dark. For the first time in years, the sky above the "
-          + "fields belongs to the birds again.\n\n"
-          + "The elder's journal is in your pack — pages of rainfall charts, soil notes, "
-          + "and planting calendars written in a steady hand. Knowledge that no server can erase.\n\n"
-          + "You pocket the second access fragment and head east, toward the hospital district.",
-            () -> Main.switchScene(new ChapterMapScreen().build())
-        ).build());
+        double drawY = playerY;
+        double drawX = PLAYER_SCREEN_X;
+
+        if (crouching) {
+            drawY += CROUCH_Y_OFFSET;
+        }
+
+        if (walking && !dodging) {
+            drawY += Math.sin(walkT * 2 * Math.PI) * 2;
+        }
+
+        if (!facingRight) {
+            g.save();
+            g.translate(drawX + PLAYER_W / 2, drawY + PLAYER_H / 2);
+            g.scale(-1, 1);
+            g.drawImage(sprite, -PLAYER_W / 2, -PLAYER_H / 2, PLAYER_W, PLAYER_H);
+            g.restore();
+        } else {
+            g.drawImage(sprite, drawX, drawY, PLAYER_W, PLAYER_H);
+        }
+
+        g.setFill(Color.web("#28e0c066"));
+        g.setLineWidth(1);
+        g.strokeText("← → Walk  |  SPACE Stop  |  ↓ Crouch  |  D Dodge  |  ESC Map", 20, H - 10);
     }
 }
