@@ -27,3 +27,23 @@ logs/
 # ----- OS cruft -----
 .DS_Store
 Thumbs.db
+
+# ----- Extracted / copied dependencies -----
+aopalliance/
+avalon-framework/
+classworlds/
+commons-beanutils/
+commons-chain/
+commons-codec/
+commons-collections/
+commons-digester/
+commons-io/
+commons-lang/
+commons-logging/
+dom4j/
+junit/
+log4j/
+logkit/
+net/
+oro/
+xml-apis/
