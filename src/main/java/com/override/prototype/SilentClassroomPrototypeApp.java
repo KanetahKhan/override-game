@@ -7,105 +7,237 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 
-import static com.almasb.fxgl.dsl.FXGL.entityBuilder;
-import static com.almasb.fxgl.dsl.FXGL.onKey;
+import static com.almasb.fxgl.dsl.FXGL.*;
 
 public final class SilentClassroomPrototypeApp extends GameApplication {
 
-    private static final int WIDTH = 960;
-    private static final int HEIGHT = 540;
+    private static final int VIEW_WIDTH = 1280;
+    private static final int VIEW_HEIGHT = 720;
 
-    private static final double PLAYER_SIZE = 32;
-    private static final double SPEED = 4;
+    /*
+     * Tiled map:
+     * 72 columns × 100 rows
+     * Each tile is 32 × 32 pixels.
+     */
+    private static final int TILE_SIZE = 32;
+    private static final int MAP_COLUMNS = 72;
+    private static final int MAP_ROWS = 100;
+
+ private static final int MAP_WIDTH =
+        MAP_COLUMNS * TILE_SIZE;
+
+private static final int MAP_HEIGHT =
+        MAP_ROWS * TILE_SIZE;
+
+    private static final double PLAYER_SIZE = 24;
+    private static final double PLAYER_SPEED = 4;
+
+    /*
+     * Corresponds to the PlayerSpawn marker around tile 35,70.
+     */
+    private static final double PLAYER_START_X =
+            35 * TILE_SIZE
+                    + TILE_SIZE / 2.0
+                    - PLAYER_SIZE / 2.0;
+
+    private static final double PLAYER_START_Y =
+            70 * TILE_SIZE
+                    + TILE_SIZE / 2.0
+                    - PLAYER_SIZE / 2.0;
 
     private Entity player;
 
     @Override
     protected void initSettings(GameSettings settings) {
-        settings.setWidth(WIDTH);
-        settings.setHeight(HEIGHT);
-        settings.setTitle("Silent Classroom - FXGL Test");
-        settings.setVersion("0.1");
+        settings.setWidth(VIEW_WIDTH);
+        settings.setHeight(VIEW_HEIGHT);
+
+        settings.setTitle("Silent Classroom - Collision Test");
+        settings.setVersion("0.4");
+
+        settings.setIntroEnabled(false);
         settings.setMainMenuEnabled(false);
         settings.setGameMenuEnabled(false);
+
+        settings.setManualResizeEnabled(true);
+        settings.setPreserveResizeRatio(true);
+
+        settings.setFullScreenAllowed(true);
+        settings.setFullScreenFromStart(false);
     }
 
     @Override
     protected void initGame() {
-        createBackground();
-        createWalls();
+        getGameScene().setBackgroundColor(
+                Color.rgb(14, 17, 23)
+        );
+
+        /*
+         * Register the factory before loading the TMX.
+         */
+        getGameWorld().addEntityFactory(
+                new SilentClassroomFactory()
+        );
+
+        /*
+         * Loads from:
+         * src/main/resources/assets/levels/
+         */
+        setLevelFromMap(
+                "academic-building-2-floor-2.tmx"
+        );
+
         createPlayer();
-    }
-
-    @Override
-    protected void initInput() {
-        onKey(KeyCode.W, () -> movePlayer(0, -SPEED));
-        onKey(KeyCode.S, () -> movePlayer(0, SPEED));
-        onKey(KeyCode.A, () -> movePlayer(-SPEED, 0));
-        onKey(KeyCode.D, () -> movePlayer(SPEED, 0));
-    }
-
-    private void createBackground() {
-        entityBuilder()
-                .at(0, 0)
-                .view(new Rectangle(
-                        WIDTH,
-                        HEIGHT,
-                        Color.rgb(18, 21, 30)
-                ))
-                .buildAndAttach();
+        configureCamera();
     }
 
     private void createPlayer() {
+        Rectangle temporaryPlayerView = new Rectangle(
+                PLAYER_SIZE,
+                PLAYER_SIZE,
+                Color.CYAN
+        );
+
+        temporaryPlayerView.setStroke(Color.WHITE);
+        temporaryPlayerView.setStrokeWidth(1.5);
+
         player = entityBuilder()
-                .at(80, 80)
-                .viewWithBBox(new Rectangle(
-                        PLAYER_SIZE,
-                        PLAYER_SIZE,
-                        Color.CYAN
-                ))
+                .at(PLAYER_START_X, PLAYER_START_Y)
+                .type(SilentClassroomType.PLAYER)
+                .viewWithBBox(temporaryPlayerView)
+                .collidable()
+                .zIndex(100)
                 .buildAndAttach();
     }
 
-    private void createWalls() {
-        Color wallColor = Color.rgb(100, 55, 55);
+   private void configureCamera() {
+    var viewport = getGameScene().getViewport();
 
-        // Outer walls
-        createWall(0, 0, WIDTH, 32, wallColor);
-        createWall(0, HEIGHT - 32, WIDTH, 32, wallColor);
-        createWall(0, 0, 32, HEIGHT, wallColor);
-        createWall(WIDTH - 32, 0, 32, HEIGHT, wallColor);
+    viewport.setBounds(
+            0,
+            0,
+            MAP_WIDTH,
+            MAP_HEIGHT
+    );
 
-        // Temporary classroom walls
-        createWall(250, 130, 220, 32, wallColor);
-        createWall(580, 280, 32, 170, wallColor);
+    viewport.bindToEntity(
+            player,
+            getAppWidth() / 2.0,
+            getAppHeight() / 2.0
+    );
+
+    viewport.setZoom(1.0);
+}
+    @Override
+    protected void initInput() {
+        // WASD movement
+        onKey(
+                KeyCode.W,
+                () -> movePlayer(0, -PLAYER_SPEED)
+        );
+
+        onKey(
+                KeyCode.S,
+                () -> movePlayer(0, PLAYER_SPEED)
+        );
+
+        onKey(
+                KeyCode.A,
+                () -> movePlayer(-PLAYER_SPEED, 0)
+        );
+
+        onKey(
+                KeyCode.D,
+                () -> movePlayer(PLAYER_SPEED, 0)
+        );
+
+        // Arrow-key movement
+        onKey(
+                KeyCode.UP,
+                () -> movePlayer(0, -PLAYER_SPEED)
+        );
+
+        onKey(
+                KeyCode.DOWN,
+                () -> movePlayer(0, PLAYER_SPEED)
+        );
+
+        onKey(
+                KeyCode.LEFT,
+                () -> movePlayer(-PLAYER_SPEED, 0)
+        );
+
+        onKey(
+                KeyCode.RIGHT,
+                () -> movePlayer(PLAYER_SPEED, 0)
+        );
     }
 
-    private void createWall(
-            double x,
-            double y,
-            double width,
-            double height,
-            Color color
+    private void movePlayer(
+            double movementX,
+            double movementY
     ) {
-        entityBuilder()
-                .at(x, y)
-                .viewWithBBox(new Rectangle(width, height, color))
-                .buildAndAttach();
+        /*
+         * Moving each axis separately allows the player
+         * to slide along a wall instead of becoming stuck.
+         */
+        moveHorizontally(movementX);
+        moveVertically(movementY);
     }
 
-    private void movePlayer(double dx, double dy) {
-        double nextX = player.getX() + dx;
-        double nextY = player.getY() + dy;
+    private void moveHorizontally(double amount) {
+        if (amount == 0) {
+            return;
+        }
 
-        double minimumX = 32;
-        double minimumY = 32;
+        double previousX = player.getX();
 
-        double maximumX = WIDTH - 32 - PLAYER_SIZE;
-        double maximumY = HEIGHT - 32 - PLAYER_SIZE;
+        double nextX = clamp(
+                previousX + amount,
+                0,
+                MAP_WIDTH - PLAYER_SIZE
+        );
 
-        player.setX(clamp(nextX, minimumX, maximumX));
-        player.setY(clamp(nextY, minimumY, maximumY));
+        player.setX(nextX);
+
+        if (isTouchingWall()) {
+            player.setX(previousX);
+        }
+    }
+
+    private void moveVertically(double amount) {
+        if (amount == 0) {
+            return;
+        }
+
+        double previousY = player.getY();
+
+        double nextY = clamp(
+                previousY + amount,
+                0,
+                MAP_HEIGHT - PLAYER_SIZE
+        );
+
+        player.setY(nextY);
+
+        if (isTouchingWall()) {
+            player.setY(previousY);
+        }
+    }
+
+    private boolean isTouchingWall() {
+        return getGameWorld()
+                .getEntitiesByType(
+                        SilentClassroomType.WALL
+                )
+                .stream()
+                .anyMatch(wall ->
+                        player
+                                .getBoundingBoxComponent()
+                                .isCollidingWith(
+                                        wall.getBoundingBoxComponent()
+                                )
+                );
     }
 
     private double clamp(
@@ -113,7 +245,10 @@ public final class SilentClassroomPrototypeApp extends GameApplication {
             double minimum,
             double maximum
     ) {
-        return Math.max(minimum, Math.min(maximum, value));
+        return Math.max(
+                minimum,
+                Math.min(maximum, value)
+        );
     }
 
     public static void main(String[] args) {
