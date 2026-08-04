@@ -26,10 +26,10 @@ import java.util.function.IntConsumer;
  *
  * Usage:
  *   new DialogueOverlay()
- *       .line("Ayan", "What happened to this lab...")
+ *       .line("REN", "What happened to this lab...")
  *       .line("Riya", "They stopped thinking. That's what happened.")
  *       .choice("How do you respond?",
- *               new String[] {"Stay quiet", "Ask Astra for context"},
+ *               new String[] {"Stay quiet", "Ask KK for context"},
  *               choice -> { ... })
  *       .show(parentRoot);
  */

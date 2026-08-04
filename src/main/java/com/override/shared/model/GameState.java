@@ -24,7 +24,7 @@ public class GameState {
     private int coins = 100;
 
     /**
-     * Dependency meter (0..100). Rises when the player accepts Astra's
+     * Dependency meter (0..100). Rises when the player accepts KK's
      * help. Drives ending selection and dialogue branches.
      * Lower = more independent thinker.
      */
@@ -35,12 +35,12 @@ public class GameState {
     /** Highest chapter completed. */
     private int chapterCompleted = 0;
 
-    /** XP earned without using Astra's hints — used in ending scoring. */
+    /** XP earned without using KK's hints — used in ending scoring. */
     private int independentXp = 0;
 
     private GameState() {
         this.player = new Player();
-        unlockedCharacters.add("ayan"); // free default
+        unlockedCharacters.add("ren"); // free default
     }
 
     public static GameState init() {

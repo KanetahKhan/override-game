@@ -46,7 +46,7 @@ public abstract class MiniGame {
     protected double time = 0;
 
     /**
-     * Number of times the player chose an "Astra Assist" this run. Subclasses
+     * Number of times the player chose an "KK Assist" this run. Subclasses
      * increment it; it is reported back in the {@link MiniGameResult}.
      */
     protected int dependencyUsed = 0;

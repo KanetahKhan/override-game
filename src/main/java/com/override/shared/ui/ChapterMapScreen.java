@@ -4,10 +4,7 @@ import com.override.Main;
 import com.override.shared.model.GameState;
 import com.override.shared.service.SaveService;
 import com.override.chapter1.ChapterOneScreen;
-import com.override.chapter2.ChapterTwoScreen;
-import com.override.chapter3.ChapterThreeScreen;
-import com.override.chapter4.ChapterFourScreen;
-import com.override.chapter5.FinalMissionScreen;
+import com.override.game.minigames.GodotGameLauncher;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
@@ -19,19 +16,14 @@ import javafx.scene.layout.VBox;
 /**
  * Chapter selection / progress hub.
  *
- * Shows the four major chapters plus the final mission. Only the current
+ * Shows the two available chapters. Only the current
  * unlocked chapter is selectable; completed chapters get a checkmark.
- *
- * All five entries (Ch 1-4 + Final) route to real gameplay screens.
  */
 public class ChapterMapScreen {
 
     private static final String[][] CHAPTERS = {
         { "1", "The Silent Classroom",  "Education dependency",   "1" },
-        { "2", "Harvest Protocol",      "Agricultural dependency","0" },
-        { "3", "Mercy Index",           "AI-controlled healthcare","0" },
-        { "4", "Codeblind",             "Loss of real coding skill","0" },
-        { "F", "Override Core",         "Final rescue mission",   "0" }
+        { "2", "Harvest Protocol",      "Agricultural dependency","0" }
     };
 
     public Parent build() {
@@ -45,7 +37,7 @@ public class ChapterMapScreen {
         int completed = GameState.get().getChapterCompleted();
 
         for (String[] ch : CHAPTERS) {
-            int chNum = "F".equals(ch[0]) ? 5 : Integer.parseInt(ch[0]);
+            int chNum = Integer.parseInt(ch[0]);
             boolean isUnlocked = chNum <= unlocked;
             boolean isDone = chNum <= completed;
             list.getChildren().add(buildRow(ch[0], ch[1], ch[2], isUnlocked, isDone, chNum));
@@ -98,10 +90,7 @@ public class ChapterMapScreen {
         play.setOnAction(e -> {
             switch (chNum) {
                 case 1 -> Main.switchScene(new ChapterOneScreen().build());
-                case 2 -> Main.switchScene(new ChapterTwoScreen().build());
-                case 3 -> Main.switchScene(new ChapterThreeScreen().build());
-                case 4 -> Main.switchScene(new ChapterFourScreen().build());
-                case 5 -> Main.switchScene(new FinalMissionScreen().build());
+                case 2 -> GodotGameLauncher.launchGodot();
                 default -> new javafx.scene.control.Alert(
                     javafx.scene.control.Alert.AlertType.INFORMATION,
                     "Chapter " + label + ": " + name + "\n\nUnknown chapter."

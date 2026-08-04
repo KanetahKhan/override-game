@@ -208,7 +208,7 @@ synthesized at runtime with the JDK's `javax.sound` (no `javafx-media`, no asset
 
 `KernelPanicGame` — a fast, combo-based reflex arcade game. Glitch tokens drop
 four lanes; select a lane and apply the matching fix to zap the lowest token,
-chaining a combo multiplier. SPACE is the **Astra Assist** EMP: a screen-clearing
+chaining a combo multiplier. SPACE is the **KK Assist** EMP: a screen-clearing
 relief that costs your combo and counts toward the global Dependency Meter.
 
 Controls:
@@ -217,7 +217,7 @@ Controls:
 |------|--------|
 | `Q` `W` `E` `R` | Select lane 1–4 |
 | `U` `I` `O` `P` | Apply fix `;` `==` `!` `++` (legend shown in-game) |
-| `SPACE` | Astra Assist EMP (screen clear; resets combo, +1 dependency) |
+| `SPACE` | KK Assist EMP (screen clear; resets combo, +1 dependency) |
 | `ENTER` | Reboot / instant restart on the game-over screen |
 | `ESC` | Exit (reports the result to the chapter) |
 
@@ -244,7 +244,7 @@ pressure grows; an endless score-chase with a one-key instant-retry on death.
 The chapter beat is "cleared" the first time score hits **300**, but the run
 continues so the player keeps chasing a new best.
 
-`SPACE` is the **Astra Assist**: autopilot that greedily, *smoothly* steers the
+`SPACE` is the **KK Assist**: autopilot that greedily, *smoothly* steers the
 cursor at the nearest knowledge bit (toggle, never a takeover — feels like
 turning on cruise control). Using it any time during a run forfeits the
 **Independence Bonus** (+500 score, +50 XP) and counts once toward the global
@@ -255,7 +255,7 @@ Controls:
 | Keys                       | Action |
 |----------------------------|--------|
 | `↑` `↓` `←` `→` / `W A S D` | Steer the cursor |
-| `SPACE`                    | Toggle Astra Assist (smooth autopilot; forfeits Independence Bonus, +1 dependency on first toggle) |
+| `SPACE`                    | Toggle KK Assist (smooth autopilot; forfeits Independence Bonus, +1 dependency on first toggle) |
 | `ENTER`                    | Instant retry on the game-over screen |
 | `ESC`                      | Exit (reports the result to the chapter) |
 
