@@ -27,7 +27,7 @@ import java.util.Set;
  * {@link #STORY_GATE_TARGET}, but the run continues so the player keeps chasing
  * a high score. Game over is instant-retry on ENTER, exit on ESC.
  *
- * <p>SPACE toggles the <b>Astra Assist</b> autopilot — the cursor greedily,
+ * <p>SPACE toggles the <b>KK Assist</b> autopilot — the cursor greedily,
  * smoothly auto-steers toward the nearest knowledge bit. It feels relaxing to
  * switch on (no jerk, no takeover sensation: it reuses the same one-direction-
  * per-step input pipeline the player uses). The cost is the
@@ -155,7 +155,7 @@ public final class SnakeGame extends MiniGame {
 
         if (state == State.GAME_OVER) return;
 
-        // Astra Assist re-aims the cursor *once per step*, exactly where the
+        // KK Assist re-aims the cursor *once per step*, exactly where the
         // player's input would go — so it feels smooth, never a takeover.
         if (assistOn) assistChooseDir();
 
@@ -251,7 +251,7 @@ public final class SnakeGame extends MiniGame {
         }
     }
 
-    // ----- Astra Assist (autopilot) ------------------------------------------
+    // ----- KK Assist (autopilot) ------------------------------------------
 
     /**
      * Greedy, single-step direction picker. Picks the axis with the bigger gap

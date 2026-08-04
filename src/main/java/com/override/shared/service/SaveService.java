@@ -80,7 +80,7 @@ public class SaveService {
         s.addIndependentXp(parseInt(props, "independentXp", 0));
 
         // Restore unlocked characters
-        String unlocked = props.getProperty("unlocked", "ayan");
+        String unlocked = props.getProperty("unlocked", "ren");
         for (String id : unlocked.split(",")) {
             if (id.isBlank()) continue;
             for (GameCharacter c : GameCharacter.roster()) {
@@ -91,7 +91,7 @@ public class SaveService {
         }
 
         // Restore selected character (re-creates the player base)
-        String charId = props.getProperty("character", "ayan");
+        String charId = props.getProperty("character", "ren");
         for (GameCharacter c : GameCharacter.roster()) {
             if (c.getId().equals(charId)) {
                 s.setSelectedCharacter(c);
@@ -101,7 +101,7 @@ public class SaveService {
 
         // Then overlay saved player numbers
         Player p = s.getPlayer();
-        p.setDisplayName(props.getProperty("p.name", "Ayan"));
+        p.setDisplayName(props.getProperty("p.name", "REN"));
         // simple way to re-apply numbers: cumulative buffs from base 5
         p.buffLogic     (parseInt(props, "p.logic",     5) - p.getLogic());
         p.buffAwareness (parseInt(props, "p.awareness", 5) - p.getAwareness());

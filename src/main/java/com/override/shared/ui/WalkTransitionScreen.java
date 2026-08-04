@@ -11,7 +11,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.TextAlignment;
 
 /**
- * Full-screen walking transition: Ayan walks across a neon-lit corridor for
+ * Full-screen walking transition: REN walks across a neon-lit corridor for
  * ~2.5 seconds, then fires onComplete to hand off to the next scene.
  *
  * Uses the same AnimationTimer pattern as the mini-games. No assets needed —
@@ -100,7 +100,7 @@ public class WalkTransitionScreen {
         drawCorridor(gc);
         drawServerRacks(gc);
         drawFloorGrid(gc, t);
-        drawAyan(gc, progress, t);
+        drawRen(gc, progress, t);
         drawLabel(gc, t);
         drawVignette(gc);
     }
@@ -227,7 +227,7 @@ public class WalkTransitionScreen {
         else       return VP_X + u * (W - VP_X);
     }
 
-    private void drawAyan(GraphicsContext gc, double progress, double t) {
+    private void drawRen(GraphicsContext gc, double progress, double t) {
         double x = WALK_START_X + (WALK_END_X - WALK_START_X) * easeInOut(progress);
         double y = WALK_Y;
 

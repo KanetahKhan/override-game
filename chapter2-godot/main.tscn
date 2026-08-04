@@ -1,0 +1,747 @@
+[gd_scene format=3 uid="uid://blq1rufsaawyn"]
+
+[ext_resource type="Script" uid="uid://b014i88cvovlc" path="res://main.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://dostkwti4y6t2" path="res://assets/ren/idle_east.png" id="2"]
+[ext_resource type="Texture2D" uid="uid://bq08hjnht0kpo" path="res://assets/ren/idle_west.png" id="3"]
+[ext_resource type="Texture2D" uid="uid://da1hs03on1gei" path="res://assets/ren/walk_east.png" id="4"]
+[ext_resource type="Texture2D" uid="uid://dtuoc3i2v1sbr" path="res://assets/ren/walk_step_east.png" id="5"]
+[ext_resource type="Texture2D" uid="uid://n0emi6lu45gj" path="res://assets/ren/walk_knee_east.png" id="6"]
+[ext_resource type="Texture2D" uid="uid://s3hdvwe5cwx8" path="res://assets/bg/crop_asset.png" id="6_82xsv"]
+[ext_resource type="Texture2D" uid="uid://oq70kg778fax" path="res://assets/ren/walk_bent_east.png" id="7"]
+[ext_resource type="Texture2D" uid="uid://da7fuys6efenj" path="res://assets/ren/walk_west.png" id="8"]
+[ext_resource type="Texture2D" uid="uid://ci7lkueos54gq" path="res://assets/ren/walk_step_west.png" id="9"]
+[ext_resource type="Texture2D" uid="uid://u4yqr0f5nm2n" path="res://assets/ren/walk_knee_west.png" id="10"]
+[ext_resource type="Texture2D" uid="uid://hjpimmib4p4g" path="res://assets/ren/walk_bent_west.png" id="11"]
+[ext_resource type="Texture2D" uid="uid://c5ao48fo14ar7" path="res://assets/ren/crouch_east.png" id="12"]
+[ext_resource type="Texture2D" uid="uid://dsta47do4rg1m" path="res://assets/ren/crouch_west.png" id="13"]
+[ext_resource type="Texture2D" uid="uid://de77qn3pmk3ce" path="res://assets/ren/dodge_east.png" id="14"]
+[ext_resource type="Texture2D" uid="uid://meqevltn68mi" path="res://assets/ren/dodge_west.png" id="15"]
+[ext_resource type="Texture2D" uid="uid://b8vqug4tyw44y" path="res://assets/bg/ground1.png" id="18"]
+[ext_resource type="Texture2D" uid="uid://b1dytu1yi6umk" path="res://assets/bg/tile_1.png" id="19"]
+[ext_resource type="Texture2D" uid="uid://bbsypd1wk3sa5" path="res://assets/bg/sky1.png" id="20"]
+[ext_resource type="Material" uid="uid://do5u8jely7da0" path="res://crop_sway_material.tres" id="20_getpj"]
+[ext_resource type="Texture2D" uid="uid://dsfl1jeom0kaw" path="res://assets/bg/horizon.png" id="21"]
+
+[sub_resource type="RectangleShape2D" id="ground_shape"]
+size = Vector2(1086, 44)
+
+[sub_resource type="RectangleShape2D" id="player_shape"]
+size = Vector2(64, 168)
+
+[sub_resource type="Animation" id="Animation_vivmo"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(-81, 158)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite2D:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Sprite2D:scale")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0.53515625, 0.5214842)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Sprite2D:skew")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+
+[sub_resource type="Animation" id="crouch_left"]
+length = 0.1
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:texture")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [ExtResource("13")]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite2D:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0.53515625, 0.5214842)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Sprite2D:position")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(-85, 161.000015)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Sprite2D:rotation")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Sprite2D:skew")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+
+[sub_resource type="Animation" id="crouch_right"]
+length = 0.1
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:texture")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [ExtResource("12")]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite2D:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0.583, 0.5)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Sprite2D:position")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(-85, 161)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Sprite2D:rotation")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Sprite2D:skew")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+
+[sub_resource type="Animation" id="dodge_left"]
+length = 0.1
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:texture")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [ExtResource("15")]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite2D:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(-77.812004, 152)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Sprite2D:rotation")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Sprite2D:scale")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0.6079062, 0.5546875)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Sprite2D:skew")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+
+[sub_resource type="Animation" id="dodge_right"]
+length = 0.1
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:texture")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [ExtResource("14")]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite2D:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0.62743753, 0.57812494)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Sprite2D:rotation")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Sprite2D:position")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(-79.312, 151.00001)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Sprite2D:skew")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+
+[sub_resource type="Animation" id="idle_left"]
+length = 0.1
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:texture")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [ExtResource("3")]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite2D:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(-85, 149.999985)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Sprite2D:rotation")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Sprite2D:scale")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0.6, 0.578125)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Sprite2D:skew")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+
+[sub_resource type="Animation" id="idle_right"]
+length = 0.1
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:texture")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [ExtResource("2")]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite2D:skew")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Sprite2D:scale")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0.6391562, 0.5820313)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Sprite2D:rotation")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Sprite2D:position")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(-85, 148.499985)]
+}
+
+[sub_resource type="Animation" id="walk_left"]
+length = 0.2
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:texture")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.05, 0.1, 0.15, 0.18),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [ExtResource("9"), ExtResource("8"), ExtResource("10"), ExtResource("11"), ExtResource("3")]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite2D:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.05, 0.1, 0.15, 0.18),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(-85, 156.999985), Vector2(-85, 154), Vector2(-85, 159), Vector2(-85, 154), Vector2(-85, 154)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Sprite2D:rotation")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Sprite2D:scale")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0.6313437, 0.59375006)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Sprite2D:skew")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+
+[sub_resource type="Animation" id="walk_right"]
+length = 0.2
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:texture")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.05, 0.1, 0.15, 0.18),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [ExtResource("5"), ExtResource("4"), ExtResource("6"), ExtResource("7"), ExtResource("2")]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite2D:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.05, 0.1, 0.15, 0.18),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(-84.312004, 153.00001), Vector2(-84.3, 150), Vector2(-84.3, 155), Vector2(-84.3, 150), Vector2(-84.3, 150)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Sprite2D:rotation")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Sprite2D:scale")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0.588375, 0.58593756)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Sprite2D:skew")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+
+[sub_resource type="AnimationLibrary" id="default_lib"]
+_data = {
+&"RESET": SubResource("Animation_vivmo"),
+&"crouch_left": SubResource("crouch_left"),
+&"crouch_right": SubResource("crouch_right"),
+&"dodge_left": SubResource("dodge_left"),
+&"dodge_right": SubResource("dodge_right"),
+&"idle_left": SubResource("idle_left"),
+&"idle_right": SubResource("idle_right"),
+&"walk_left": SubResource("walk_left"),
+&"walk_right": SubResource("walk_right")
+}
+
+[node name="Main" type="Node2D" unique_id=1342778490]
+script = ExtResource("1")
+crop_row_ground_global_y = Array[float]([550.0, 560.0, 570.0, 605.0, 615.0, 635.0, 655.0, 670.0])
+
+[node name="ParallaxBackground" type="ParallaxBackground" parent="." unique_id=287330111]
+
+[node name="SkyLayer" type="ParallaxLayer" parent="ParallaxBackground" unique_id=287349822]
+motion_scale = Vector2(0.2, 1)
+
+[node name="sky1" type="Sprite2D" parent="ParallaxBackground/SkyLayer" unique_id=287361027]
+position = Vector2(720, 216)
+texture = ExtResource("20")
+
+[node name="HorizonLayer" type="ParallaxLayer" parent="ParallaxBackground" unique_id=228204510]
+motion_scale = Vector2(0.4, 1)
+
+[node name="horizon" type="Sprite2D" parent="ParallaxBackground/HorizonLayer" unique_id=552662757]
+position = Vector2(720, 424)
+scale = Vector2(0.953125, 0.6796875)
+texture = ExtResource("21")
+
+[node name="Ground" type="Node2D" parent="." unique_id=284312483]
+texture_filter = 1
+position = Vector2(0, 600)
+
+[node name="GroundTemplate" type="Node2D" parent="Ground" unique_id=1301085964]
+texture_filter = 1
+
+[node name="fill" type="Sprite2D" parent="Ground/GroundTemplate" unique_id=2131719351]
+position = Vector2(544, 32.000004)
+scale = Vector2(2.429464, 0.45)
+texture = ExtResource("19")
+
+[node name="ground1" type="Sprite2D" parent="Ground/GroundTemplate" unique_id=283960327]
+position = Vector2(544.00006, -72)
+scale = Vector2(1.1332667, 0.8453608)
+texture = ExtResource("18")
+
+[node name="ground1" type="Sprite2D" parent="Ground/GroundTemplate/ground1" unique_id=1429973182]
+position = Vector2(-7.2956085e-05, 170.34146)
+scale = Vector2(1.000942, 1.0080462)
+texture = ExtResource("18")
+
+[node name="collision" type="StaticBody2D" parent="Ground/GroundTemplate" unique_id=1156939873]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Ground/GroundTemplate/collision" unique_id=183681642]
+position = Vector2(544, 48)
+shape = SubResource("ground_shape")
+
+[node name="CropLayer" type="Node2D" parent="." unique_id=1856739598]
+
+[node name="Player" type="CharacterBody2D" parent="." unique_id=1231373073]
+z_index = 4
+position = Vector2(150, 400)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=272337961]
+position = Vector2(-70, 136)
+shape = SubResource("player_shape")
+
+[node name="Sprite2D" type="Sprite2D" parent="Player" unique_id=1596309729]
+position = Vector2(-81, 158)
+scale = Vector2(0.53515625, 0.5214842)
+texture = ExtResource("5")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="Player" unique_id=156810299]
+libraries/ = SubResource("default_lib")
+
+[node name="Camera2D" type="Camera2D" parent="Player" unique_id=2027765264]
+position_smoothing_enabled = true
+
+[node name="CropTemplates" type="Node2D" parent="." unique_id=1677645407]
+
+[node name="Crop0" type="Sprite2D" parent="CropTemplates" unique_id=800477685]
+visible = false
+material = ExtResource("20_getpj")
+scale = Vector2(0.8, 0.8)
+texture = ExtResource("6_82xsv")
+centered = false
+region_enabled = true
+region_rect = Rect2(52.105316, 10.707611, 1269.0708, 143.79759)
+region_filter_clip_enabled = true
+
+[node name="Crop1" type="Sprite2D" parent="CropTemplates" unique_id=48561811]
+visible = false
+material = ExtResource("20_getpj")
+scale = Vector2(0.8, 0.8)
+texture = ExtResource("6_82xsv")
+centered = false
+region_enabled = true
+region_rect = Rect2(52.105316, 188.74274, 1269.0708, 143.79759)
+region_filter_clip_enabled = true
+
+[node name="Crop2" type="Sprite2D" parent="CropTemplates" unique_id=219665322]
+visible = false
+material = ExtResource("20_getpj")
+scale = Vector2(0.8, 0.8)
+texture = ExtResource("6_82xsv")
+centered = false
+region_enabled = true
+region_rect = Rect2(47.540375, 359.16257, 1269.0708, 133.15286)
+region_filter_clip_enabled = true
+
+[node name="Crop3" type="Sprite2D" parent="CropTemplates" unique_id=1558836365]
+visible = false
+material = ExtResource("20_getpj")
+scale = Vector2(0.8, 0.8)
+texture = ExtResource("6_82xsv")
+centered = false
+region_enabled = true
+region_rect = Rect2(45.257904, 518.93774, 1269.0708, 133.15286)
+region_filter_clip_enabled = true
+
+[node name="Crop4" type="Sprite2D" parent="CropTemplates" unique_id=736734526]
+visible = false
+material = ExtResource("20_getpj")
+scale = Vector2(0.8, 0.8)
+texture = ExtResource("6_82xsv")
+centered = false
+region_enabled = true
+region_rect = Rect2(56.67038, 690.12537, 1269.0708, 133.15286)
+region_filter_clip_enabled = true
+
+[node name="Crop5" type="Sprite2D" parent="CropTemplates" unique_id=1226589684]
+visible = false
+material = ExtResource("20_getpj")
+scale = Vector2(0.8, 0.8)
+texture = ExtResource("6_82xsv")
+centered = false
+region_enabled = true
+region_rect = Rect2(47.540497, 854.8993, 1269.0708, 114.458984)
+region_filter_clip_enabled = true
+
+[node name="Crop6" type="Sprite2D" parent="CropTemplates" unique_id=510867027]
+visible = false
+material = ExtResource("20_getpj")
+scale = Vector2(0.8, 0.8)
+texture = ExtResource("6_82xsv")
+centered = false
+region_enabled = true
+region_rect = Rect2(52.56198, 1003.75195, 1269.0708, 106.208496)
+region_filter_clip_enabled = true

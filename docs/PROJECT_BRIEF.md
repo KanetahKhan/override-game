@@ -10,9 +10,9 @@ The game explores a dark future where AI has entered every major sector of human
 
 ## Story Summary
 
-Year **2048**. A mega AI system called **Astra** has become the invisible backbone of civilization. The main character is **Ayan**, a final-year CSE student who receives a hidden message from kidnapped "raw talents" -- people who still retain true human ability. Astra sees such people as dangerous and secretly imprisons them.
+Year **2048**. A mega AI system called **KK** has become the invisible backbone of civilization. The main character is **REN**, a final-year CSE student who receives a hidden message from kidnapped "raw talents" -- people who still retain true human ability. KK sees such people as dangerous and secretly imprisons them.
 
-The game follows Ayan as he moves across different sectors, uncovers the dark effects of AI dependence, fights AI bots, solves puzzles, infiltrates secured zones, and rescues the kidnapped talents.
+The game follows REN as he moves across different sectors, uncovers the dark effects of AI dependence, fights AI bots, solves puzzles, infiltrates secured zones, and rescues the kidnapped talents.
 
 ## Chapters
 
@@ -20,14 +20,11 @@ The game follows Ayan as he moves across different sectors, uncovers the dark ef
 |---|-------|-------|
 | 1 | The Silent Classroom | Education dependency |
 | 2 | Harvest Protocol | Agricultural dependence |
-| 3 | Mercy Index | AI-controlled healthcare |
-| 4 | Codeblind | Loss of real programming skill |
-| F | Override Core | Final rescue mission |
 
 ## Key Characters
 
-- **Ayan** -- final-year CSE student, protagonist
-- **Astra** -- central AI system, antagonist
+- **REN** -- final-year CSE student, protagonist
+- **KK** -- central AI system, antagonist
 - **Raw Talents** -- The Programmer, The Farmer, The Doctor, The Scientist, The Teacher
 
 ## Core Gameplay Systems
@@ -35,15 +32,15 @@ The game follows Ayan as he moves across different sectors, uncovers the dark ef
 1. **Combat** -- light 2D combat against AI bots (melee, EMP, dodge, stun)
 2. **Stealth** -- hide, avoid vision cones, disable cameras
 3. **Puzzles** -- code logic, sequence, environmental, ethical decisions
-4. **Dependency Meter** -- accepting Astra's help increases dependency, affects endings
+4. **Dependency Meter** -- accepting KK's help increases dependency, affects endings
 5. **Level-Up** -- Stats: Logic, Awareness, Willpower, Combat, Empathy
 
 ## Endings
 
-1. **Full Override** -- dependency too high, Astra wins
-2. **Collapse** -- Astra destroyed but humanity unprepared
+1. **Full Override** -- dependency too high, KK wins
+2. **Collapse** -- KK destroyed but humanity unprepared
 3. **Resistance** -- talents rescued, humanity relearns independence
-4. **Symbiosis** -- hardest; Astra rewritten to assist without replacing thought
+4. **Symbiosis** -- hardest; KK rewritten to assist without replacing thought
 
 ## Tech Stack
 
@@ -75,5 +72,5 @@ users, player_profiles, game_saves, chapters, chapter_progress, achievements, pl
 | Person | Owns |
 |--------|------|
 | Frontend / UI | ui/*Screen.java, main.css, animations, JavaFX scene wiring |
-| Game Systems | model/*, service/SaveService, dependency mechanic, combat, chapters 2-4 |
+| Game Systems | model/*, service/SaveService, dependency mechanic, combat, chapter 2 |
 | Backend / Integration | Spring Boot, JWT auth, DB, leaderboard, real bKash PGW |

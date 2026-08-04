@@ -51,7 +51,7 @@ public class ChapterOneScreen {
             "The campus is quiet in a way it has never been. Students sit at terminals, "
             + "waiting for their AI tutors to come back online. None of them are reading. "
             + "None of them are talking.\n\n"
-            + "Find evidence of what Astra has done here. Then leave with the first access fragment."
+            + "Find evidence of what KK has done here. Then leave with the first access fragment."
         );
         desc.setMaxWidth(900);
 
@@ -109,12 +109,12 @@ public class ChapterOneScreen {
         Main.switchScene(sp);
 
         new DialogueOverlay()
-            .line("Student",   "I just need Astra back. I have a deadline. I can't think without it.")
-            .line("Ayan",      "What's the deadline for?")
-            .line("Student",   "I don't know. Astra was managing it.")
+            .line("Student",   "I just need KK back. I have a deadline. I can't think without it.")
+            .line("REN",       "What's the deadline for?")
+            .line("Student",   "I don't know. KK was managing it.")
             .line("Teacher",   "Don't bother him. None of them know how to grade either, anymore.")
-            .line("Teacher",   "I review what Astra produces. I haven't read a real submission in two years.")
-            .line("Ayan",      "That's not teaching.")
+            .line("Teacher",   "I review what KK produces. I haven't read a real submission in two years.")
+            .line("REN",       "That's not teaching.")
             .line("Teacher",   "It's efficient. That's what we agreed to call it.")
             .choice("How do you respond?",
                 new String[] { "Keep it private", "Tell her about the message" },
@@ -159,7 +159,7 @@ public class ChapterOneScreen {
 
     /**
      * Apply a mini-game result to the player and global state:
-     * XP and coins for a strong run, dependency for using Astra, independence
+     * XP and coins for a strong run, dependency for using KK, independence
      * bonus for solving it without leaning on the assist.
      */
     private void applyMiniGameResult(MiniGameResult result) {

@@ -1,0 +1,8 @@
+[gd_resource type="ShaderMaterial" format=3 uid="uid://do5u8jely7da0"]
+
+[ext_resource type="Shader" uid="uid://dwgub5t4r8egf" path="res://crop_sway.gdshader" id="1_2vdt7"]
+
+[resource]
+shader = ExtResource("1_2vdt7")
+shader_parameter/sway_strength = 8.0000001192096
+shader_parameter/sway_speed = 3.0000000447036

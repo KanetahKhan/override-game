@@ -16,7 +16,7 @@ public class PlayerProfile {
     private User user;
 
     @Column(name = "display_name", length = 50)
-    private String displayName = "Ayan";
+    private String displayName = "REN";
 
     private int level = 1;
     private int xp = 0;

@@ -37,6 +37,10 @@ public class Main extends Application {
         switchScene(new MainMenuScreen().build());
 
         stage.show();
+
+        System.out.println("[Main] Stage bounds: " + stage.getX() + "," + stage.getY()
+            + " " + stage.getWidth() + "x" + stage.getHeight()
+            + " | Scene: " + stage.getScene().getWidth() + "x" + stage.getScene().getHeight());
     }
 
     /** Replace the current scene root with a fade-in transition. */
