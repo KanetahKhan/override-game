@@ -1,4 +1,4 @@
-﻿package com.override.chapter1;
+package com.override.chapter1;
 
 import com.override.Main;
 import com.override.chapter1.CurfewNodeGames.NodeGame;
@@ -690,7 +690,7 @@ public class CurfewProtocolScreen {
             + "\nNext: Chapter 2 — Harvest Protocol.";
 
         leaveTo(new EndingScreen("Curfew Protocol complete", summary,
-            () -> Main.switchScene(new ChapterMapScreen\(\).build())).build());
+            () -> Main.switchScene(new ChapterMapScreen().build())).build());
     }
 
     /**

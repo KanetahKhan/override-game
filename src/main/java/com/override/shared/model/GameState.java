@@ -38,6 +38,9 @@ public class GameState {
     /** XP earned without using KK's hints — used in ending scoring. */
     private int independentXp = 0;
 
+    /** Best completed Silent Classroom run. Only improvements are recorded. */
+    private int silentClassroomBestScore = 0;
+
     private GameState() {
         this.player = new Player();
         unlockedCharacters.add("ren"); // free default
@@ -110,6 +113,33 @@ public class GameState {
 
     public int getIndependentXp() { return independentXp; }
     public void addIndependentXp(int n) { independentXp += n; }
+
+    public int getSilentClassroomBestScore() { return silentClassroomBestScore; }
+
+    /**
+     * Record a completed Silent Classroom score without allowing replays or
+     * stale saves to lower the campaign best. Returns true when a new best was
+     * stored.
+     */
+    public boolean recordSilentClassroomScore(int score) {
+        int normalizedScore = Math.max(0, score);
+        if (normalizedScore <= silentClassroomBestScore) return false;
+        silentClassroomBestScore = normalizedScore;
+        return true;
+    }
+
+    /** Number of Insight Charges earned by the current best score. */
+    public int getSilentClassroomInsightCharges() {
+        return insightChargesForScore(silentClassroomBestScore);
+    }
+
+    /** Shared threshold calculation for UI and focused tests. */
+    public static int insightChargesForScore(int score) {
+        if (score >= 3000) return 3;
+        if (score >= 2300) return 2;
+        if (score >= 1500) return 1;
+        return 0;
+    }
 
     /** Pick an ending tier from the player's choices so far. */
     public String classifyEnding() {

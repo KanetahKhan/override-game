@@ -269,8 +269,8 @@ public final class KernelPanicAssets {
         g.setGlobalAlpha(1);
     }
 
-    /** KK EMP interference overlay at given alpha. */
-    public static void drawKKInterference(GraphicsContext g, double w, double h, double alpha) {
+    /** Astra EMP interference overlay at given alpha. */
+    public static void drawAstraInterference(GraphicsContext g, double w, double h, double alpha) {
         g.setGlobalAlpha(alpha);
         g.drawImage(get("astra interference overlay"), 0, 0, w, h);
         g.setGlobalAlpha(1);
