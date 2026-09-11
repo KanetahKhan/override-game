@@ -105,8 +105,8 @@ var bad_spawned: int = 0
 var bad_killed: int = 0
 var good_killed: int = 0
 var final_score_percent: float = 0.0
-var countdown_active: bool = false
-var countdown_time: float = 0.0
+var countdown_active: bool = true
+var countdown_time: float = 3.0
 var countdown_displayed: int = 0
 var time_label: Label
 var warning_label: Label
