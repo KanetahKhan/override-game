@@ -112,6 +112,8 @@ public class CurfewProtocolScreen {
     private Robot robot;
     private boolean mouseLocked, mouseLockBroken, dragging;
     private double dragX, dragY, dragDist, lockX, lockY;
+    private javafx.event.EventHandler<KeyEvent> keyPressHandler;
+    private javafx.event.EventHandler<KeyEvent> keyReleaseHandler;
     private final ChangeListener<Boolean> focusListener = (o, was, focused) -> {
         if (!focused && phase == Phase.PLAY && nodeGame == null) pause();
     };
@@ -717,6 +719,7 @@ public class CurfewProtocolScreen {
         flashPulse.stop();
         closeNodeGameSilently();
         unlockMouse();
+        detach();
         world.dispose();
         if (Main.getStage() != null) Main.getStage().focusedProperty().removeListener(focusListener);
     }
@@ -726,6 +729,7 @@ public class CurfewProtocolScreen {
     private void wireInput() {
         root.sceneProperty().addListener((o, old, scene) -> {
             if (scene != null) attach(scene);
+            else detach();
         });
         if (Main.getStage() != null) Main.getStage().focusedProperty().addListener(focusListener);
 
@@ -748,11 +752,25 @@ public class CurfewProtocolScreen {
     }
 
     private void attach(Scene scene) {
-        scene.addEventFilter(KeyEvent.KEY_PRESSED, this::keyPressed);
-        scene.addEventFilter(KeyEvent.KEY_RELEASED, e -> {
+        keyPressHandler = this::keyPressed;
+        keyReleaseHandler = e -> {
             world.keyReleased(e.getCode());
             if (phase == Phase.PLAY) e.consume();
-        });
+        };
+        scene.addEventFilter(KeyEvent.KEY_PRESSED, keyPressHandler);
+        scene.addEventFilter(KeyEvent.KEY_RELEASED, keyReleaseHandler);
+    }
+
+    private void detach() {
+        // Keep the persistent Scene clean: the event filters we added to the
+        // Scene itself must be removed explicitly when this screen goes away.
+        Scene scene = root == null ? null : root.getScene();
+        if (scene != null) {
+            if (keyPressHandler != null) scene.removeEventFilter(KeyEvent.KEY_PRESSED, keyPressHandler);
+            if (keyReleaseHandler != null) scene.removeEventFilter(KeyEvent.KEY_RELEASED, keyReleaseHandler);
+        }
+        keyPressHandler = null;
+        keyReleaseHandler = null;
     }
 
     private void keyPressed(KeyEvent e) {

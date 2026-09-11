@@ -90,7 +90,7 @@ public class ChapterMapScreen {
         play.setOnAction(e -> {
             switch (chNum) {
                 case 1 -> Main.switchScene(new CurfewProtocolScreen().build());
-                case 2 -> GodotGameLauncher.launchGodot();
+                case 2 -> GodotGameLauncher.launchGodotAtWindowSize();
                 default -> new javafx.scene.control.Alert(
                     javafx.scene.control.Alert.AlertType.INFORMATION,
                     "Chapter " + label + ": " + name + "\n\nUnknown chapter."
