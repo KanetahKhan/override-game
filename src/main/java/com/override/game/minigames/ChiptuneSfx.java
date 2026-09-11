@@ -24,6 +24,7 @@ public final class ChiptuneSfx {
             new AudioFormat(SAMPLE_RATE, 16, 1, true, false); // 16-bit mono LE signed
 
     private static volatile boolean enabled = true;
+    private static volatile double masterVolume = 1.0;
 
     /** Bounded pool: up to a few concurrent SFX, drop the rest (no queue lag). */
     private static final ThreadPoolExecutor POOL = new ThreadPoolExecutor(
@@ -37,6 +38,22 @@ public final class ChiptuneSfx {
     private enum Wave { SQUARE, SINE, TRIANGLE, NOISE }
 
     // ----- Public cues --------------------------------------------------------
+
+    /**
+     * Sets the volume used by subsequently queued cues. Values outside the
+     * {@code 0..1} range are clamped; non-finite values are treated as full
+     * volume. Muting does not disable the audio engine.
+     */
+    public static void setMasterVolume(double volume) {
+        masterVolume = Double.isFinite(volume)
+                ? Math.max(0.0, Math.min(1.0, volume))
+                : 1.0;
+    }
+
+    /** Returns the current master volume in the {@code 0..1} range. */
+    public static double getMasterVolume() {
+        return masterVolume;
+    }
 
     /** Rising blip; pitch climbs with the combo for that "chain" feel. */
     public static void hit(int combo) {
@@ -80,6 +97,27 @@ public final class ChiptuneSfx {
                 tone(Wave.SQUARE, 440, 0.14, 0.18),
                 tone(Wave.SQUARE, 349, 0.14, 0.18),
                 tone(Wave.SQUARE, 262, 0.26, 0.2)));
+    }
+
+    /** Short latch-and-hinge click for opening or closing a classroom door. */
+    public static void door() {
+        play(concat(
+                tone(Wave.NOISE, 1, 0.025, 0.13),
+                sweep(Wave.TRIANGLE, 190, 105, 0.095, 0.18)));
+    }
+
+    /** Compact metallic step for the hallway sentinel's servo movement. */
+    public static void servoStep() {
+        play(mix(
+                sweep(Wave.SQUARE, 270, 115, 0.075, 0.12),
+                tone(Wave.NOISE, 1, 0.025, 0.07)));
+    }
+
+    /** Urgent two-pulse cue used while the sentinel is actively chasing. */
+    public static void chaseBeat() {
+        play(concat(
+                tone(Wave.SQUARE, 165, 0.075, 0.18),
+                tone(Wave.SQUARE, 220, 0.105, 0.19)));
     }
 
     // ----- Synthesis ----------------------------------------------------------
@@ -137,11 +175,15 @@ public final class ChiptuneSfx {
 
     private static void play(byte[] pcm) {
         if (!enabled) return;
+        double volume = masterVolume;
+        if (volume <= 0.0) return;
+
         POOL.execute(() -> {
+            byte[] playbackPcm = scaleVolume(pcm, volume);
             try (SourceDataLine line = AudioSystem.getSourceDataLine(FORMAT)) {
-                line.open(FORMAT, Math.max(pcm.length, 4096));
+                line.open(FORMAT, Math.max(playbackPcm.length, 4096));
                 line.start();
-                line.write(pcm, 0, pcm.length);
+                line.write(playbackPcm, 0, playbackPcm.length);
                 line.drain();
                 line.stop();
             } catch (Throwable t) {
@@ -149,5 +191,21 @@ public final class ChiptuneSfx {
                 enabled = false;
             }
         });
+    }
+
+    /** Returns a scaled copy so concurrent cues never mutate shared PCM data. */
+    private static byte[] scaleVolume(byte[] pcm, double volume) {
+        if (volume >= 1.0) return pcm;
+
+        byte[] out = new byte[pcm.length];
+        int evenLength = pcm.length - (pcm.length % 2);
+        for (int i = 0; i < evenLength; i += 2) {
+            short sample = (short) ((pcm[i] & 0xff) | (pcm[i + 1] << 8));
+            short scaled = (short) Math.round(sample * volume);
+            out[i] = (byte) (scaled & 0xff);
+            out[i + 1] = (byte) ((scaled >> 8) & 0xff);
+        }
+        if (evenLength < pcm.length) out[evenLength] = pcm[evenLength];
+        return out;
     }
 }

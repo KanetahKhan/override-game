@@ -1,6 +1,7 @@
 package com.override.shared.ui;
 
 import com.override.Main;
+import com.override.chapter1.CurfewProtocolScreen;
 import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -51,7 +52,7 @@ public class IntroStoryScreen {
         skip = UIFactory.secondary("Skip Intro");
 
         next.setOnAction(e -> advance(next));
-        skip.setOnAction(e -> Main.switchScene(new ChapterMapScreen().build()));
+        skip.setOnAction(e -> Main.switchScene(new CurfewProtocolScreen().build()));
 
         VBox box = new VBox(18, hint, line, next, skip);
         box.setAlignment(Pos.CENTER);
@@ -75,7 +76,8 @@ public class IntroStoryScreen {
         }
         idx++;
         if (idx >= LINES.length) {
-            Main.switchScene(new ChapterMapScreen().build());
+            // The story flows straight into Chapter 1; the map is for replays.
+            Main.switchScene(new CurfewProtocolScreen().build());
             return;
         }
         currentTl = UIFactory.typewriter(line, LINES[idx], 32);

@@ -18,7 +18,7 @@ This v0.1 build ships a **playable end-to-end vertical slice** of Chapter 1 plus
 | **Mock bKash payment flow** | ✅ | `BkashMockService.java` |
 | Cinematic intro (typewriter dialogue) | ✅ | `IntroStoryScreen.java` |
 | Chapter map with progression | ✅ | `ChapterMapScreen.java` |
-| **Chapter 1 — The Silent Classroom** | ✅ playable | `ChapterOneScreen.java` |
+| **Chapter 1 — Curfew Protocol** (3D stealth escape, JavaFX 3D) | ✅ playable | `chapter1/CurfewProtocolScreen.java`, `CurfewWorld.java`, `CurfewNodeGames.java` |
 | Reusable dialogue overlay with choices | ✅ | `DialogueOverlay.java` |
 | Chapter 1 mini-games (rebuilding on the new framework) | 🟡 in progress | Kernel Panic done; more to follow |
 | Dependency Meter + Independent XP | ✅ | `GameState.java` |

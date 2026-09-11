@@ -28,6 +28,7 @@ import javafx.util.Duration;
 public class AstraBossScreen {
 
     private static final int BOSS_MAX_HP = 320;
+    private static final int INSIGHT_DAMAGE = 25;
 
     private final Runnable onComplete;
     private final Runnable onFail;
@@ -36,14 +37,18 @@ public class AstraBossScreen {
     private boolean defending = false;
     private boolean stunned = false;
     private int turn = 1;
+    private final int insightChargesEarned;
+    private int insightCharges;
 
     private ProgressBar bossBar, playerBar;
-    private Label log, bossHpLabel, playerHpLabel, phaseLabel;
-    private Button attackBtn, empBtn, defendBtn;
+    private Label log, bossHpLabel, playerHpLabel, phaseLabel, insightLabel;
+    private Button attackBtn, empBtn, defendBtn, insightBtn;
 
     public AstraBossScreen(Runnable onComplete, Runnable onFail) {
         this.onComplete = onComplete;
         this.onFail = onFail;
+        this.insightChargesEarned = GameState.get().getSilentClassroomInsightCharges();
+        this.insightCharges = insightChargesEarned;
     }
 
     public Parent build() {
@@ -88,13 +93,19 @@ public class AstraBossScreen {
         attackBtn = UIFactory.primary("Attack");
         empBtn    = UIFactory.secondary("EMP Pulse");
         defendBtn = UIFactory.secondary("Defend");
+        insightBtn = UIFactory.secondary("Insight Strike (25 true damage)");
 
         attackBtn.setOnAction(e -> onAttack());
         empBtn.setOnAction(e -> onEmp());
         defendBtn.setOnAction(e -> onDefend());
+        insightBtn.setOnAction(e -> onInsight());
 
-        HBox actions = new HBox(12, attackBtn, empBtn, defendBtn);
+        HBox actions = new HBox(12, attackBtn, empBtn, defendBtn, insightBtn);
         actions.setAlignment(Pos.CENTER);
+
+        insightLabel = new Label();
+        insightLabel.getStyleClass().add("scene-tag");
+        refreshInsightHud();
 
         log = new Label(
             "Turn 1.  The chamber is cold. Astra speaks through every speaker simultaneously: "
@@ -105,7 +116,7 @@ public class AstraBossScreen {
         log.setMaxWidth(960);
         log.setMinHeight(80);
 
-        VBox center = new VBox(18, tag, title, arena, actions, log);
+        VBox center = new VBox(18, tag, title, arena, insightLabel, actions, log);
         center.setAlignment(Pos.CENTER);
         center.setPadding(new Insets(16));
 
@@ -143,6 +154,18 @@ public class AstraBossScreen {
     private void onDefend() {
         defending = true;
         log.setText("Turn " + turn + ".  You harden your guard. Damage halved next hit.");
+        afterPlayerTurn();
+    }
+
+    private void onInsight() {
+        if (insightCharges <= 0) return;
+
+        insightCharges--;
+        bossHp = Math.max(0, bossHp - INSIGHT_DAMAGE);
+        stunned = true;
+        refreshInsightHud();
+        log.setText("Turn " + turn + ".  Silent Classroom insight pierces Astra's defenses for "
+            + INSIGHT_DAMAGE + " true damage. Astra's next action is interrupted.");
         afterPlayerTurn();
     }
 
@@ -223,6 +246,14 @@ public class AstraBossScreen {
         attackBtn.setDisable(!enabled);
         empBtn.setDisable(!enabled);
         defendBtn.setDisable(!enabled);
+        insightBtn.setDisable(!enabled || insightCharges <= 0);
+    }
+
+    private void refreshInsightHud() {
+        insightLabel.setText("INSIGHT CHARGES  " + insightCharges + " / " + insightChargesEarned
+            + "   |   Silent Classroom best: "
+            + GameState.get().getSilentClassroomBestScore());
+        insightBtn.setDisable(insightCharges <= 0);
     }
 
     private void refreshBars() {

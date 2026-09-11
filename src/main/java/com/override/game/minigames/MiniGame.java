@@ -16,13 +16,13 @@ import javafx.scene.paint.Color;
  * (with the elapsed seconds) followed by {@link #render()}. Key input arrives via
  * {@link #onKey(KeyCode)}.
  *
- * <p>When the run ends the subclass calls {@link #finish(boolean, int, int)}, which
+ * <p>When the run ends the subclass calls {@link #finish(boolean, int, int, int)}, which
  * stops the loop and reports a {@link MiniGameResult} (including {@link #dependencyUsed})
  * to the registered {@link ResultListener}.
  *
  * <p>Subclasses must implement {@link #init()}, {@link #update(double)},
  * {@link #render()} and {@link #onKey(KeyCode)}. They should not override the loop,
- * constructor contract, {@link #getView()} or {@link #finish(boolean, int, int)}.
+ * constructor contract, {@link #getView()} or the finish methods.
  */
 public abstract class MiniGame {
 
@@ -91,7 +91,11 @@ public abstract class MiniGame {
 
     /** Initialise and start the 60fps game loop. */
     public final void start() {
+        if (finished || timer != null) return;
+        time = 0;
+        dependencyUsed = 0;
         init();
+        if (finished) return;
         canvas.requestFocus();
         lastNanos = 0;
         timer = new AnimationTimer() {
@@ -103,7 +107,7 @@ public abstract class MiniGame {
                 time += dt;
                 if (!finished) {
                     update(dt);
-                    render();
+                    if (!finished) render();
                 }
             }
         };
@@ -114,13 +118,28 @@ public abstract class MiniGame {
      * End the run: stop the loop and report the result. Safe to call once; later
      * calls are ignored.
      */
-    protected final void finish(boolean won, int score, int xp) {
+    protected final void finish(boolean won, int score, int xp, int chapterPoints) {
         if (finished) return;
         finished = true;
         if (timer != null) timer.stop();
         if (listener != null) {
-            listener.onResult(new MiniGameResult(won, score, xp, dependencyUsed));
+            listener.onResult(new MiniGameResult(
+                    won, score, xp, dependencyUsed, won ? chapterPoints : 0));
         }
+    }
+
+    /** Compatibility overload for arcade games that do not award chapter points. */
+    protected final void finish(boolean won, int score, int xp) {
+        finish(won, score, xp, 0);
+    }
+
+    /**
+     * Abort the run from its owner (for example when the modal close button is
+     * used). Cancellation is idempotent, stops the animation loop, and reports
+     * a failed/no-reward result while preserving the assist count already used.
+     */
+    public final void cancel() {
+        finish(false, 0, 0, 0);
     }
 
     /** The Canvas-backed view to drop into a Scene. */
@@ -128,7 +147,7 @@ public abstract class MiniGame {
         return view;
     }
 
-    /** Register the callback fired by {@link #finish(boolean, int, int)}. */
+    /** Register the callback fired when the run finishes or is cancelled. */
     public final void setResultListener(ResultListener listener) {
         this.listener = listener;
     }
