@@ -3,7 +3,6 @@
 import com.override.Main;
 import com.override.chapter1.CurfewNodeGames.NodeGame;
 import com.override.chapter1.CurfewNodeGames.Outcome;
-
 import com.override.shared.model.GameState;
 import com.override.shared.service.SaveService;
 import com.override.shared.ui.ChapterMapScreen;
