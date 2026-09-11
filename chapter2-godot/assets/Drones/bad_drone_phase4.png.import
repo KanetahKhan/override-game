@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cw1xtag21tl8s"
-path="res://.godot/imported/aim.png-2ba0d75141056bfccb893005ded1d6a9.ctex"
+uid="uid://botiv10i70bn1"
+path="res://.godot/imported/bad_drone_phase4.png-deef464350741550c99e32c3813e3e99.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/Drones/aim.png"
-dest_files=["res://.godot/imported/aim.png-2ba0d75141056bfccb893005ded1d6a9.ctex"]
+source_file="res://assets/Drones/bad_drone_phase4.png"
+dest_files=["res://.godot/imported/bad_drone_phase4.png-deef464350741550c99e32c3813e3e99.ctex"]
 
 [params]
 

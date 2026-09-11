@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cw1xtag21tl8s"
-path="res://.godot/imported/aim.png-2ba0d75141056bfccb893005ded1d6a9.ctex"
+uid="uid://byacsxuuvti1q"
+path="res://.godot/imported/beam_shot_02_center_bulge.png-da5ac876a7173f0c83f4ac69ac190f08.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/Drones/aim.png"
-dest_files=["res://.godot/imported/aim.png-2ba0d75141056bfccb893005ded1d6a9.ctex"]
+source_file="res://assets/GUNGUN/beam_shot_02_center_bulge.png"
+dest_files=["res://.godot/imported/beam_shot_02_center_bulge.png-da5ac876a7173f0c83f4ac69ac190f08.ctex"]
 
 [params]
 

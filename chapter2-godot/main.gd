@@ -3,46 +3,59 @@ extends Node2D
 
 const PLAYER_SPEED: float = 450.0
 const PLAYER_CROUCH_SPEED: float = 120.0
+const RED_ZONE_CRAWL_SPEED: float = 70.0
+const CROUCH_BOB_SPEED: float = 15.0
+const CROUCH_BOB_AMOUNT: float = 3.0
+const CROUCH_BOB_RESET_LERP: float = 15.0
 const JUMP_VELOCITY: float = -500.0
 
 
+const AIM_30_LEFT := preload("res://assets/ren/aim_30_left.png")
+const AIM_30_RIGHT := preload("res://assets/ren/aim_30_right.png")
+const AIM_60_LEFT := preload("res://assets/ren/aim_60_left.png")
+const AIM_60_RIGHT := preload("res://assets/ren/aim_60_right.png")
+const BEAM_SHOT_7 := preload("res://assets/GUNGUN/beam_shot_07_short_trail.png")
+const WALK_SOUND := preload("res://assets/ren/musicholder-walking-on-leaves-260279.mp3")
+
+
+# Muzzle of the posed gun, in texture pixels relative to the sprite center.
+const MUZZLE_30_RIGHT := Vector2(61.2, -20.4)
+const MUZZLE_60_RIGHT := Vector2(48.8, -38.0)
+const MUZZLE_30_LEFT := Vector2(-60.9, -20.6)
+const MUZZLE_60_LEFT := Vector2(-49.7, -37.8)
+
+
+# The shot sprite is a short trail: the bright round head sits at
+# BEAM_MUZZLE_OFFSET (texture px relative to the sprite center) and the tail
+# trails away at BEAM_TRAIL_ANGLE (radians) inside the texture.
+const BEAM_MUZZLE_OFFSET := Vector2(-141.0, -147.2)
+const BEAM_TRAIL_ANGLE: float = 0.796
+const SHOT_SCALE: float = 0.3
+const SHOT_SPEED: float = 1600.0
+
+
+# =========================
+# RUN / TIMER (reach the safe green zone in GAME_DURATION)
+# =========================
+const GAME_DURATION: float = 150.0
+const PLAYER_START_X: float = 150.0
+const TOTAL_RUN_DISTANCE: float = 20000.0
+const PIXELS_PER_METER: float = 20.0
+const HUD_FONT := preload("res://assets/Pixel Game.otf")
+const HUD_FONT_SIZE: int = 20
+const HUD_BIG_FONT_SIZE: int = 36
+const DESTINATION_X: float = (
+	PLAYER_START_X
+	+
+	TOTAL_RUN_DISTANCE
+)
+const RED_STAND_LIMIT: float = 5.0
+const RED_STAND_WARN: float = 3.0
+const RED_PENALTY_SECONDS: float = 5.0
+const GOOD_DRONE_SCORE_PENALTY: float = 0.5
+
+
 const SEGMENT_OVERLAP: float = 80.0
-
-
-const DRONE_TEXTURE: Texture2D = \
-	preload("res://assets/Drones/bad_drone.png")
-
-# Seconds after the run starts before the drone flies in.
-const DRONE_DELAY: float = 5.0
-
-# Scale applied to the 1536x1024 drone texture.
-const DRONE_SCALE: float = 0.18
-
-
-# Drone flight geometry, as offsets from the camera.
-#
-# The heights are constant: every pass enters/leaves through
-# the top border at DRONE_TOP_Y and glides at DRONE_BOTTOM_Y.
-# Only the entry/exit X positions change from pass to pass.
-const DRONE_TOP_Y: float = -400.0
-const DRONE_BOTTOM_Y: float = -40.0
-
-# Entry X range (top-right of the screen).
-const DRONE_ENTRY_X_MIN: float = 250.0
-const DRONE_ENTRY_X_MAX: float = 450.0
-
-# Exit X range (top-left of the screen).
-const DRONE_EXIT_X_MIN: float = -450.0
-const DRONE_EXIT_X_MAX: float = -250.0
-
-# Seconds spent on each leg of the trapezoid.
-const DRONE_LEG_TIMES: Array[float] = [2.5, 5.5, 2.5]
-
-# How many times the drone crosses the sky during a run.
-const DRONE_PASS_COUNT: int = 10
-
-# Seconds between one drone pass and the next.
-const DRONE_GAP: float = 2.0
 
 
 # Horizon atmospheric fade
@@ -74,6 +87,41 @@ var player_gravity: float = 980.0
 var is_attacking: bool = false
 var is_defending: bool = false
 var is_crouching: bool = false
+var is_aiming: bool = false
+var aim_timer: float = 0.0
+var crouch_bob_time: float = 0.0
+
+
+var beam_sprite: Sprite2D
+var shot_tween: Tween
+var walk_player: AudioStreamPlayer
+
+
+var game_time_left: float = GAME_DURATION
+var game_over: bool = false
+var game_won_result: bool = false
+var red_standing_time: float = 0.0
+var bad_spawned: int = 0
+var bad_killed: int = 0
+var good_killed: int = 0
+var final_score_percent: float = 0.0
+var countdown_active: bool = true
+var countdown_time: float = 3.0
+var countdown_displayed: int = 0
+var time_label: Label
+var warning_label: Label
+var distance_bar_control: Control
+var bar_image: TextureRect
+var bar_fill: ColorRect
+var bar_pointer: TextureRect
+var bad_drone_icon: TextureRect
+var bad_drone_label: Label
+var current_run_pct: float = 0.0
+var time_label_red: bool = false
+var kk_space_was_pressed: bool = false
+var end_card_layer: CanvasLayer
+var end_card_label: Label
+var countdown_label: Label
 
 
 var hp: int = 100
@@ -90,6 +138,10 @@ var segment_w: float = 1005.0
 
 @onready var player: CharacterBody2D = $Player
 
+
+@onready var player_sprite: Sprite2D = $Player/Sprite2D
+
+
 @onready var camera_node: Camera2D = \
 	$Player/Camera2D
 
@@ -100,6 +152,9 @@ var segment_w: float = 1005.0
 
 
 @onready var ground: Node2D = $Ground
+
+
+@onready var drone_manager: Node2D = $DroneManager
 
 
 
@@ -128,6 +183,8 @@ var segment_w: float = 1005.0
 
 func _ready() -> void:
 
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
 	build_ground()
 
 	build_crops()
@@ -136,7 +193,14 @@ func _ready() -> void:
 
 	setup_horizon()
 
-	start_drone_timer()
+	build_destination()
+
+	build_hud()
+
+	walk_player = AudioStreamPlayer.new()
+	walk_player.stream = WALK_SOUND
+	walk_player.stream.loop = true
+	add_child(walk_player)
 
 
 
@@ -276,106 +340,6 @@ func setup_horizon() -> void:
 		repeat_width,
 		0.0
 	)
-
-# =====================================================
-# DRONE
-# =====================================================
-
-# Waits DRONE_DELAY seconds, then spawns a drone
-# DRONE_PASS_COUNT times, one pass at a time.
-func start_drone_timer() -> void:
-
-	if player == null:
-		return
-
-
-	await get_tree().create_timer(DRONE_DELAY).timeout
-
-	for pass_index: int in DRONE_PASS_COUNT:
-
-		if not is_instance_valid(player):
-			return
-
-
-		var tween := spawn_drone()
-
-		if tween != null:
-
-			await tween.finished
-
-
-		if pass_index < DRONE_PASS_COUNT - 1:
-
-			await get_tree().create_timer(DRONE_GAP).timeout
-
-
-# Spawns the drone attached to the camera so it stays
-# locked to the screen while the player scrolls.
-func spawn_drone() -> Tween:
-
-	if camera_node == null:
-		return null
-
-
-	if DRONE_TEXTURE == null:
-		return null
-
-
-	var drone := Sprite2D.new()
-
-	drone.name = "Drone"
-
-	drone.texture = DRONE_TEXTURE
-
-	drone.z_index = 3
-
-	drone.scale = Vector2.ONE * DRONE_SCALE
-
-	var entry_x: float = randf_range(
-		DRONE_ENTRY_X_MIN,
-		DRONE_ENTRY_X_MAX
-	)
-
-	var exit_x: float = randf_range(
-		DRONE_EXIT_X_MIN,
-		DRONE_EXIT_X_MAX
-	)
-
-	var flight_path: Array[Vector2] = [
-		Vector2(entry_x, DRONE_TOP_Y),
-		Vector2(430, DRONE_BOTTOM_Y),
-		Vector2(-430, DRONE_BOTTOM_Y),
-		Vector2(exit_x, DRONE_TOP_Y)
-	]
-
-	drone.position = flight_path[0]
-
-	camera_node.add_child(drone)
-
-
-	var tween := create_tween()
-
-	tween.set_loops(1)
-
-	for leg: int in range(flight_path.size() - 1):
-
-		tween.tween_property(
-			drone,
-			"position",
-			flight_path[leg + 1],
-			DRONE_LEG_TIMES[leg]
-		).set_trans(
-			Tween.TRANS_QUAD
-		).set_ease(
-			Tween.EASE_IN_OUT
-		)
-
-
-	tween.tween_callback(
-		drone.queue_free
-	)
-
-	return tween
 
 # =====================================================
 # CROP SETTINGS
@@ -1456,6 +1420,39 @@ func _physics_process(delta: float) -> void:
 		return
 
 
+	if game_over:
+
+		player.velocity = Vector2.ZERO
+
+		player.move_and_slide()
+
+		return
+
+
+	if countdown_active:
+
+		update_countdown(
+			delta
+		)
+
+		apply_gravity(delta)
+
+		player.velocity.x = 0.0
+
+		player.move_and_slide()
+
+		update_animation(
+			0.0
+		)
+
+		update_camera()
+
+		update_ground()
+
+		update_crops()
+
+		return
+
 
 	apply_gravity(delta)
 
@@ -1463,6 +1460,7 @@ func _physics_process(delta: float) -> void:
 
 	update_attack_timer(delta)
 
+	update_aim_timer(delta)
 
 
 	player.move_and_slide()
@@ -1479,6 +1477,16 @@ func _physics_process(delta: float) -> void:
 		movement_direction
 	)
 
+	update_crouch_bob(
+		movement_direction,
+		delta
+	)
+
+	update_footsteps(
+		movement_direction,
+		delta
+	)
+
 
 
 	update_camera()
@@ -1486,6 +1494,11 @@ func _physics_process(delta: float) -> void:
 	update_ground()
 
 	update_crops()
+
+
+	update_run_timer(delta)
+
+	check_destination()
 
 
 
@@ -1534,16 +1547,13 @@ func read_player_input() -> void:
 
 
 
-	if not is_crouching:
+	if Input.is_key_pressed(
+		KEY_RIGHT
+	):
 
+		direction = 1.0
 
-		if Input.is_key_pressed(
-			KEY_RIGHT
-		):
-
-			direction = 1.0
-
-			facing_right = true
+		facing_right = true
 
 
 
@@ -1555,7 +1565,11 @@ func read_player_input() -> void:
 
 	if is_crouching:
 
-		current_speed = PLAYER_CROUCH_SPEED
+		current_speed = (
+			RED_ZONE_CRAWL_SPEED
+			if is_red_alert_active()
+			else PLAYER_CROUCH_SPEED
+		)
 
 	else:
 
@@ -1575,8 +1589,36 @@ func read_player_input() -> void:
 
 
 
-	if (
+	var kk_space_down: bool = (
 		Input.is_key_pressed(KEY_SPACE)
+	)
+
+	if (
+		kk_space_down
+		and
+		not kk_space_was_pressed
+	):
+
+		trigger_kk_from_keyboard()
+
+	kk_space_was_pressed = kk_space_down
+
+
+# Space → activate the KK Assist button (keyboard click), honoring the same
+# gates the on-screen button uses (red alert, game over, remaining uses).
+func trigger_kk_from_keyboard() -> void:
+
+	var kk_button: Node = get_node_or_null(
+		"KkHud/KkAssistButton"
+	)
+	if kk_button == null:
+		return
+
+	if kk_button.has_method("trigger_from_keyboard"):
+		kk_button.call("trigger_from_keyboard")
+
+	if (
+		Input.is_key_pressed(KEY_Z)
 		and
 		player.is_on_floor()
 	):
@@ -1649,8 +1691,9 @@ func update_animation(
 		return
 
 
+	if is_aiming:
 
-
+		return
 
 	if not player.is_on_floor():
 
@@ -1715,12 +1758,296 @@ func play_animation(
 
 
 
+func is_red_alert_active() -> bool:
+
+
+	return (
+		drone_manager != null
+		and
+		drone_manager.has_method("is_alert_active")
+		and
+		drone_manager.is_alert_active()
+	)
+
+
+
+
+func update_crouch_bob(
+	direction: float,
+	delta: float
+) -> void:
+
+
+	if not is_crouching:
+
+		crouch_bob_time = 0.0
+
+		player_sprite.position.y = lerpf(
+			player_sprite.position.y,
+			0.0,
+			delta * CROUCH_BOB_RESET_LERP
+		)
+
+		return
+
+
+	if direction == 0.0:
+
+		crouch_bob_time = 0.0
+
+		player_sprite.position.y = lerpf(
+			player_sprite.position.y,
+			0.0,
+			delta * CROUCH_BOB_RESET_LERP
+		)
+
+		return
+
+
+	if is_aiming:
+
+		return
+
+
+	crouch_bob_time += delta * CROUCH_BOB_SPEED
+
+	var bob_offset: float = (
+		abs(
+			sin(
+				crouch_bob_time
+			)
+		)
+		*
+		CROUCH_BOB_AMOUNT
+	)
+
+	if is_red_alert_active():
+
+		bob_offset *= 2.0
+
+	player_sprite.position.y = -bob_offset
+
 
 
 
 # =====================================================
-# CAMERA
+# SHOOTING
 # =====================================================
+
+
+func trigger_shoot(
+	target_pos: Vector2,
+	on_hit: Callable = Callable()
+) -> void:
+
+
+	Sfx.play(
+		"shot",
+		-8.0,
+		randf_range(0.95, 1.05)
+	)
+
+
+	var to_target := (
+		target_pos
+		-
+		player.global_position
+	)
+
+
+	var shoot_left: bool = (
+		to_target.x < 0.0
+	)
+
+
+	var elevation: float = (
+		abs(
+			rad_to_deg(
+				atan2(
+					to_target.y,
+					abs(to_target.x)
+				)
+			)
+		)
+	)
+
+
+	var pose: Texture2D
+
+	var muzzle_offset: Vector2
+
+	if shoot_left:
+
+		if elevation >= 45.0:
+
+			pose = AIM_60_LEFT
+			muzzle_offset = MUZZLE_60_LEFT
+
+		else:
+
+			pose = AIM_30_LEFT
+			muzzle_offset = MUZZLE_30_LEFT
+
+	else:
+
+		if elevation >= 45.0:
+
+			pose = AIM_60_RIGHT
+			muzzle_offset = MUZZLE_60_RIGHT
+
+		else:
+
+			pose = AIM_30_RIGHT
+			muzzle_offset = MUZZLE_30_RIGHT
+
+
+	if anim != null:
+
+		anim.stop()
+
+
+	player_sprite.texture = pose
+
+	is_aiming = true
+	aim_timer = 0.3
+
+
+	var muzzle_world := (
+		player.global_position
+		+
+		player_sprite.position
+		+
+		muzzle_offset * player_sprite.scale
+	)
+
+
+	spawn_shot(
+		muzzle_world,
+		target_pos,
+		on_hit
+	)
+
+
+
+
+func update_aim_timer(
+	delta: float
+) -> void:
+
+
+	if not is_aiming:
+
+		return
+
+
+	aim_timer -= delta
+
+	if aim_timer <= 0.0:
+
+		is_aiming = false
+
+
+
+
+func spawn_shot(
+	from_pos: Vector2,
+	to_pos: Vector2,
+	on_hit: Callable = Callable()
+) -> void:
+
+
+	if beam_sprite == null:
+
+		beam_sprite = Sprite2D.new()
+
+		beam_sprite.texture = BEAM_SHOT_7
+
+		beam_sprite.texture_filter = (
+			CanvasItem.TEXTURE_FILTER_LINEAR
+		)
+
+		beam_sprite.z_index = 5
+
+		add_child(
+			beam_sprite
+		)
+
+
+	if shot_tween != null and shot_tween.is_valid():
+
+		shot_tween.kill()
+
+
+	var to_target := (
+		to_pos
+		-
+		from_pos
+	)
+
+	var distance := to_target.length()
+
+	if distance <= 0.001:
+
+		distance = 0.001
+
+
+	beam_sprite.scale = Vector2(
+		SHOT_SCALE,
+		SHOT_SCALE
+	)
+
+	beam_sprite.global_rotation = (
+		to_target.angle()
+		+
+		PI
+		-
+		BEAM_TRAIL_ANGLE
+	)
+
+
+	var shot_head_local := (
+		BEAM_MUZZLE_OFFSET
+		*
+		beam_sprite.scale
+	).rotated(
+		beam_sprite.global_rotation
+	)
+
+
+	beam_sprite.position = (
+		from_pos
+		-
+		shot_head_local
+	)
+
+	beam_sprite.visible = true
+
+
+	var flight_time: float = clampf(
+		distance / SHOT_SPEED,
+		0.1,
+		0.4
+	)
+
+
+	shot_tween = create_tween()
+
+	shot_tween.tween_property(
+		beam_sprite,
+		"position",
+		to_pos,
+		flight_time
+	)
+
+	shot_tween.tween_callback(
+		func() -> void:
+
+			beam_sprite.visible = false
+
+			if on_hit.is_valid():
+
+				on_hit.call()
+	)
 
 
 func update_camera() -> void:
@@ -1932,4 +2259,1015 @@ func take_damage(
 func die() -> void:
 
 
+	if game_over:
+		return
+
+
 	get_tree().reload_current_scene()
+
+
+
+# =====================================================
+# RUN TIMER / SAFE ZONE / SCORE
+# =====================================================
+
+func update_run_timer(delta: float) -> void:
+
+
+	game_time_left -= delta
+
+
+	update_red_standing(delta)
+
+
+	if game_time_left <= 0.0:
+
+		game_time_left = 0.0
+
+		end_game(false)
+
+		return
+
+
+	update_hud()
+
+
+func update_red_standing(delta: float) -> void:
+
+
+	if not is_red_alert_active():
+
+		red_standing_time = 0.0
+
+		return
+
+
+	if is_crouching:
+
+		red_standing_time = 0.0
+
+	else:
+
+		red_standing_time += delta
+
+		if red_standing_time >= RED_STAND_LIMIT:
+
+			game_time_left = max(
+				0.0,
+				game_time_left - RED_PENALTY_SECONDS
+			)
+
+			red_standing_time = 0.0
+
+
+	if game_time_left <= 0.0:
+
+		game_time_left = 0.0
+
+
+func check_destination() -> void:
+
+
+	if player == null:
+
+		return
+
+
+	if player.global_position.x >= DESTINATION_X:
+
+		end_game(true)
+
+
+func update_countdown(delta: float) -> void:
+
+
+	countdown_time -= delta
+
+	var step: int = maxi(
+		int(ceil(countdown_time)),
+		0
+	)
+
+	if step != countdown_displayed:
+
+		countdown_displayed = step
+
+		Sfx.play(
+			"beep",
+			-6.0,
+			1.0 + float(3 - step) * 0.15
+		)
+
+
+	if countdown_time <= 0.0:
+
+		countdown_active = false
+
+		if countdown_label != null:
+
+			countdown_label.text = "GO!"
+
+			countdown_label.modulate.a = 1.0
+
+			countdown_label.visible = true
+
+			var fade := create_tween()
+
+			fade.tween_property(
+				countdown_label,
+				"modulate:a",
+				0.0,
+				0.7
+			)
+
+			fade.tween_callback(
+				func() -> void:
+
+					countdown_label.visible = false
+			)
+
+		Sfx.play(
+			"go",
+			-2.0
+		)
+
+		return
+
+
+	if countdown_label != null:
+
+		countdown_label.text = "%d" % step
+
+
+func update_footsteps(
+	direction: float,
+	_delta: float
+) -> void:
+
+
+	if walk_player == null:
+
+		return
+
+
+	var should_walk: bool = (
+		player != null
+		and
+		player.is_on_floor()
+		and
+		abs(direction) > 1.0
+	)
+
+
+	if not should_walk:
+
+		walk_player.stop()
+
+		return
+
+
+	if is_crouching:
+
+		walk_player.pitch_scale = 0.75
+
+		walk_player.volume_db = -10.0
+
+	else:
+
+		walk_player.pitch_scale = 1.0
+
+		walk_player.volume_db = -8.0
+
+
+	if not walk_player.playing:
+
+		walk_player.play()
+
+
+func end_game(win: bool) -> void:
+
+
+	if game_over:
+		return
+
+
+	game_over = true
+
+	game_won_result = win
+
+
+	if win:
+
+		Sfx.play(
+			"win",
+			-4.0
+		)
+
+
+	if drone_manager != null:
+
+		drone_manager.set_process(false)
+
+
+	if player != null:
+
+		player.velocity = Vector2.ZERO
+
+
+	var overlay := get_node_or_null(
+		"AlertOverlay/ColorRect"
+	) as ColorRect
+
+
+	if overlay != null:
+
+		var tw: Tween
+
+		if win:
+
+			tw = create_tween()
+
+			tw.tween_property(
+				overlay,
+				"color:a",
+				0.0,
+				0.6
+			)
+
+		else:
+
+			tw = create_tween()
+
+			tw.tween_property(
+				overlay,
+				"color:a",
+				1.0,
+				0.7
+			)
+
+
+	final_score_percent = calc_final_score()
+
+	show_end_card(win)
+
+
+func calc_final_score() -> float:
+
+
+	var rate: float
+
+	if bad_spawned <= 0:
+
+		rate = 100.0
+
+	else:
+
+		rate = (
+			float(bad_killed)
+			/
+			float(bad_spawned)
+			*
+			100.0
+		)
+
+
+	var good_penalty: float = (
+		float(good_killed)
+		*
+		GOOD_DRONE_SCORE_PENALTY
+	)
+
+
+	rate -= good_penalty
+
+	if rate < 0.0:
+
+		rate = 0.0
+
+
+	return rate
+
+
+func register_drone_spawned(kind: int) -> void:
+
+
+	if kind == Drone.DroneType.BAD:
+
+		bad_spawned += 1
+
+
+func register_drone_killed(kind: int) -> void:
+
+
+	match kind:
+
+		Drone.DroneType.GOOD:
+
+			good_killed += 1
+
+		Drone.DroneType.BAD:
+
+			bad_killed += 1
+
+
+func show_end_card(win: bool) -> void:
+
+
+	if end_card_layer == null:
+
+		build_hud()
+
+
+	var progress_percent: float = 0.0
+
+	if player != null:
+
+		progress_percent = clampf(
+			(
+				player.global_position.x
+				-
+				PLAYER_START_X
+			)
+			/ TOTAL_RUN_DISTANCE
+			* 100.0,
+			0.0,
+			100.0
+		)
+
+
+	var kill_phase: String = (
+		"Bad drones killed: %d / %d (%.1f%%)"
+		% [
+			bad_killed,
+			bad_spawned,
+			(
+				float(bad_killed)
+				/ float(bad_spawned)
+				* 100.0
+				if bad_spawned > 0
+				else 100.0
+			),
+		]
+	)
+
+
+	var good_phase: String = (
+		"Good drones hurt: %d x %.1f%% = -%.1f%%"
+		% [
+			good_killed,
+			GOOD_DRONE_SCORE_PENALTY,
+			float(good_killed) * GOOD_DRONE_SCORE_PENALTY,
+		]
+	)
+
+
+	if win:
+
+		end_card_label.text = (
+			"SAFE ZONE REACHED!"
+			+ "
+"
+			+ "Time left: "
+			+ ("%.2f s" % [game_time_left])
+			+ "
+"
+			+ kill_phase
+			+ "
+"
+			+ good_phase
+			+ "
+"
+			+ "
+FINAL SCORE: "
+			+ ("%.1f%%" % [final_score_percent])
+		)
+
+	else:
+
+		end_card_label.text = (
+			"TIME UP - ENFORCEMENT CAUGHT YOU!"
+			+ "
+"
+			+ "Safe zone reached only "
+			+ ("%.1f%%" % [progress_percent])
+			+ " of the way"
+			+ "
+"
+			+ kill_phase
+			+ "
+"
+			+ good_phase
+			+ "
+"
+			+ "
+FINAL SCORE: "
+			+ ("%.1f%%" % [final_score_percent])
+		)
+
+
+	end_card_layer.visible = true
+
+
+func build_hud() -> void:
+
+
+	if end_card_layer == null:
+
+		var end_layer := CanvasLayer.new()
+
+		end_layer.name = "EndCard"
+
+		end_layer.layer = 120
+
+		add_child(end_layer)
+
+		var rect := ColorRect.new()
+
+		rect.name = "Backdrop"
+
+		rect.anchor_right = 1.0
+
+		rect.anchor_bottom = 1.0
+
+		rect.color = Color(
+			0.0,
+			0.0,
+			0.0,
+			0.78
+		)
+
+		end_layer.add_child(rect)
+
+		var lbl := Label.new()
+
+		lbl.name = "Message"
+
+		lbl.anchor_left = 0.5
+
+		lbl.anchor_right = 0.5
+
+		lbl.anchor_top = 0.5
+
+		lbl.anchor_bottom = 0.5
+
+		lbl.offset_left = -430.0
+
+		lbl.offset_right = 430.0
+
+		lbl.offset_top = -130.0
+
+		lbl.offset_bottom = 160.0
+
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
+		lbl.add_theme_font_size_override("font_size", 34)
+
+		lbl.add_theme_font_override("font", HUD_FONT)
+
+		lbl.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+
+		lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+
+		lbl.add_theme_constant_override("outline_size", 8)
+
+		end_layer.add_child(lbl)
+
+		end_layer.visible = false
+
+		end_card_layer = end_layer
+
+		end_card_label = lbl
+
+
+	if countdown_label == null:
+
+		var count_layer := CanvasLayer.new()
+
+		count_layer.name = "CountdownLayer"
+
+		count_layer.layer = 115
+
+		add_child(count_layer)
+
+		countdown_label = Label.new()
+
+		countdown_label.anchor_left = 0.5
+
+		countdown_label.anchor_right = 0.5
+
+		countdown_label.anchor_top = 0.4
+
+		countdown_label.anchor_bottom = 0.4
+
+		countdown_label.offset_left = -260.0
+
+		countdown_label.offset_right = 260.0
+
+		countdown_label.offset_top = -80.0
+
+		countdown_label.offset_bottom = 120.0
+
+		countdown_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+		countdown_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
+		countdown_label.add_theme_font_size_override("font_size", 110)
+
+		countdown_label.add_theme_font_override("font", HUD_FONT)
+
+		countdown_label.add_theme_color_override("font_color", Color(1, 1, 0.6, 1))
+
+		countdown_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+
+		countdown_label.add_theme_constant_override("outline_size", 14)
+
+		count_layer.add_child(countdown_label)
+
+
+	var kk_hud := get_node_or_null(
+		"KkHud"
+	) as CanvasLayer
+
+	if kk_hud == null:
+
+		return
+
+
+	if time_label == null:
+
+		time_label = get_node_or_null(
+			"KkHud/TimeLabel"
+		) as Label
+
+
+	if distance_bar_control == null:
+
+		distance_bar_control = get_node_or_null(
+			"KkHud/DistanceBarControl"
+		) as Control
+
+
+	if bar_fill == null:
+
+		bar_fill = get_node_or_null(
+			"KkHud/DistanceBarControl/BarFill"
+		) as ColorRect
+
+
+	if bar_image == null:
+
+		bar_image = get_node_or_null(
+			"KkHud/DistanceBarControl/BarImage"
+		) as TextureRect
+		if bar_image != null:
+			bar_image.texture = preload(
+				"res://assets/game-stuffs/disbar.png"
+			)
+			bar_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			bar_image.stretch_mode = TextureRect.STRETCH_SCALE
+
+
+	if bar_pointer == null:
+
+		bar_pointer = get_node_or_null(
+			"KkHud/DistanceBarControl/DistancePointer"
+		) as TextureRect
+		if bar_pointer != null:
+			bar_pointer.texture = preload(
+				"res://assets/game-stuffs/dispointer.png"
+			)
+			bar_pointer.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			bar_pointer.stretch_mode = TextureRect.STRETCH_SCALE
+
+
+	if bad_drone_icon == null:
+
+		bad_drone_icon = get_node_or_null(
+			"KkHud/BadDroneTracker/BadDroneIcon"
+		) as TextureRect
+		if bad_drone_icon != null:
+			bad_drone_icon.texture = preload(
+				"res://assets/Drones/bad_drone.png"
+			)
+			bad_drone_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			bad_drone_icon.stretch_mode = TextureRect.STRETCH_SCALE
+
+
+	if bad_drone_label == null:
+
+		bad_drone_label = get_node_or_null(
+			"KkHud/BadDroneTracker/BadDronePercent"
+		) as Label
+		if bad_drone_label != null:
+			bad_drone_label.add_theme_font_override("font", HUD_FONT)
+			bad_drone_label.add_theme_font_size_override("font_size", HUD_BIG_FONT_SIZE)
+			bad_drone_label.add_theme_color_override(
+				"font_color",
+				Color(1, 0, 1)
+			)
+			bad_drone_label.add_theme_constant_override("outline_size", 6)
+
+
+	if warning_label == null:
+
+		warning_label = get_node_or_null(
+			"KkHud/WarningLabel"
+		) as Label
+
+
+	style_hud_labels()
+	style_time_label()
+
+	align_hud_elements()
+
+	update_hud()
+
+
+func align_hud_elements() -> void:
+
+	var margin_x: float = 40.0
+
+	var row_1_y: float = 40.0
+
+	var row_2_y: float = 110.0
+
+	var kk_control: Control = get_node_or_null(
+		"KkHud/KkAssistButton"
+	) as Control
+	if kk_control != null:
+
+		kk_control.position = Vector2(margin_x, row_1_y)
+
+	var drone_parent: Control = get_node_or_null(
+		"KkHud/BadDroneTracker"
+	) as Control
+	if drone_parent != null:
+
+		drone_parent.position = Vector2(margin_x, row_2_y)
+
+	if time_label != null:
+
+		time_label.offset_left = -time_label.size.x - margin_x
+
+		time_label.offset_right = -margin_x
+
+		time_label.offset_top = row_1_y
+
+		time_label.offset_bottom = row_1_y + time_label.size.y
+
+	if distance_bar_control != null:
+
+		distance_bar_control.offset_left = -distance_bar_control.size.x - margin_x
+
+		distance_bar_control.offset_right = -margin_x
+
+		distance_bar_control.offset_top = row_2_y
+
+		distance_bar_control.offset_bottom = row_2_y + distance_bar_control.size.y
+
+
+func style_hud_labels() -> void:
+
+	for lbl: Label in [
+			warning_label,
+		]:
+
+		if lbl == null:
+
+			continue
+
+		lbl.add_theme_font_override("font", HUD_FONT)
+
+		lbl.add_theme_font_size_override("font_size", HUD_FONT_SIZE)
+
+		lbl.add_theme_color_override("font_color", Color(1, 0, 1))
+
+		lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+
+		lbl.add_theme_constant_override("outline_size", 6)
+
+
+func style_time_label() -> void:
+
+	if time_label == null:
+
+		return
+
+	time_label.add_theme_font_override("font", HUD_FONT)
+
+	time_label.add_theme_font_size_override("font_size", HUD_BIG_FONT_SIZE)
+
+	time_label.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+
+	time_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+
+	time_label.add_theme_constant_override("outline_size", 10)
+
+
+func update_hud() -> void:
+
+
+	if time_label != null:
+
+		time_label.text = "\u23F3 %d" % [
+			int(game_time_left)
+		]
+		var urgent: bool = game_time_left <= 10.0
+		if urgent and not time_label_red:
+			time_label.add_theme_color_override("font_color", Color(1.0, 0.2, 0.2, 1))
+			time_label_red = true
+		elif not urgent and time_label_red:
+			time_label.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+			time_label_red = false
+
+
+	if bar_fill != null:
+
+		var traveled: float = 0.0
+
+		if player != null:
+
+			traveled = max(
+				player.global_position.x
+				-
+				PLAYER_START_X,
+				0.0
+			)
+
+		current_run_pct = clampf(
+			traveled
+			/ TOTAL_RUN_DISTANCE,
+			0.0,
+			1.0
+		)
+		_update_distance_bar()
+
+
+	if bad_drone_label != null:
+
+		var bad_pct2: float = 0.0
+
+		if bad_spawned > 0:
+
+			bad_pct2 = (
+				float(bad_killed)
+				/ float(bad_spawned)
+				* 100.0
+			)
+
+		bad_drone_label.text = "%d%%" % clampi(
+			int(round(bad_pct2)),
+			0,
+			100
+		)
+
+
+	if warning_label != null:
+
+		if (
+			is_red_alert_active()
+			and
+			not is_crouching
+			and
+			red_standing_time > RED_STAND_WARN
+		):
+
+			warning_label.text = (
+				"GET DOWN!  -%.0fs in %.1fs"
+				% [
+					RED_PENALTY_SECONDS,
+					max(
+						RED_STAND_LIMIT
+						-
+						red_standing_time,
+						0.0
+					),
+				]
+			)
+
+			warning_label.visible = true
+
+		else:
+
+			warning_label.visible = false
+
+
+# Moves the distance-bar fill and diamond marker nodes; the bar frame,
+# stem, diamond and dot are real scene nodes editable in main.tscn.
+func _update_distance_bar() -> void:
+
+	if bar_fill == null:
+
+		return
+
+	var origin_x: float = 36.0
+
+	var rail_width: float = 149.0
+
+	var pct: float = clampf(current_run_pct, 0.0, 1.0)
+
+	var traveled_w: float = rail_width * pct
+
+	bar_fill.position.x = origin_x + traveled_w
+
+	bar_fill.size.x = max(rail_width - traveled_w, 0.0)
+
+	if bar_pointer != null:
+
+		bar_pointer.position.x = origin_x + traveled_w - bar_pointer.size.x * 0.5
+
+
+# =====================================================
+# DESTINATION (SAFE GREEN ZONE) VISUAL
+# =====================================================
+
+func build_destination() -> void:
+
+
+	var dest := Node2D.new()
+
+	dest.name = "DestinationZone"
+
+	dest.position = Vector2(
+		DESTINATION_X,
+		0.0
+	)
+
+
+	var beam := Sprite2D.new()
+
+	beam.name = "Beam"
+
+	beam.texture = make_beam_texture()
+
+	beam.position = Vector2(
+		0.0,
+		310.0
+	)
+
+	beam.z_index = 0
+
+	dest.add_child(beam)
+
+
+	var pad := Sprite2D.new()
+
+	pad.name = "Pad"
+
+	pad.texture = make_checker_texture(
+		Vector2i(360, 220)
+	)
+
+	pad.position = Vector2(
+		0.0,
+		450.0
+	)
+
+	pad.z_index = 1
+
+	dest.add_child(pad)
+
+
+	var lbl := Label.new()
+
+	lbl.name = "Sign"
+
+	lbl.text = "SAFE ZONE"
+
+	lbl.position = Vector2(
+		-140.0,
+		100.0
+	)
+
+	lbl.z_index = 3
+
+	lbl.add_theme_font_size_override("font_size", 44)
+
+	lbl.add_theme_color_override("font_color", Color(0.3, 1.0, 0.6, 1.0))
+
+	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+
+	lbl.add_theme_constant_override("outline_size", 10)
+
+	dest.add_child(lbl)
+
+
+	add_child(dest)
+
+
+func make_checker_texture(
+	size: Vector2i
+) -> Texture2D:
+
+
+	var img := Image.create(
+		size.x,
+		size.y,
+		false,
+		Image.FORMAT_RGBA8
+	)
+
+
+	var cell: int = 40
+
+	var a := Color(
+		0.16,
+		0.52,
+		0.30,
+		1.0
+	)
+
+	var b := Color(
+		0.34,
+		0.68,
+		0.42,
+		1.0
+	)
+
+
+	for y in size.y:
+
+		for x in size.x:
+
+			var even: bool = (
+				(
+					int(x / cell)
+					+
+					int(y / cell)
+				)
+				% 2
+				== 0
+			)
+
+			img.set_pixel(
+				x,
+				y,
+				a if even else b
+			)
+
+
+	return ImageTexture.create_from_image(img)
+
+
+func make_beam_texture() -> Texture2D:
+
+
+	var w: int = 260
+
+	var h: int = 520
+
+	var img := Image.create(
+		w,
+		h,
+		false,
+		Image.FORMAT_RGBA8
+	)
+
+
+	for y in h:
+
+		var t: float = (
+			float(y)
+			/
+			float(h)
+		)
+
+		var alpha: float = lerpf(
+			0.14,
+			0.5,
+			t
+		)
+
+		for x in w:
+
+			var edge: float = 1.0 - (
+				abs(
+					float(x)
+					-
+					float(w) * 0.5
+				)
+				/ (float(w) * 0.5)
+			)
+
+			edge = pow(
+				edge,
+				0.6
+			)
+
+			var col := Color(
+				0.2,
+				0.9,
+				0.5,
+				alpha * edge
+			)
+
+			img.set_pixel(
+				x,
+				y,
+				col
+			)
+
+
+	return ImageTexture.create_from_image(img)
