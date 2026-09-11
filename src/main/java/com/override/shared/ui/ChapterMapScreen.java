@@ -3,7 +3,7 @@ package com.override.shared.ui;
 import com.override.Main;
 import com.override.shared.model.GameState;
 import com.override.shared.service.SaveService;
-import com.override.chapter1.ChapterOneScreen;
+import com.override.chapter1.CurfewProtocolScreen;
 import com.override.game.minigames.GodotGameLauncher;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -89,7 +89,7 @@ public class ChapterMapScreen {
         play.setDisable(!unlocked);
         play.setOnAction(e -> {
             switch (chNum) {
-                case 1 -> Main.switchScene(new ChapterOneScreen().build());
+                case 1 -> Main.switchScene(new CurfewProtocolScreen().build());
                 case 2 -> GodotGameLauncher.launchGodot();
                 default -> new javafx.scene.control.Alert(
                     javafx.scene.control.Alert.AlertType.INFORMATION,
