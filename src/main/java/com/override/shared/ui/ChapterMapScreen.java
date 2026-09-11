@@ -3,7 +3,7 @@ package com.override.shared.ui;
 import com.override.Main;
 import com.override.shared.model.GameState;
 import com.override.shared.service.SaveService;
-import com.override.chapter1.ChapterOneScreen;
+import com.override.chapter1.CurfewProtocolScreen;
 import com.override.chapter2.ChapterTwoScreen;
 import com.override.chapter3.ChapterThreeScreen;
 import com.override.chapter4.ChapterFourScreen;
@@ -27,7 +27,7 @@ import javafx.scene.layout.VBox;
 public class ChapterMapScreen {
 
     private static final String[][] CHAPTERS = {
-        { "1", "The Silent Classroom",  "Education dependency",   "1" },
+        { "1", "Curfew Protocol",       "Education dependency",   "1" },
         { "2", "Harvest Protocol",      "Agricultural dependency","0" },
         { "3", "Mercy Index",           "AI-controlled healthcare","0" },
         { "4", "Codeblind",             "Loss of real coding skill","0" },
@@ -97,7 +97,7 @@ public class ChapterMapScreen {
         play.setDisable(!unlocked);
         play.setOnAction(e -> {
             switch (chNum) {
-                case 1 -> Main.switchScene(new ChapterOneScreen().build());
+                case 1 -> Main.switchScene(new CurfewProtocolScreen().build());
                 case 2 -> Main.switchScene(new ChapterTwoScreen().build());
                 case 3 -> Main.switchScene(new ChapterThreeScreen().build());
                 case 4 -> Main.switchScene(new ChapterFourScreen().build());
@@ -116,6 +116,7 @@ public class ChapterMapScreen {
         if (!unlocked) row.getStyleClass().add("ch-row-locked");
         row.setMinWidth(820);
         row.setMaxWidth(820);
+
         return row;
     }
 }

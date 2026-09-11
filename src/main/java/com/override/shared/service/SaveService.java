@@ -37,6 +37,8 @@ public class SaveService {
         props.setProperty("chapterUnlocked",String.valueOf(s.getChapterUnlocked()));
         props.setProperty("chapterCompleted",String.valueOf(s.getChapterCompleted()));
         props.setProperty("independentXp",  String.valueOf(s.getIndependentXp()));
+        props.setProperty("silentClassroomBestScore",
+            String.valueOf(s.getSilentClassroomBestScore()));
         props.setProperty("unlocked",       String.join(",", s.getUnlockedCharacters()));
 
         if (s.getSelectedCharacter() != null)
@@ -78,6 +80,8 @@ public class SaveService {
         for (int i = 0; i < parseInt(props, "chapterCompleted", 0); i++)
             s.completeChapter(i + 1);
         s.addIndependentXp(parseInt(props, "independentXp", 0));
+        // Missing in saves created before Silent Classroom scoring; defaults to 0.
+        s.recordSilentClassroomScore(parseInt(props, "silentClassroomBestScore", 0));
 
         // Restore unlocked characters
         String unlocked = props.getProperty("unlocked", "ayan");

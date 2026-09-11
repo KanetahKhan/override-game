@@ -38,13 +38,18 @@ public class FinalMissionScreen {
         Label title = UIFactory.title("Override Core");
         Label sub = UIFactory.subtitle("Five fragments. One door. One last decision.");
 
+        int classroomBest = GameState.get().getSilentClassroomBestScore();
+        int insightCharges = GameState.get().getSilentClassroomInsightCharges();
+
         Label desc = UIFactory.body(
             "The four fragments form a key. The key opens the maintenance shaft beneath the "
             + "Astra Core Tower. The resistance is waiting in the access tunnel — the farmer, "
             + "Dr. Hana, the professor, the scientist whose paper Astra rewrote, Riya the "
             + "developer.\n\n"
             + "Beyond the shaft is the core itself, and a choice. Save before you go in. "
-            + "Decisions made past this point cannot be undone."
+            + "Decisions made past this point cannot be undone.\n\n"
+            + "SILENT CLASSROOM INTEL — best score: " + classroomBest
+            + "  |  Insight Charges ready: " + insightCharges
         );
         desc.setMaxWidth(960);
 

@@ -52,6 +52,8 @@ public final class SnakeGame extends MiniGame {
     private static final int INDEPENDENCE_SCORE_BONUS = 500;
     private static final int INDEPENDENCE_XP_BONUS = 50;
     private static final int NUM_BITS = 4;             // bits on the board at once
+    private static final double MISSION_FAST_SECONDS = 90;
+    private static final double MISSION_SLOW_SECONDS = 180;
 
     // ----- Models -------------------------------------------------------------
     private enum Dir {
@@ -90,6 +92,8 @@ public final class SnakeGame extends MiniGame {
     private boolean assistedThisRun;       // never cleared until reset
     private boolean storyGateReachedRun;   // true if THIS run hit the gate
     private boolean storyGateReachedEver;  // sticky across retries this session
+    private final boolean missionMode;
+    private final boolean reducedFlashing;
 
     // juice
     private double shakeTime, shakeMag, flash, headBlink;
@@ -101,7 +105,31 @@ public final class SnakeGame extends MiniGame {
     private boolean newBestThisRun;
 
     public SnakeGame() {
+        this(false, false);
+    }
+
+    /**
+     * @param missionMode when true, reaching 300 base score immediately returns
+     *                    a successful Silent Classroom result
+     */
+    public SnakeGame(boolean missionMode) {
+        this(missionMode, false);
+    }
+
+    /**
+     * @param missionMode when true, reaching 300 base score immediately returns
+     *                    a successful Silent Classroom result
+     * @param reducedFlashing when true, removes flashes, shake, blinking, and
+     *                        pulsing while keeping all gameplay cues visible
+     */
+    public SnakeGame(boolean missionMode, boolean reducedFlashing) {
         super(32, 24, 20, MiniGameTheme.nokia());   // 640 × 480
+        this.missionMode = missionMode;
+        this.reducedFlashing = reducedFlashing;
+    }
+
+    public static SnakeGame mission() {
+        return new SnakeGame(true);
     }
 
     // ----- Lifecycle ----------------------------------------------------------
@@ -224,6 +252,7 @@ public final class SnakeGame extends MiniGame {
             storyGateReachedRun = true;
             storyGateReachedEver = true;
             spawnFloat(cols / 2.0, rows / 2.0 - 1, "// BEAT CLEARED", theme.accent());
+            if (missionMode) finishMissionSuccess();
         }
     }
 
@@ -235,6 +264,7 @@ public final class SnakeGame extends MiniGame {
         newBestThisRun = score > persistedBest.score();
         persistedBest = highScore.submit(score);
         onSfxDie();
+        if (missionMode) finish(false, score, 0, 0);
     }
 
     private void decayJuice(double dt) {
@@ -329,9 +359,9 @@ public final class SnakeGame extends MiniGame {
 
     private void toggleAssist() {
         assistOn = !assistOn;
-        if (assistOn && !assistedThisRun) {
+        if (assistOn) {
             assistedThisRun = true;
-            dependencyUsed++;          // counts toward Dependency Meter, exactly once
+            dependencyUsed++;          // every activation is one Astra Assist
             onSfxAssist();
         }
     }
@@ -339,12 +369,30 @@ public final class SnakeGame extends MiniGame {
     // ----- Finish -------------------------------------------------------------
 
     private void finishRun() {
+        if (missionMode) {
+            finish(false, score, 0, 0);
+            return;
+        }
         boolean won = storyGateReachedEver;
         int independenceScoreBonus = !assistedThisRun ? INDEPENDENCE_SCORE_BONUS : 0;
         int independenceXpBonus    = !assistedThisRun ? INDEPENDENCE_XP_BONUS    : 0;
         int totalScore = score + independenceScoreBonus;
         int xp = Math.max(0, totalScore / 4 + independenceXpBonus - dependencyUsed * 5);
         finish(won, totalScore, xp);
+    }
+
+    private void finishMissionSuccess() {
+        newBestThisRun = score > persistedBest.score();
+        persistedBest = highScore.submit(score);
+
+        double performance = Math.min(1.0, score / (double) STORY_GATE_TARGET);
+        double speed = (MISSION_SLOW_SECONDS - time)
+                / (MISSION_SLOW_SECONDS - MISSION_FAST_SECONDS);
+        int chapterPoints = MiniGameResult.calculateChapterPoints(
+                true, performance, speed, dependencyUsed);
+        int independenceXp = dependencyUsed == 0 ? INDEPENDENCE_XP_BONUS : 0;
+        int xp = Math.max(0, score / 4 + independenceXp - dependencyUsed * 5);
+        finish(true, score, xp, chapterPoints);
     }
 
     // ----- Bits ---------------------------------------------------------------
@@ -389,6 +437,7 @@ public final class SnakeGame extends MiniGame {
     }
 
     private void shake(double mag, double t) {
+        if (reducedFlashing) return;
         shakeMag = Math.max(shakeMag, mag);
         shakeTime = Math.max(shakeTime, t);
     }
@@ -409,7 +458,7 @@ public final class SnakeGame extends MiniGame {
         SnakeAssets.drawBackground(g, width, height);
 
         g.save();
-        if (shakeTime > 0) {
+        if (!reducedFlashing && shakeTime > 0) {
             double m = shakeMag * (shakeTime > 0 ? 1 : 0);
             g.translate((rnd.nextDouble() - 0.5) * 2 * m, (rnd.nextDouble() - 0.5) * 2 * m);
         }
@@ -418,7 +467,7 @@ public final class SnakeGame extends MiniGame {
         drawFloats();
         g.restore();
 
-        if (flash > 0) {
+        if (flash > 0 && !reducedFlashing) {
             g.setGlobalAlpha(Math.min(0.55, flash * 4));
             g.setFill(theme.glow());
             g.fillRect(0, 0, width, height);
@@ -432,7 +481,7 @@ public final class SnakeGame extends MiniGame {
 
     private void drawBits() {
         for (Bit b : bits) {
-            double alpha = 0.6 + 0.4 * Math.sin(time * 4 + b.phase);
+            double alpha = reducedFlashing ? 0.85 : 0.6 + 0.4 * Math.sin(time * 4 + b.phase);
             int variant = (int) (b.phase * 3) % 3;
             SnakeAssets.drawFood(g, b.x, b.y, cell, variant, alpha);
         }
@@ -443,7 +492,7 @@ public final class SnakeGame extends MiniGame {
         int n = body.size();
         for (int[] seg : body) {
             if (i == 0) {
-                boolean blinkOn = headBlink < 0.55;
+                boolean blinkOn = reducedFlashing || headBlink < 0.55;
                 SnakeAssets.drawHead(g, seg[0], seg[1], cell, blinkOn);
             } else {
                 double t = (double) i / Math.max(1, n);
@@ -505,7 +554,7 @@ public final class SnakeGame extends MiniGame {
         g.setTextAlign(TextAlignment.LEFT);
         if (assistOn) {
             // pulse so it reads as ACTIVE without flashing the eye
-            double pulse = 0.6 + 0.4 * Math.sin(time * 6);
+            double pulse = reducedFlashing ? 1.0 : 0.6 + 0.4 * Math.sin(time * 6);
             g.setGlobalAlpha(pulse);
             g.setFill(theme.warning());
             g.fillText("[ ASTRA ASSIST ]", 8, height - 11);
