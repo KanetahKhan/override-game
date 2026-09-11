@@ -21,6 +21,9 @@
 [ext_resource type="Texture2D" uid="uid://bbsypd1wk3sa5" path="res://assets/bg/sky1.png" id="20"]
 [ext_resource type="Material" uid="uid://do5u8jely7da0" path="res://crop_sway_material.tres" id="20_getpj"]
 [ext_resource type="Texture2D" uid="uid://dsfl1jeom0kaw" path="res://assets/bg/horizon.png" id="21"]
+[ext_resource type="PackedScene" path="res://drone.tscn" id="22_drone"]
+[ext_resource type="Script" uid="uid://dv65qtnob4bbj" path="res://drone_manager.gd" id="23_mgr"]
+[ext_resource type="Script" uid="uid://bjalwfe3y7au1" path="res://kk_assist_button.gd" id="24_kk"]
 
 [sub_resource type="RectangleShape2D" id="ground_shape"]
 size = Vector2(1086, 44)
@@ -116,7 +119,7 @@ tracks/2/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 0,
-"values": [Vector2(-85, 161.000015)]
+"values": [Vector2(-85, 161.00002)]
 }
 tracks/3/type = "value"
 tracks/3/imported = false
@@ -320,7 +323,7 @@ tracks/3/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 0,
-"values": [Vector2(-79.312, 151.00001)]
+"values": [Vector2(-79.312, 151.00002)]
 }
 tracks/4/type = "value"
 tracks/4/imported = false
@@ -360,7 +363,7 @@ tracks/1/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 0,
-"values": [Vector2(-85, 149.999985)]
+"values": [Vector2(-85, 149.99998)]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
@@ -460,7 +463,7 @@ tracks/4/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 0,
-"values": [Vector2(-85, 148.499985)]
+"values": [Vector2(-85, 148.49998)]
 }
 
 [sub_resource type="Animation" id="walk_left"]
@@ -488,7 +491,7 @@ tracks/1/keys = {
 "times": PackedFloat32Array(0, 0.05, 0.1, 0.15, 0.18),
 "transitions": PackedFloat32Array(1, 1, 1, 1, 1),
 "update": 0,
-"values": [Vector2(-85, 156.999985), Vector2(-85, 154), Vector2(-85, 159), Vector2(-85, 154), Vector2(-85, 154)]
+"values": [Vector2(-85, 156.99998), Vector2(-85, 154), Vector2(-85, 159), Vector2(-85, 154), Vector2(-85, 154)]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
@@ -552,7 +555,7 @@ tracks/1/keys = {
 "times": PackedFloat32Array(0, 0.05, 0.1, 0.15, 0.18),
 "transitions": PackedFloat32Array(1, 1, 1, 1, 1),
 "update": 0,
-"values": [Vector2(-84.312004, 153.00001), Vector2(-84.3, 150), Vector2(-84.3, 155), Vector2(-84.3, 150), Vector2(-84.3, 150)]
+"values": [Vector2(-84.312004, 153.00002), Vector2(-84.3, 150), Vector2(-84.3, 155), Vector2(-84.3, 150), Vector2(-84.3, 150)]
 }
 tracks/2/type = "value"
 tracks/2/imported = false
@@ -745,3 +748,120 @@ centered = false
 region_enabled = true
 region_rect = Rect2(52.56198, 1003.75195, 1269.0708, 106.208496)
 region_filter_clip_enabled = true
+
+[node name="AlertOverlay" type="CanvasLayer" parent="." unique_id=76729778]
+layer = 100
+
+[node name="ColorRect" type="ColorRect" parent="AlertOverlay" unique_id=1105145115]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+color = Color(0.85, 0.05, 0.08, 0)
+
+[node name="DroneManager" type="Node2D" parent="." unique_id=1080197915]
+script = ExtResource("23_mgr")
+drone_scene = ExtResource("22_drone")
+
+[node name="KkHud" type="CanvasLayer" parent="." unique_id=1412087657]
+layer = 90
+
+[node name="KkAssistButton" type="Control" parent="KkHud" unique_id=1301379097]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 226.0
+offset_bottom = 58.0
+script = ExtResource("24_kk")
+
+[node name="TimeLabel" type="Label" parent="KkHud" unique_id=726742097]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -432.0
+offset_top = 16.0
+offset_right = -28.0
+offset_bottom = 58.0
+grow_horizontal = 0
+text = "TIME 999"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="DistanceBarControl" type="Control" parent="KkHud" unique_id=881435171]
+layout_mode = 3
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -231.0
+offset_top = 74.0
+offset_right = -20.0
+offset_bottom = 106.0
+grow_horizontal = 0
+
+[node name="BarImage" type="TextureRect" parent="KkHud/DistanceBarControl" unique_id=1738949337]
+layout_mode = 0
+offset_right = 211.0
+offset_bottom = 32.0
+
+[node name="BarFill" type="ColorRect" parent="KkHud/DistanceBarControl" unique_id=1414233390]
+layout_mode = 0
+offset_left = 36.0
+offset_top = 8.0
+offset_right = 111.0
+offset_bottom = 14.0
+color = Color(0, 0, 0, 1)
+
+[node name="DistancePointer" type="TextureRect" parent="KkHud/DistanceBarControl" unique_id=697567502]
+layout_mode = 0
+offset_left = -8.0
+offset_top = 2.9
+offset_right = 8.0
+offset_bottom = 18.9
+
+[node name="WarningLabel" type="Label" parent="KkHud" unique_id=1632408684]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -420.0
+offset_top = 16.0
+offset_right = 420.0
+offset_bottom = 72.0
+text = "GET DOWN!"
+horizontal_alignment = 1
+
+[node name="BadDroneTracker" type="HBoxContainer" parent="KkHud" unique_id=374912078]
+offset_left = 16.0
+offset_top = 74.0
+offset_right = 190.0
+offset_bottom = 106.0
+theme_override_constants/separation = 8
+
+[node name="BadDroneIcon" type="TextureRect" parent="KkHud/BadDroneTracker" unique_id=183497425]
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+
+[node name="CrossA" type="ColorRect" parent="KkHud/BadDroneTracker/BadDroneIcon" unique_id=205235256]
+layout_mode = 0
+offset_left = -7.0
+offset_top = 14.0
+offset_right = 39.0
+offset_bottom = 18.0
+rotation = 0.785398
+pivot_offset = Vector2(23, 2)
+color = Color(0.898, 0, 0, 1)
+
+[node name="CrossB" type="ColorRect" parent="KkHud/BadDroneTracker/BadDroneIcon" unique_id=599786909]
+layout_mode = 0
+offset_left = -7.0
+offset_top = 14.0
+offset_right = 39.0
+offset_bottom = 18.0
+rotation = -0.785398
+pivot_offset = Vector2(23, 2)
+color = Color(0.898, 0, 0, 1)
+
+[node name="BadDronePercent" type="Label" parent="KkHud/BadDroneTracker" unique_id=16148298]
+layout_mode = 2
+text = "0%"
+vertical_alignment = 1

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ykqhk4vvepdp"
-path="res://.godot/imported/spy_drone.png-8a4200c171b2e08db00f3fc892dab9c1.ctex"
+uid="uid://bjtf67510p5ix"
+path="res://.godot/imported/beam_shot_05_thin_long.png-2777b0ae213a23fb9d510d6d851f95f5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/Drones/spy_drone.png"
-dest_files=["res://.godot/imported/spy_drone.png-8a4200c171b2e08db00f3fc892dab9c1.ctex"]
+source_file="res://assets/GUNGUN/beam_shot_05_thin_long.png"
+dest_files=["res://.godot/imported/beam_shot_05_thin_long.png-2777b0ae213a23fb9d510d6d851f95f5.ctex"]
 
 [params]
 

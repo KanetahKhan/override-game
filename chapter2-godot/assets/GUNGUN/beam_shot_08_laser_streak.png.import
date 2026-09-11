@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cw1xtag21tl8s"
-path="res://.godot/imported/aim.png-2ba0d75141056bfccb893005ded1d6a9.ctex"
+uid="uid://d1sab884viety"
+path="res://.godot/imported/beam_shot_08_laser_streak.png-6c8b133e2bf8fd60fbe766cb83653047.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/Drones/aim.png"
-dest_files=["res://.godot/imported/aim.png-2ba0d75141056bfccb893005ded1d6a9.ctex"]
+source_file="res://assets/GUNGUN/beam_shot_08_laser_streak.png"
+dest_files=["res://.godot/imported/beam_shot_08_laser_streak.png-6c8b133e2bf8fd60fbe766cb83653047.ctex"]
 
 [params]
 
