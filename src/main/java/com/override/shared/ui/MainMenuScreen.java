@@ -39,7 +39,7 @@ public class MainMenuScreen {
 
         newGame.setOnAction(e -> {
             GameState.reset();
-            Main.switchScene(new CharacterSelectScreen().build());
+            Main.switchScene(new ChapterMapScreen().build());
         });
 
         cont.setOnAction(e -> {

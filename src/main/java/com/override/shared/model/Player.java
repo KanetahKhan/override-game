@@ -6,7 +6,7 @@ package com.override.shared.model;
  */
 public class Player {
 
-    private String displayName = "Ayan";
+    private String displayName = "REN";
     private int level = 1;
     private int xp = 0;
     private int hp = 100;

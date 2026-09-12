@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 /**
  * Best result for a single mini-game, keyed by {@code gameType} (one row per
  * game, e.g. "kernel-panic"). Tracks the best score, best combo and furthest
- * wave reached, plus whether the top-scoring run leaned on the Astra Assist.
+ * wave reached, plus whether the top-scoring run leaned on the KK Assist.
  */
 @Entity
 @Table(name = "high_scores",

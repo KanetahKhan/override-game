@@ -20,7 +20,7 @@ public class IntroStoryScreen {
 
     private static final String[] LINES = {
         "Year 2048.",
-        "A mega-AI named Astra is the invisible backbone of civilization.",
+        "A mega-AI named KK is the invisible backbone of civilization.",
         "It teaches our students. It diagnoses our patients. It writes our code.",
         "It became helpful. Then necessary. Then unquestionable.",
         "We stopped reading. We stopped reasoning. We stopped remembering.",
@@ -28,7 +28,7 @@ public class IntroStoryScreen {
         "And a message that should not exist reached your terminal:",
         "\u201CIf the system thinks for us, then someday it will choose who deserves to think.",
         "  They took the last real minds. Find us before they erase us.\u201D",
-        "You are Ayan. A final-year CSE student. Dependent — like everyone else.",
+        "You are REN. A final-year CSE student. Dependent — like everyone else.",
         "But for the first time in years, you are about to think for yourself."
     };
 
