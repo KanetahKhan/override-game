@@ -1,0 +1,69 @@
+[gd_scene load_steps=19 format=3]
+
+[ext_resource type="Script" uid="uid://ox37lj1jg21x" path="res://drone.gd" id="1_drone"]
+[ext_resource type="Texture2D" uid="uid://hyrs1q88mdpj" path="res://assets/Drones/good_drone_facing_right.png" id="2_gfr"]
+[ext_resource type="Texture2D" uid="uid://dg01bfpvgvqsx" path="res://assets/Drones/bad_drone_facing_right.png" id="3_bfr"]
+[ext_resource type="Texture2D" uid="uid://dphxo1nlklr68" path="res://assets/Drones/red_drone_facing_right.png" id="4_rfr"]
+[ext_resource type="Texture2D" uid="uid://bk4wx4ykvhgjy" path="res://assets/Drones/good_drone_phase1.png" id="5_gp1"]
+[ext_resource type="Texture2D" uid="uid://dnfnuqi3sq0ye" path="res://assets/Drones/good_drone_phase2.png" id="6_gp2"]
+[ext_resource type="Texture2D" uid="uid://xkqf8wmqmuqd" path="res://assets/Drones/good_drone_phase3.png" id="7_gp3"]
+[ext_resource type="Texture2D" uid="uid://bir0rmjuy18w2" path="res://assets/Drones/good_drone_phase4.png" id="8_gp4"]
+[ext_resource type="Texture2D" uid="uid://cnlp6d7anup6s" path="res://assets/Drones/good_drone_phase5.png" id="9_gp5"]
+[ext_resource type="Texture2D" uid="uid://jjqh0mfc2scv" path="res://assets/Drones/good_drone_phase6.png" id="10_gp6"]
+[ext_resource type="Texture2D" uid="uid://bboo6j647xqfl" path="res://assets/Drones/bad_drone_phase1.png" id="11_bp1"]
+[ext_resource type="Texture2D" uid="uid://w1qkh4toxigi" path="res://assets/Drones/bad_drone_phase2.png" id="12_bp2"]
+[ext_resource type="Texture2D" uid="uid://cw84vga5lmt45" path="res://assets/Drones/bad_drone_phase3.png" id="13_bp3"]
+[ext_resource type="Texture2D" uid="uid://botiv10i70bn1" path="res://assets/Drones/bad_drone_phase4.png" id="14_bp4"]
+[ext_resource type="Texture2D" uid="uid://d27gf0j0ide30" path="res://assets/Drones/bad_drone_phase5.png" id="15_bp5"]
+[ext_resource type="Texture2D" uid="uid://bfq0am7f55wei" path="res://assets/Drones/bad_drone_phase6.png" id="16_bp6"]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_drones"]
+animations = [{
+"frames": [ExtResource("2_gfr")],
+"loop": true,
+"name": &"fly_good",
+"speed": 5.0
+}, {
+"frames": [ExtResource("3_bfr")],
+"loop": true,
+"name": &"fly_bad",
+"speed": 5.0
+}, {
+"frames": [ExtResource("4_rfr")],
+"loop": true,
+"name": &"fly_guard",
+"speed": 5.0
+}, {
+"frames": [ExtResource("5_gp1"), ExtResource("6_gp2"), ExtResource("7_gp3"), ExtResource("8_gp4"), ExtResource("9_gp5"), ExtResource("10_gp6")],
+"loop": false,
+"name": &"destroy_good",
+"speed": 12.0
+}, {
+"frames": [ExtResource("11_bp1"), ExtResource("12_bp2"), ExtResource("13_bp3"), ExtResource("14_bp4"), ExtResource("15_bp5"), ExtResource("16_bp6")],
+"loop": false,
+"name": &"destroy_bad",
+"speed": 12.0
+}]
+
+[sub_resource type="RectangleShape2D" id="drone_shape"]
+size = Vector2(120, 70)
+
+[node name="Drone" type="CharacterBody2D"]
+script = ExtResource("1_drone")
+collision_layer = 0
+collision_mask = 0
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+position = Vector2(0, -120)
+sprite_frames = SubResource("SpriteFrames_drones")
+animation = &"fly_good"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -120)
+shape = SubResource("drone_shape")
+
+[node name="VisibleOnScreenNotifier2D" type="VisibleOnScreenNotifier2D" parent="."]
+position = Vector2(0, -120)
+rect = Rect2(-200, -150, 400, 300)
+
+[connection signal="screen_exited" from="VisibleOnScreenNotifier2D" to="." method="_on_visible_on_screen_notifier_2d_screen_exited"]

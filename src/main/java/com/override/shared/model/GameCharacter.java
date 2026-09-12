@@ -4,11 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Selectable main characters. Default Ayan is free, the others must be
+ * Selectable main characters. Default REN is free, the others must be
  * unlocked with coins (earned in-game or purchased via the mock bKash flow).
  *
  * Each character offers small stat tweaks so the choice feels meaningful
- * without breaking the story (you still play Ayan's story; these are
+ * without breaking the story (you still play REN's story; these are
  * "personas" that change his starting strengths).
  */
 public class GameCharacter {
@@ -66,17 +66,17 @@ public class GameCharacter {
     /** Hardcoded roster — five personas mapped to the design doc allies. */
     public static List<GameCharacter> roster() {
         List<GameCharacter> r = new ArrayList<>();
-        r.add(new GameCharacter("ayan",     "Ayan",            "The Awakening Student",
+        r.add(new GameCharacter("ren",     "REN",            "The Awakening Student",
             "A final-year CSE student. Dependent — but waking up.",
             0,   2, 2, 1, 1, 2));
         r.add(new GameCharacter("riya",     "Riya",            "The Hacker Sister",
             "Self-taught programmer. Trades empathy for raw logic.",
             300, 4, 2, 1, 2, 0));
         r.add(new GameCharacter("kabir",    "Dr. Kabir",       "The Defiant Doctor",
-            "Refused to follow Astra's triage orders. Heals harder.",
+            "Refused to follow KK's triage orders. Heals harder.",
             500, 1, 3, 3, 0, 4));
         r.add(new GameCharacter("akhter",   "Prof. Akhter",    "The Hidden Teacher",
-            "Teaches without AI. Boosts willpower against Astra.",
+            "Teaches without AI. Boosts willpower against KK.",
             800, 3, 2, 4, 0, 3));
         r.add(new GameCharacter("nayeem",   "Nayeem",          "The Last Coder",
             "Remembers how to code without prompts. Pure problem-solver.",

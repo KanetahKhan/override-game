@@ -41,10 +41,7 @@ public class ShopScreen {
         Button back = UIFactory.secondary("← Back");
         back.setOnAction(e -> Main.switchScene(new MainMenuScreen().build()));
 
-        Button toCharSelect = UIFactory.secondary("→ Character Select");
-        toCharSelect.setOnAction(e -> Main.switchScene(new CharacterSelectScreen().build()));
-
-        HBox actions = new HBox(12, back, toCharSelect);
+        HBox actions = new HBox(12, back);
         actions.setAlignment(Pos.CENTER);
 
         VBox root = new VBox(20, title, sub, warn, balance, row, actions);

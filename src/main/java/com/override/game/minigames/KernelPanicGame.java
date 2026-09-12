@@ -46,6 +46,8 @@ public final class KernelPanicGame extends MiniGame {
 
     private final int laneW;
     private final double kernelY;
+    private final boolean missionMode;
+    private final boolean reducedFlashing;
     private final Random rnd = new Random();
     private final HighScoreClient highScore = new HighScoreClient(GAME_TYPE);
 
@@ -108,9 +110,33 @@ public final class KernelPanicGame extends MiniGame {
     private boolean newBestThisRun;
 
     public KernelPanicGame() {
+        this(false, false);
+    }
+
+    /**
+     * @param missionMode when true, defeating the wave-five boss immediately
+     *                    completes the Silent Classroom objective
+     */
+    public KernelPanicGame(boolean missionMode) {
+        this(missionMode, false);
+    }
+
+    /**
+     * @param missionMode when true, defeating the wave-five boss immediately
+     *                    completes the Silent Classroom objective
+     * @param reducedFlashing when true, removes screen flashes, shake, jitter,
+     *                        flicker, and pulsing while retaining static cues
+     */
+    public KernelPanicGame(boolean missionMode, boolean reducedFlashing) {
         super(30, 40, 16, MiniGameTheme.nokia());   // 480 × 640
+        this.missionMode = missionMode;
+        this.reducedFlashing = reducedFlashing;
         this.laneW = width / LANES;
         this.kernelY = height - 30;
+    }
+
+    public static KernelPanicGame mission() {
+        return new KernelPanicGame(true);
     }
 
     // ----- Lifecycle ----------------------------------------------------------
@@ -236,7 +262,10 @@ public final class KernelPanicGame extends MiniGame {
         expirePending();
 
         waveTimer -= dt;
-        if (waveTimer <= 0) startWave(wave + 1);
+        // The mission is specifically to defeat the wave-five boss. Do not let
+        // its timer silently advance to wave six while that boss is still live.
+        boolean holdMissionBoss = missionMode && wave == 5 && boss != null;
+        if (waveTimer <= 0 && !holdMissionBoss) startWave(wave + 1);
 
         spawnTimer -= dt;
         if (spawnTimer <= 0) {
@@ -257,10 +286,15 @@ public final class KernelPanicGame extends MiniGame {
             t.y += t.speed * (t.boss ? 1.0 : mult) * dt;
             double bottom = t.y + (t.boss ? BOSS : TOKEN) / 2.0;
             if (bottom >= kernelY) {
+                boolean missedMissionBoss = missionMode && t.boss && wave == 5;
                 it.remove();
                 if (t.boss) boss = null;
                 breach();
                 if (state == State.GAME_OVER) return;
+                if (missedMissionBoss) {
+                    gameOver();
+                    return;
+                }
             }
         }
 
@@ -346,12 +380,16 @@ public final class KernelPanicGame extends MiniGame {
 
         Fix required = t.boss ? t.type : t.type;
         if (fix == required) {
+            boolean completedMission = false;
             int gain = (int) Math.round(100.0 * combo * (1.0 + 0.1 * wave));
             if (t.boss) {
                 gain = (int) Math.round(150.0 * combo * (1.0 + 0.1 * wave));
                 t.hp--;
                 burst(t.x, t.y, theme.accent(), 10);
-                if (t.hp <= 0) killBoss(t);
+                if (t.hp <= 0) {
+                    completedMission = missionMode && wave == 5;
+                    killBoss(t);
+                }
                 else t.type = randomFix();          // boss demands a new fix
             } else {
                 tokens.remove(t);
@@ -363,6 +401,7 @@ public final class KernelPanicGame extends MiniGame {
             comboPulse = 0.18;
             laneFlash[lane] = 0.18;
             ChiptuneSfx.hit(combo);
+            if (completedMission) finishMissionSuccess();
         } else {
             t.speed *= 1.2;                          // wrong fix: it accelerates
             combo = 1;
@@ -423,15 +462,19 @@ public final class KernelPanicGame extends MiniGame {
     }
 
     private void gameOver() {
+        if (state == State.GAME_OVER) return;
         state = State.GAME_OVER;
         clearPending();
         ChiptuneSfx.gameOver();
-        HighScoreClient.Best run = new HighScoreClient.Best(score, bestCombo, highestWave, assistedThisRun);
-        newBestThisRun = score > persistedBest.score();
-        persistedBest = highScore.submit(run);       // local merge + async backend push
+        submitHighScore();
+        if (missionMode) finish(false, score, 0, 0);
     }
 
     private void finishRun() {
+        if (missionMode) {
+            finish(false, score, 0, 0);
+            return;
+        }
         boolean won = highestWave >= 5;
         int xpEarned = score / 10;
         int penalty = dependencyUsed * 5;
@@ -439,9 +482,33 @@ public final class KernelPanicGame extends MiniGame {
         finish(won, score, finalXp);
     }
 
+    private void finishMissionSuccess() {
+        submitHighScore();
+
+        // Performance rewards keeping lives and building a clean combo. Speed
+        // measures the wave-five boss fight, since waves 1-4 have fixed lengths.
+        double lifePerformance = lives / (double) START_LIVES;
+        double comboPerformance = Math.min(1.0, Math.max(0, bestCombo - 1) / 10.0);
+        double performance = 0.65 * lifePerformance + 0.35 * comboPerformance;
+        double bossFightSeconds = Math.max(0, BOSS_WAVE - Math.max(0, waveTimer));
+        double speed = 1.0 - bossFightSeconds / BOSS_WAVE;
+        int chapterPoints = MiniGameResult.calculateChapterPoints(
+                true, performance, speed, dependencyUsed);
+        int xp = Math.max(0, score / 10 - dependencyUsed * 5);
+        finish(true, score, xp, chapterPoints);
+    }
+
+    private void submitHighScore() {
+        HighScoreClient.Best run = new HighScoreClient.Best(
+                score, bestCombo, highestWave, assistedThisRun);
+        newBestThisRun = score > persistedBest.score();
+        persistedBest = highScore.submit(run);       // local merge + async backend push
+    }
+
     // ----- Particles ----------------------------------------------------------
 
     private void burst(double x, double y, Color color, int n) {
+        if (reducedFlashing) n = Math.min(n, 6);
         for (int i = 0; i < n; i++) {
             Particle p = new Particle();
             p.x = x; p.y = y;
@@ -456,7 +523,11 @@ public final class KernelPanicGame extends MiniGame {
         }
     }
 
-    private void shake(double mag, double t) { shakeMag = Math.max(shakeMag, mag); shakeTime = Math.max(shakeTime, t); }
+    private void shake(double mag, double t) {
+        if (reducedFlashing) return;
+        shakeMag = Math.max(shakeMag, mag);
+        shakeTime = Math.max(shakeTime, t);
+    }
 
     // ----- Render -------------------------------------------------------------
 
@@ -465,7 +536,7 @@ public final class KernelPanicGame extends MiniGame {
         KernelPanicAssets.drawBackground(g, width, height);
 
         g.save();
-        if (shakeTime > 0) {
+        if (!reducedFlashing && shakeTime > 0) {
             double m = shakeMag * (shakeTime > 0 ? 1 : 0);
             g.translate((rnd.nextDouble() - 0.5) * 2 * m, (rnd.nextDouble() - 0.5) * 2 * m);
         }
@@ -473,13 +544,13 @@ public final class KernelPanicGame extends MiniGame {
         drawKernelLine();
         for (Token t : tokens) drawToken(t);
         drawParticles();
-        if (empActive) drawShockwave();
+        if (empActive && !reducedFlashing) drawShockwave();
         g.restore();
 
-        if (comboCrack > 0) {
+        if (comboCrack > 0 && !reducedFlashing) {
             KernelPanicAssets.drawScreenGlitch(g, width, height, 0.5 * (comboCrack / 0.5));
         }
-        if (empTint > 0) {
+        if (empTint > 0 && !reducedFlashing) {
             KernelPanicAssets.drawAstraInterference(g, width, height, 0.45 * (empTint / 0.5));
         }
         drawScanlines();
@@ -494,16 +565,28 @@ public final class KernelPanicGame extends MiniGame {
         for (int i = 0; i < LANES; i++) {
             double x = i * laneW;
             if (laneFlash[i] > 0) {
-                g.setGlobalAlpha(0.5 * (laneFlash[i] / 0.18));
-                g.setFill(theme.accent());
-                g.fillRect(x, 0, laneW, height);
-                g.setGlobalAlpha(1);
+                if (reducedFlashing) {
+                    g.setStroke(theme.accent());
+                    g.setLineWidth(2);
+                    g.strokeRect(x + 2, 24, laneW - 4, height - 54);
+                } else {
+                    g.setGlobalAlpha(0.5 * (laneFlash[i] / 0.18));
+                    g.setFill(theme.accent());
+                    g.fillRect(x, 0, laneW, height);
+                    g.setGlobalAlpha(1);
+                }
             }
             if (laneError[i] > 0) {
-                g.setGlobalAlpha(0.5 * (laneError[i] / 0.22));
-                g.setFill(theme.danger());
-                g.fillRect(x, 0, laneW, height);
-                g.setGlobalAlpha(1);
+                if (reducedFlashing) {
+                    g.setStroke(theme.danger());
+                    g.setLineWidth(3);
+                    g.strokeRect(x + 3, 25, laneW - 6, height - 56);
+                } else {
+                    g.setGlobalAlpha(0.5 * (laneError[i] / 0.22));
+                    g.setFill(theme.danger());
+                    g.fillRect(x, 0, laneW, height);
+                    g.setGlobalAlpha(1);
+                }
             }
             g.setStroke(theme.dim());
             g.setLineWidth(1);
@@ -523,7 +606,7 @@ public final class KernelPanicGame extends MiniGame {
     }
 
     private void drawKernelLine() {
-        double pulse = 0.5 + 0.5 * Math.sin(time * 6);
+        double pulse = reducedFlashing ? 0.5 : 0.5 + 0.5 * Math.sin(time * 6);
         g.setStroke(theme.danger().deriveColor(0, 1, 1, 0.4 + 0.4 * pulse));
         g.setLineWidth(2);
         g.strokeLine(0, kernelY, width, kernelY);
@@ -547,12 +630,20 @@ public final class KernelPanicGame extends MiniGame {
         if (t.dying) {                                  // EMP white-flash → fade
             double elapsed = EMP_FREEZE - empTimer;
             double local = elapsed - t.dieDelay;
-            if (local < 0) { fill = theme.glow(); a = 1.0; }
-            else { a = clamp01(1 - local / (EMP_FREEZE - t.dieDelay + 0.0001)); fill = theme.glow(); }
+            if (local < 0) {
+                fill = reducedFlashing ? base : theme.glow();
+                a = 1.0;
+            } else {
+                a = clamp01(1 - local / (EMP_FREEZE - t.dieDelay + 0.0001));
+                fill = reducedFlashing ? base : theme.glow();
+            }
         }
 
-        double jitterX = t.type == Fix.INCR ? (rnd.nextDouble() - 0.5) * 3 : 0;   // ++ jitters
-        if (t.type == Fix.BANG && ((int) (time * 16) % 2 == 0)) a *= 0.5;          // ! flickers
+        double jitterX = !reducedFlashing && t.type == Fix.INCR
+                ? (rnd.nextDouble() - 0.5) * 3 : 0;                                // ++ jitters
+        if (!reducedFlashing && t.type == Fix.BANG && ((int) (time * 16) % 2 == 0)) {
+            a *= 0.5;                                                              // ! flickers
+        }
 
         double left = t.x - size / 2 + jitterX, top = t.y - size / 2;
         if (t.type == Fix.EQ && !t.dying) {                                        // == red glow
@@ -659,9 +750,9 @@ public final class KernelPanicGame extends MiniGame {
         g.fillText(hearts.toString().trim(), width - 6, 22);
 
         // combo (centre, pulsing); cracks to x1 on EMP
-        double scale = 1 + comboPulse * 1.6;
+        double scale = reducedFlashing ? 1 : 1 + comboPulse * 1.6;
         Color comboColor = comboCrack > 0 ? theme.danger() : theme.accent();
-        double jx = comboCrack > 0 ? (rnd.nextDouble() - 0.5) * 4 : 0;
+        double jx = !reducedFlashing && comboCrack > 0 ? (rnd.nextDouble() - 0.5) * 4 : 0;
         g.setFill(comboColor);
         g.setFont(mono((int) (28 * scale), true));
         g.setTextAlign(TextAlignment.CENTER);

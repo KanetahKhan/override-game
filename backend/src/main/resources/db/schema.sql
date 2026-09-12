@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS player_profiles (
     id                BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id           BIGINT       NOT NULL UNIQUE,
-    display_name      VARCHAR(50)  DEFAULT 'Ayan',
+    display_name      VARCHAR(50)  DEFAULT 'REN',
     level             INT          DEFAULT 1,
     xp                INT          DEFAULT 0,
     logic_stat        INT          DEFAULT 5,
@@ -83,6 +83,13 @@ CREATE TABLE IF NOT EXISTS high_scores (
     achieved_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Single-row global best for Chapter 1's "Syntax Snake" mini-game.
+CREATE TABLE IF NOT EXISTS snake_high_scores (
+    id             BIGINT AUTO_INCREMENT PRIMARY KEY,
+    best_score     INT     NOT NULL DEFAULT 0,
+    best_run_date  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Seed achievements
 INSERT INTO achievements (code, title, description) VALUES
     ('FIRST_PUZZLE',    'First Steps',          'Solved your first puzzle without AI help'),
@@ -93,5 +100,5 @@ INSERT INTO achievements (code, title, description) VALUES
     ('ALL_CHAPTERS',    'Override Complete',     'Completed all chapters and the final mission'),
     ('ZERO_DEPENDENCY', 'True Independence',    'Finished the game with 0 dependency'),
     ('SYMBIOSIS',       'Best of Both Worlds',  'Achieved the Symbiosis ending'),
-    ('NO_AI_HELP',      'Human After All',      'Never used Astra help in any chapter'),
+    ('NO_AI_HELP',      'Human After All',      'Never used KK help in any chapter'),
     ('SPEED_RUN',       'Quick Thinker',        'Completed the game in under 60 minutes');

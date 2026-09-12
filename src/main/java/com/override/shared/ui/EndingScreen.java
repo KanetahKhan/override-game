@@ -59,7 +59,7 @@ public class EndingScreen {
 
     private String tierLabel(String tier) {
         return switch (tier) {
-            case "FULL_OVERRIDE" -> "Full Override (you are leaning on Astra)";
+            case "FULL_OVERRIDE" -> "Full Override (you are leaning on KK)";
             case "COLLAPSE"      -> "Collapse (mixed dependence)";
             case "RESISTANCE"    -> "Resistance (steady human path)";
             case "SYMBIOSIS"     -> "Symbiosis (independent and capable)";

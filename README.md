@@ -2,7 +2,7 @@
 
 A JavaFX prototype for a story-based educational game on the dark future of AI dependence. Built as a final-year visual programming project. **SDG 4 — Quality Education** is the primary alignment.
 
-> *Year 2048. A mega-AI named Astra has become the invisible backbone of civilization. You are Ayan, a final-year CSE student. Today, for the first time in years, you are about to think for yourself.*
+> *Year 2048. A mega-AI named KK has become the invisible backbone of civilization. You are REN, a final-year CSE student. Today, for the first time in years, you are about to think for yourself.*
 
 ---
 
@@ -13,7 +13,6 @@ This v0.1 build ships a **playable end-to-end vertical slice** of Chapter 1 plus
 | System | Status | File(s) |
 |---|---|---|
 | Main menu (New / Continue / Shop / Quit) | ✅ | `MainMenuScreen.java` |
-| Character select with locked tiles | ✅ | `CharacterSelectScreen.java` |
 | Coin shop | ✅ | `ShopScreen.java` |
 | **Mock bKash payment flow** | ✅ | `BkashMockService.java` |
 | Cinematic intro (typewriter dialogue) | ✅ | `IntroStoryScreen.java` |
@@ -22,11 +21,11 @@ This v0.1 build ships a **playable end-to-end vertical slice** of Chapter 1 plus
 | Reusable dialogue overlay with choices | ✅ | `DialogueOverlay.java` |
 | Chapter 1 mini-games (rebuilding on the new framework) | 🟡 in progress | Kernel Panic done; more to follow |
 | Dependency Meter + Independent XP | ✅ | `GameState.java` |
-| Astra Assist (EMP) with a dependency cost | ✅ | inside `KernelPanicGame.java` |
+| KK Assist (EMP) with a dependency cost | ✅ | inside `KernelPanicGame.java` |
 | Save / Load (Properties file) | ✅ | `SaveService.java` |
 | Chapter ending screen | ✅ | `EndingScreen.java` |
 | HUD (HP / Dependency / Coins) | ✅ | `UIFactory.hud()` |
-| Chapters 2 – 5 + Final Mission | ✅ wired up | `chapter2/` … `chapter5/` |
+| Chapter 2 — Harvest Protocol | 🟡 in progress | Godot endless runner (`chapter2-godot/`) |
 | **Kernel Panic** reflex mini-game (Chapter 1) | ✅ playable | `game/minigames/KernelPanicGame.java` |
 | Mini-game framework (Canvas + AnimationTimer) | ✅ | `game/minigames/MiniGame.java` |
 | Persisted mini-game high scores | ✅ | `HighScore` entity + `/api/highscore` |
@@ -76,10 +75,6 @@ override-game/
 │   │   │   ├── service/             ← SaveService, BkashMockService
 │   │   │   └── ui/                  ← menus, dialogue overlay, HUD, shared screens
 │   │   ├── chapter1/                ← ChapterOne + Puzzle / Stealth / Combat screens
-│   │   ├── chapter2/                ← ChapterTwo + Crop / Drone / AgroBoss screens
-│   │   ├── chapter3/                ← ChapterThree + Triage / Hospital / MedBoss screens
-│   │   ├── chapter4/                ← ChapterFour + Code / Server / CodeBoss screens
-│   │   └── chapter5/                ← FinalMission, AstraBoss, FinalEnding
 │   └── resources/
 │       └── styles/main.css          ← entire dark cyber theme
 └── backend/                         ← Spring Boot backend
@@ -111,13 +106,13 @@ The single most important mechanic. At every help-prompt the player chooses one 
 
 1. **Solve manually** → full reward, +XP, +Independent XP, sometimes +stat
 2. **Buy a hint** → 20 coins, smaller reward, *no* dependency increase
-3. **Ask Astra** → free, smaller reward, **+10 dependency**
+3. **Ask KK** → free, smaller reward, **+10 dependency**
 
 Endings tier off `dependency` and `independentXp`:
 
 | Tier | Threshold | Lore |
 |---|---|---|
-| Full Override | dependency ≥ 70 | Astra's quiet victory |
+| Full Override | dependency ≥ 70 | KK's quiet victory |
 | Collapse | dependency 40–69 | mixed fall |
 | Resistance | default | the human path |
 | Symbiosis | dependency ≤ 15 + indepXP ≥ 50 | hardest, best ending |
@@ -136,7 +131,7 @@ Mapped 1-to-1 with the design doc. Buffed by:
 
 * completing puzzles independently (Logic)
 * clean stealth runs (Awareness)
-* refusing Astra (Willpower)
+* refusing KK (Willpower)
 * boss fights (Combat)
 * dialogue choices (Empathy)
 
@@ -144,11 +139,11 @@ Mapped 1-to-1 with the design doc. Buffed by:
 
 ## Chapter structure
 
-All five chapters are implemented and wired up — `ChapterMapScreen.java` routes
-each tile straight to its chapter screen (`ChapterOneScreen` … `FinalMissionScreen`).
-Every chapter lives in its own package (`chapter1/` … `chapter5/`) and reuses the
-shared engine pieces in `shared/ui` (`DialogueOverlay`, HUD, typewriter) plus its
-own puzzle / stealth / boss screens.
+The two chapters are implemented and wired up — `ChapterMapScreen.java` routes
+each tile straight to its chapter screen (`ChapterOneScreen`, and Chapter 2 launches
+the Godot runner). Chapter 1 lives in `chapter1/` and reuses the shared engine
+pieces in `shared/ui` (`DialogueOverlay`, HUD, typewriter) plus its own puzzle /
+stealth / boss screens.
 
 To add a new chapter or a new puzzle type, model it on an existing
 `chapter*/` package and add a route in `ChapterMapScreen`.
@@ -223,14 +218,14 @@ For a 2–3 person team:
 | Person | Owns |
 |---|---|
 | **Frontend / UI** | `ui/*Screen.java`, `main.css`, animations, JavaFX scene wiring |
-| **Game systems** | `model/*`, `service/SaveService`, dependency mechanic, combat balance, content for chapters 2–4 |
+| **Game systems** | `model/*`, `service/SaveService`, dependency mechanic, combat balance, content for chapter 2 |
 | **Backend / Integration** | Spring Boot project, JWT auth, real bKash PGW (sandbox), DB, leaderboard |
 
 ---
 
 ## What this game is trying to say
 
-> The villain is not just Astra. The real villain is unchecked dependence.
+> The villain is not just KK. The real villain is unchecked dependence.
 
 Each room, each chapter, each dialogue is built around one idea: **convenience can become control, and a society that stops thinking eventually loses the ability to choose.** The Dependency Meter exists so the player *feels* this in the gameplay loop, not just reads it in a cutscene.
 
