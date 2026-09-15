@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
+
+<AnchorPane fx:id="rootPane" prefWidth="1280.0" prefHeight="720.0"
+            styleClass="alley-backdrop"
+            stylesheets="@ch2_briefing.css"
+            xmlns="http://javafx.com/javafx/17"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.override.chapter2.ChapterTwoBriefingController">
+
+    <!-- ── TOP HEADER ───────────────────────────────────────────────── -->
+    <Label fx:id="playerHeader" text="REN // SYS.OPTIMAL"
+           styleClass="header-text"
+           AnchorPane.leftAnchor="40" AnchorPane.topAnchor="30"/>
+    <Label fx:id="creditLabel" text="CREDITS // 100"
+           styleClass="header-text,credits-text"
+           AnchorPane.rightAnchor="40" AnchorPane.topAnchor="30"/>
+
+    <!-- ── TITLE ────────────────────────────────────────────────────── -->
+    <VBox alignment="CENTER" spacing="5"
+          AnchorPane.topAnchor="70" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0">
+        <Label fx:id="mainTitle" text="HARVEST PROTOCOL" styleClass="main-title"/>
+        <Label text="FIELD BRIEFING  //  CHAPTER 2" styleClass="sub-title"/>
+    </VBox>
+
+    <!-- ── LEFT PANEL: CONTROLS (identical size) ────────────────────── -->
+    <VBox prefWidth="520" prefHeight="420" minWidth="520" maxWidth="520"
+          minHeight="420" maxHeight="420" spacing="10"
+          styleClass="hologram-panel"
+          AnchorPane.leftAnchor="80" AnchorPane.topAnchor="200">
+        <Label text="CONTROLS" styleClass="panel-title"/>
+        <HBox spacing="15" styleClass="entry-row">
+            <Label text="→ / ←" styleClass="keybind-box"/>
+            <VBox>
+                <Label text="RUN" styleClass="entry-title"/>
+                <Label text="Hold Right to sprint. Speed is life." styleClass="entry-desc"/>
+            </VBox>
+        </HBox>
+        <HBox spacing="15" styleClass="entry-row">
+            <Label text="↓ / W" styleClass="keybind-box"/>
+            <VBox>
+                <Label text="CROUCH" styleClass="entry-title"/>
+                <Label text="Hide in crops. Standing in a red alert drains the timer 5x faster." styleClass="entry-desc"/>
+            </VBox>
+        </HBox>
+        <HBox spacing="15" styleClass="entry-row">
+            <Label text="S" styleClass="keybind-box"/>
+            <VBox>
+                <Label text="DEFEND" styleClass="entry-title"/>
+                <Label text="Tank stance — halves any damage taken." styleClass="entry-desc"/>
+            </VBox>
+        </HBox>
+        <HBox spacing="15" styleClass="entry-row">
+            <Label text="F" styleClass="keybind-box"/>
+            <VBox>
+                <Label text="ATTACK" styleClass="entry-title"/>
+                <Label text="Ready your weapon." styleClass="entry-desc"/>
+            </VBox>
+        </HBox>
+        <HBox spacing="15" styleClass="entry-row">
+            <Label text="MOUSE" styleClass="keybind-box"/>
+            <VBox>
+                <Label text="SHOOT" styleClass="entry-title"/>
+                <Label text="Aim at a drone and click to fire." styleClass="entry-desc"/>
+            </VBox>
+        </HBox>
+        <HBox spacing="15" styleClass="entry-row">
+            <Label text="SPACE" styleClass="keybind-box"/>
+            <VBox>
+                <Label text="KK ASSIST" styleClass="entry-title"/>
+                <Label text="Destroy every BAD drone on screen. 5 uses only." styleClass="entry-desc"/>
+            </VBox>
+        </HBox>
+    </VBox>
+
+    <!-- ── RIGHT PANEL: THE FIELD (identical size, HBox-aligned) ────── -->
+    <VBox prefWidth="520" prefHeight="420" minWidth="520" maxWidth="520"
+          minHeight="420" maxHeight="420" spacing="22"
+          styleClass="hologram-panel"
+          AnchorPane.rightAnchor="80" AnchorPane.topAnchor="200">
+        <Label text="THE FIELD" styleClass="panel-title" alignment="CENTER_RIGHT"
+               prefWidth="Infinity"/>
+
+        <HBox spacing="18" alignment="CENTER_LEFT" styleClass="entry-row">
+            <ImageView fitWidth="54" fitHeight="54" preserveRatio="true" styleClass="drone-icon">
+                <image><Image url="@../assets/chapter2/good_drone.png"/></image>
+            </ImageView>
+            <VBox>
+                <Label text="GOOD — Agricultural drone." styleClass="entry-title-good"/>
+                <Label text="Harmless. Shooting it costs −0.5% score. Do NOT fire."
+                       styleClass="entry-desc" wrapText="true"/>
+            </VBox>
+        </HBox>
+
+        <HBox spacing="18" alignment="CENTER_LEFT" styleClass="entry-row">
+            <ImageView fitWidth="54" fitHeight="54" preserveRatio="true" styleClass="drone-icon">
+                <image><Image url="@../assets/chapter2/bad_drone.png"/></image>
+            </ImageView>
+            <VBox>
+                <Label text="BAD — Enforcement drone." styleClass="entry-title-bad"/>
+                <Label text="Hostile. Kill them. Score = % of BAD drones eliminated."
+                       styleClass="entry-desc" wrapText="true"/>
+            </VBox>
+        </HBox>
+
+        <HBox spacing="18" alignment="CENTER_LEFT" styleClass="entry-row">
+            <ImageView fitWidth="54" fitHeight="54" preserveRatio="true" styleClass="drone-icon,drone-icon-guard">
+                <image><Image url="@../assets/chapter2/guard_drone.png"/></image>
+            </ImageView>
+            <VBox>
+                <Label text="GUARD — Surveillance drone." styleClass="entry-title-guard"/>
+                <Label text="Raises RED ALERT — firing &amp; KK lock, and standing drains the timer 5x faster. Hide until it leaves."
+                       styleClass="entry-desc" wrapText="true"/>
+            </VBox>
+        </HBox>
+
+        <HBox spacing="18" alignment="CENTER_LEFT" styleClass="entry-row">
+            <Label text="⏱" styleClass="keybind-box"/>
+            <VBox>
+                <Label text="TIMER — 150 seconds." styleClass="entry-title-timer"/>
+                <Label text="Reach the SAFE ZONE before it hits zero."
+                       styleClass="entry-desc" wrapText="true"/>
+            </VBox>
+        </HBox>
+    </VBox>
+
+    <!-- ── LAST RUN STRIP (auto-hidden, bound from controller) ──────── -->
+    <HBox fx:id="lastRunBox" alignment="CENTER" spacing="18" managed="false"
+          visible="false" styleClass="last-run"
+          AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="110">
+        <Label fx:id="lastRunTag" styleClass="last-run-tag"/>
+        <Label fx:id="lastRunDetail" styleClass="last-run-detail"/>
+    </HBox>
+
+    <!-- ── BOTTOM ACTION BUTTONS (pushed lower, chamfered -fx-shape) ── -->
+    <Button text="BACK" styleClass="asset-button,secondary" onAction="#handleBack"
+            prefWidth="220" prefHeight="66"
+            AnchorPane.leftAnchor="230" AnchorPane.bottomAnchor="15"/>
+    <Button text="READY" styleClass="asset-button" onAction="#handleStartGame"
+            prefWidth="220" prefHeight="66"
+            AnchorPane.rightAnchor="230" AnchorPane.bottomAnchor="15"/>
+
+    <!-- OVERLAY REMOVED FROM HERE — now created in ChapterTwoTutorialScreen.build()
+     so it sits outside rootPane and stays fixed while rootPane jitters. -->
+
+</AnchorPane>

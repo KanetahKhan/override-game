@@ -1,0 +1,141 @@
+/* ── Dark alley / terminal backdrop ─────────────────────────────── */
+.alley-backdrop {
+    -fx-background-color: radial-gradient(center 50% 50%, radius 70%, #0a1118, #020305);
+    -fx-font-family: "Monospaced";
+}
+
+/* ── Neon text ───────────────────────────────────────────────────── */
+.header-text, .sub-title {
+    -fx-text-fill: #00ffff;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+.credits-text {
+    -fx-text-fill: #ffd54a;
+    -fx-effect: dropshadow(gaussian, rgba(255, 213, 74, 0.5), 8, 0.3, 0, 0);
+}
+
+.main-title {
+    -fx-text-fill: #e6ffff;
+    -fx-font-size: 58px;
+    -fx-font-weight: bold;
+    -fx-effect: dropshadow(gaussian, #00ffff, 20, 0.6, 0, 0);
+}
+
+/* ── Hologram signboard panels ──────────────────────────────────── */
+.hologram-panel {
+    -fx-background-color: rgba(0, 255, 255, 0.03);
+    -fx-border-color: rgba(0, 255, 255, 0.15);
+    -fx-border-width: 1px;
+    -fx-padding: 25px;
+    -fx-background-radius: 4;
+    -fx-border-radius: 4;
+}
+
+.panel-title {
+    -fx-text-fill: #00ffff;
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-padding: 0 0 10 0;
+    -fx-effect: dropshadow(gaussian, #00ffff, 8, 0.4, 0, 0);
+}
+
+/* ── Control entries ─────────────────────────────────────────────── */
+.keybind-box {
+    -fx-border-color: rgba(0, 255, 255, 0.8);
+    -fx-text-fill: #00ffff;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-padding: 6 10 6 10;
+    -fx-min-width: 80px;
+    -fx-alignment: center;
+    -fx-background-color: rgba(0, 255, 255, 0.06);
+    -fx-background-radius: 4;
+    -fx-border-radius: 4;
+}
+
+.entry-title       { -fx-text-fill: white;          -fx-font-weight: bold; -fx-font-size: 14px; }
+.entry-title-good  { -fx-text-fill: #00ffaa;        -fx-font-weight: bold; -fx-font-size: 14px; }
+.entry-title-bad   { -fx-text-fill: #ff3366;        -fx-font-weight: bold; -fx-font-size: 14px; }
+.entry-title-guard { -fx-text-fill: #ffd24a;        -fx-font-weight: bold; -fx-font-size: 14px; }
+.entry-title-timer { -fx-text-fill: #e7faff;        -fx-font-weight: bold; -fx-font-size: 14px; }
+.entry-title-score { -fx-text-fill: #ff86ff;        -fx-font-weight: bold; -fx-font-size: 14px; }
+.entry-desc        { -fx-text-fill: #a8b8c8; -fx-font-size: 13px; -fx-font-weight: 500; -fx-wrap-text: true; }
+
+.drone-icon {
+    -fx-effect: dropshadow(gaussian, rgba(0, 255, 255, 0.35), 8, 0.4, 0, 0);
+}
+
+.drone-icon-guard {
+    -fx-effect: dropshadow(gaussian, rgba(255, 191, 0, 0.4), 10, 0.5, 0, 0);
+}
+
+/* ── Asset-sheet buttons (chamfered hexagon via -fx-shape) ─────────
+   On a Region, -fx-shape clips the background fill AND strokes
+   -fx-border-color along the polygon outline — so the solid cyan
+   chamfer border is real, drawn by the shape itself. */
+.asset-button {
+    -fx-background-color: rgba(0, 220, 255, 0.10);
+    -fx-text-fill: #00ffff;
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-padding: 12 60 12 60;
+    -fx-shape: "M 15 0 L 135 0 L 150 15 L 150 45 L 135 60 L 15 60 L 0 45 L 0 15 Z";
+    -fx-border-color: #00ffff;
+    -fx-border-width: 2px;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0, 255, 255, 0.35), 10, 0.3, 0, 0);
+}
+
+.asset-button.secondary {
+    -fx-background-color: rgba(77, 255, 224, 0.08);
+    -fx-text-fill: #4dffe0;
+    -fx-border-color: rgba(77, 255, 224, 0.8);
+}
+
+.asset-button:hover {
+    -fx-background-color: rgba(0, 255, 255, 0.35);
+    -fx-text-fill: white;
+    -fx-effect: dropshadow(gaussian, #00ffff, 20, 0.6, 0, 0);
+}
+
+/* ── Last run strip ──────────────────────────────────────────────── */
+.last-run {
+    -fx-background-color: rgba(0, 255, 255, 0.06);
+    -fx-border-color: rgba(0, 255, 255, 0.4);
+    -fx-border-width: 1;
+    -fx-background-radius: 4;
+    -fx-border-radius: 4;
+    -fx-padding: 8 18 8 18;
+}
+
+.last-run-tag {
+    -fx-text-fill: #00ffff;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-effect: dropshadow(gaussian, #00ffff, 8, 0.4, 0, 0);
+}
+
+.last-run-detail {
+    -fx-text-fill: #8a9ba8;
+    -fx-font-size: 12px;
+}
+
+/* ── Heavy CRT Television Static Overlay ───────────────────────────── */
+/* Layer 1: monochromatic noise (slash grain), tiled.
+   Layer 2: CRT scanlines — a tiny PNG strip (3px transparent / 3px
+   black) stretched to 100% x 6px and repeated vertically across the
+   pane, so thick black bars physically sit ON TOP of the noise
+   (JavaFX allows only url() in -fx-background-image, hence the strip). */
+.static-overlay {
+    -fx-background-image:
+        url("../assets/chapter2/slash_static.png"),
+        url("../assets/chapter2/scanlines.png");
+    -fx-background-repeat: repeat, no-repeat repeat;
+    -fx-background-size: auto, 100% 6px;
+    -fx-background-position: center;
+
+    /* Persistent faint CRT static — always visible as a soft grain */
+    -fx-opacity: 0.07;
+}
