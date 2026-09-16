@@ -10,6 +10,11 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.StrokeLineCap;
+import javafx.scene.text.Font;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -61,32 +66,42 @@ final class CurfewNodeGames {
 
     private static Parent frame(String title, String accent, String bg, Label status, String help,
                                 Node body, double width, Runnable quit) {
-        HBox header = new HBox(text(title, MONO, 13, accent), spacer(), status);
-        header.setPadding(new Insets(14, 20, 14, 20));
-        header.setStyle("-fx-border-color: transparent transparent " + alpha(accent, 0.3) + " transparent;");
+        String[] heading = title.split(" // ", 2);
+        Label eyebrow = text("OVERRIDE   /   MANUAL RECOVERY   /   " + heading[0], MONO, 11, accent);
+        Label name = text(heading.length > 1 ? heading[1] : title, BODY, 28, "#eaf5f4");
+        name.setStyle(name.getStyle() + " -fx-font-weight: bold;");
+        status.setPadding(new Insets(7, 10, 7, 10));
+        status.setStyle(status.getStyle() + " -fx-background-color: " + alpha(accent, 0.1)
+            + "; -fx-background-radius: 5;");
+        HBox titleRow = new HBox(16, name, spacer(), status);
+        titleRow.setAlignment(Pos.CENTER_LEFT);
+        VBox header = new VBox(10, eyebrow, titleRow);
+        header.setPadding(new Insets(22, 24, 18, 24));
+        header.setStyle("-fx-border-color: transparent transparent " + alpha(accent, 0.2) + " transparent;");
 
-        Label desc = text(help, BODY, 16, "rgba(207,238,234,0.85)");
+        Label desc = text(help, BODY, 14, "#aebfc7");
         desc.setWrapText(true);
-        desc.setPadding(new Insets(14, 20, 4, 20));
+        desc.setPadding(new Insets(14, 24, 12, 24));
 
-        Button disconnect = new Button("DISCONNECT");
+        Button disconnect = new Button("DISCONNECT  /  ESC");
         disconnect.setFocusTraversable(false);
-        disconnect.setMaxWidth(Double.MAX_VALUE);
-        disconnect.setStyle("-fx-background-color: transparent; -fx-border-color: rgba(255,90,74,0.55);"
-            + " -fx-text-fill: #ffb0a4; -fx-font-family: " + MONO + "; -fx-font-size: 12px; -fx-padding: 11 0 11 0;"
-            + " -fx-cursor: hand; -fx-background-radius: 0; -fx-border-radius: 0;");
+        disconnect.setStyle("-fx-background-color: #18232e; -fx-border-color: #40515e;"
+            + " -fx-text-fill: #c3d0d9; -fx-font-family: " + MONO + "; -fx-font-size: 11px;"
+            + " -fx-padding: 10 16; -fx-cursor: hand; -fx-background-radius: 4; -fx-border-radius: 4;");
         disconnect.setOnAction(e -> quit.run());
-        VBox foot = new VBox(disconnect);
-        foot.setPadding(new Insets(14, 20, 18, 20));
+        HBox foot = new HBox(text("LOCAL LINK  /  HUMAN INPUT", MONO, 10, "#8298a7"), spacer(), disconnect);
+        foot.setAlignment(Pos.CENTER_LEFT);
+        foot.setPadding(new Insets(16, 24, 20, 24));
 
         VBox panel = new VBox(header, desc, body, foot);
         panel.setMaxWidth(width);
         panel.setMaxHeight(Region.USE_PREF_SIZE);
-        panel.setStyle("-fx-background-color: " + bg + "; -fx-border-color: " + alpha(accent, 0.5) + ";"
-            + " -fx-effect: dropshadow(gaussian, " + alpha(accent, 0.25) + ", 60, 0, 0, 0);");
+        panel.setStyle("-fx-background-color: linear-gradient(to bottom right, #172631, #0b121b);"
+            + " -fx-background-radius: 12; -fx-border-radius: 12; -fx-border-color: " + alpha(accent, 0.4) + ";"
+            + " -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.65), 40, 0.15, 0, 18);");
 
         StackPane shade = new StackPane(panel);
-        shade.setStyle("-fx-background-color: rgba(2,6,8,0.9);");
+        shade.setStyle("-fx-background-color: rgba(2,6,8,0.84);");
         return shade;
     }
 
@@ -110,6 +125,7 @@ final class CurfewNodeGames {
             static final double W = 560, H = 300;
             final Pane field = new Pane();
             final Label status = text("", MONO, 13, "#ffb347");
+            final HBox progress = new HBox(5);
             final List<double[]> tokens = new ArrayList<>();   // {lane, top}
             final List<Label> tokenViews = new ArrayList<>();
             int fixed, missed;
@@ -122,11 +138,28 @@ final class CurfewNodeGames {
                 field.setPrefSize(W, H);
                 field.setMinSize(W, H);
                 field.setMaxSize(W, H);
-                field.setStyle("-fx-background-color: #02100f; -fx-border-color: rgba(53,224,216,0.22);");
+                field.setStyle("-fx-background-color: #080f19; -fx-border-color: #324a5e; -fx-background-radius: 6;");
+                Rectangle clip = new Rectangle(W, H);
+                clip.setArcWidth(12); clip.setArcHeight(12);
+                field.setClip(clip);
+                Canvas tracks = new Canvas(W, H);
+                GraphicsContext g = tracks.getGraphicsContext2D();
+                g.setStroke(Color.web("#1c3042"));
+                for (int y = 18; y < H; y += 24) g.strokeLine(0, y, W, y);
+                for (int i = 0; i < 4; i++) {
+                    g.setStroke(Color.web("#254555"));
+                    g.strokeLine(i * W / 4 + W / 8, 0, i * W / 4 + W / 8, H);
+                    g.setFill(Color.web("#6d899d"));
+                    g.setFont(Font.font("Monospaced", 10));
+                    g.fillText("BUS / 0" + (i + 1), i * W / 4 + 14, 20);
+                }
+                tracks.setMouseTransparent(true);
+                field.getChildren().add(tracks);
                 Region band = new Region();
-                band.setLayoutY(H * 0.64);
-                band.setPrefSize(W, H * 0.26);
+                band.setLayoutY(H * 0.60);
+                band.setPrefSize(W, H * 0.34);
                 band.setStyle("-fx-background-color: rgba(53,224,216,0.09); -fx-border-color: rgba(53,224,216,0.45) transparent;");
+                band.setMouseTransparent(true);
                 field.getChildren().add(band);
                 String[] keys = {"Q", "W", "E", "R"};
                 for (int i = 0; i < 4; i++) {
@@ -143,7 +176,9 @@ final class CurfewNodeGames {
                     l.setOnMouseClicked(e -> hit(lane));
                     field.getChildren().add(l);
                 }
-                VBox body = new VBox(field);
+                progress.setAlignment(Pos.CENTER);
+                VBox body = new VBox(10, field, progress);
+                body.setAlignment(Pos.CENTER);
                 body.setPadding(new Insets(8, 20, 0, 20));
                 view = frame("NODE 01 // KERNEL PANIC", "#35e0d8", "linear-gradient(to bottom, rgba(6,22,24,0.98), rgba(3,10,12,0.98))",
                     status, "Glitch tokens are falling through four kernel lanes. Hit the lane key (Q W E R or 1-4) — or click the lane — while a token is inside the patch band.",
@@ -163,6 +198,7 @@ final class CurfewNodeGames {
                 if (acc > 620) {
                     acc = 0;
                     Label v = text(String.valueOf("0123456789ABCDEF".charAt(RNG.nextInt(16))), MONO, 15, "#ff3d5a");
+                    v.setMouseTransparent(true);
                     v.setAlignment(Pos.CENTER);
                     v.setPrefSize(38, 38);
                     tokens.add(new double[] {RNG.nextInt(4), -4});
@@ -174,6 +210,7 @@ final class CurfewNodeGames {
             }
 
             void hit(int lane) {
+                if (over) return;
                 int best = -1;
                 for (int i = 0; i < tokens.size(); i++) {
                     double[] t = tokens.get(i);
@@ -193,6 +230,12 @@ final class CurfewNodeGames {
 
             void refresh() {
                 status.setText(fixed + "/12 PATCHED · " + missed + "/5 LOST");
+                progress.getChildren().clear();
+                for (int n = 0; n < 12; n++) {
+                    Rectangle segment = new Rectangle(40, 5, Color.web(n < fixed ? "#62e6bd" : "#26394b"));
+                    segment.setArcWidth(4); segment.setArcHeight(4);
+                    progress.getChildren().add(segment);
+                }
                 for (int i = 0; i < tokens.size(); i++) {
                     double[] t = tokens.get(i);
                     Label v = tokenViews.get(i);
@@ -201,7 +244,7 @@ final class CurfewNodeGames {
                     v.setLayoutX(t[0] * W / 4 + W / 8 - 19);
                     v.setLayoutY(t[1] / 100 * H - 19);
                     v.setStyle("-fx-font-family: " + MONO + "; -fx-font-size: 15px; -fx-text-fill: " + col + ";"
-                        + " -fx-border-color: " + col + "; -fx-background-color: rgba(255,61,90,0.16);"
+                        + " -fx-border-color: " + col + "; -fx-background-color: #162536; -fx-background-radius: 6; -fx-border-radius: 6; -fx-font-weight: bold;"
                         + " -fx-effect: dropshadow(gaussian, " + col + ", 12, 0, 0, 0);");
                 }
             }
@@ -271,8 +314,8 @@ final class CurfewNodeGames {
                 body.setAlignment(Pos.CENTER);
                 body.setPadding(new Insets(14, 20, 6, 20));
                 view = frame("NODE 02 // CIRCUIT BREAKER", "#ff3d7f", "linear-gradient(to bottom, rgba(24,6,16,0.98), rgba(6,3,8,0.98))",
-                    status, "Click a tile to rotate it. Route the signal from the left tap to the right sink.",
-                    body, 440, () -> finish(Outcome.QUIT));
+                    status, "Rotate the copper traces to link the left source to the right receiver. Mint traces carry power; copper traces are disconnected.",
+                    body, 660, () -> finish(Outcome.QUIT));
                 redraw();
                 win.setOnFinished(e -> finish(Outcome.WON));
             }
@@ -315,9 +358,9 @@ final class CurfewNodeGames {
 
             boolean has(int[] c, int d) { return c[0] == d || c[1] == d; }
 
-            boolean isSolved() {
-                if (!has(conn(0), 3)) return false;
+            boolean[] powered() {
                 boolean[] seen = new boolean[N * N];
+                if (!has(conn(0), 3)) return seen;
                 seen[0] = true;
                 List<Integer> stack = new ArrayList<>(List.of(0));
                 while (!stack.isEmpty()) {
@@ -333,7 +376,11 @@ final class CurfewNodeGames {
                         stack.add(j);
                     }
                 }
-                return seen[N * N - 1] && has(conn(N * N - 1), 1);
+                return seen;
+            }
+
+            boolean isSolved() {
+                return powered()[N * N - 1] && has(conn(N * N - 1), 1);
             }
 
             void rotate(int i) {
@@ -345,27 +392,42 @@ final class CurfewNodeGames {
             }
 
             void redraw() {
-                String ink = solved ? "#4dff9e" : "#ff6f9c";
-                String border = solved ? "rgba(77,255,158,0.6)" : "rgba(255,61,127,0.3)";
+                String ink = solved ? "#4dff9e" : "#ffcf83";
+                boolean[] live = powered();
                 for (int i = 0; i < N * N; i++) {
                     StackPane t = tiles[i];
-                    t.setStyle("-fx-background-color: rgba(255,61,127,0.05); -fx-border-color: " + border + "; -fx-cursor: hand;");
-                    Pane p = new Pane();
-                    p.setPrefSize(TILE, TILE);
-                    Circle dot = new Circle(TILE / 2, TILE / 2, 5);
-                    dot.setStyle("-fx-fill: " + ink + ";");
-                    p.getChildren().add(dot);
-                    for (int d : conn(i)) {
-                        Rectangle bar = switch (d) {
-                            case 0 -> new Rectangle(TILE / 2 - 2, 0, 4, TILE * 0.52);
-                            case 2 -> new Rectangle(TILE / 2 - 2, TILE * 0.48, 4, TILE * 0.52);
-                            case 1 -> new Rectangle(TILE * 0.48, TILE / 2 - 2, TILE * 0.52, 4);
-                            default -> new Rectangle(0, TILE / 2 - 2, TILE * 0.52, 4);
-                        };
-                        bar.setStyle("-fx-fill: " + ink + ";");
-                        p.getChildren().add(bar);
+                    t.setStyle("-fx-background-color: #152832; -fx-border-color: "
+                        + (live[i] ? "#4dff9e" : "#345360")
+                        + "; -fx-background-radius: 6; -fx-border-radius: 6; -fx-cursor: hand;");
+                    Canvas pcb = new Canvas(TILE, TILE);
+                    pcb.setMouseTransparent(true);
+                    GraphicsContext g = pcb.getGraphicsContext2D();
+                    // Copper pads, substrate traces and four mounting screws.
+                    g.setStroke(Color.web("#29434c"));
+                    g.setLineWidth(1);
+                    for (int n = 12; n < TILE; n += 14) {
+                        g.strokeLine(n, 8, n, TILE - 8);
+                        g.strokeLine(8, n, TILE - 8, n);
                     }
-                    t.getChildren().setAll(p);
+                    g.setFill(Color.web("#70818a"));
+                    for (double x : new double[] {7, TILE - 7}) for (double y : new double[] {7, TILE - 7})
+                        g.fillOval(x - 2, y - 2, 4, 4);
+                    double mid = TILE / 2;
+                    g.setLineCap(StrokeLineCap.ROUND);
+                    for (int d : conn(i)) {
+                        double x = d == 1 ? TILE : d == 3 ? 0 : mid;
+                        double y = d == 2 ? TILE : d == 0 ? 0 : mid;
+                        g.setStroke(Color.web("#070f18")); g.setLineWidth(13);
+                        g.strokeLine(mid, mid, x, y);
+                        g.setStroke(Color.web(live[i] ? "#62edb9" : "#b58c55")); g.setLineWidth(7);
+                        g.strokeLine(mid, mid, x, y);
+                        g.setStroke(Color.web(live[i] ? "#c5ffe4" : "#edc88c")); g.setLineWidth(2);
+                        g.strokeLine(mid, mid, x, y);
+                    }
+                    g.setFill(Color.web("#09151e")); g.fillOval(mid - 9, mid - 9, 18, 18);
+                    g.setStroke(Color.web(live[i] ? "#62edb9" : "#edc88c")); g.setLineWidth(2);
+                    g.strokeOval(mid - 6, mid - 6, 12, 12);
+                    t.getChildren().setAll(pcb);
                 }
                 status.setText(solved ? "SIGNAL LOCKED" : "OPEN CIRCUIT");
                 status.setStyle(status.getStyle().replaceAll("-fx-text-fill: [^;]+;", "-fx-text-fill: " + ink + ";"));
@@ -414,7 +476,7 @@ final class CurfewNodeGames {
                 lines.setPadding(new Insets(14, 20, 4, 20));
                 view = frame("NODE 03 // SILENT CODE", "#4dff9e", "linear-gradient(to bottom, rgba(5,22,16,0.98), rgba(3,10,8,0.98))",
                     status, "The lockdown routine was scrambled. Click two lines to swap them until the sequence runs clean.",
-                    lines, 600, () -> finish(Outcome.QUIT));
+                    lines, 660, () -> finish(Outcome.QUIT));
                 redraw();
                 win.setOnFinished(e -> finish(Outcome.WON));
             }
@@ -439,18 +501,26 @@ final class CurfewNodeGames {
             }
 
             void redraw() {
-                status.setText(moves + " SWAPS");
+                status.setText(solved ? "SEQUENCE VERIFIED" : moves + " SWAPS" );
                 lines.getChildren().clear();
                 for (int i = 0; i < order.size(); i++) {
                     final int idx = i;
-                    Label num = text((i + 1) + ".", MONO, 14, solved ? "#4dff9e" : "rgba(126,243,232,0.5)");
-                    Label code = text(CODE_LINES[order.get(i)], MONO, 14, "#dffaec");
-                    HBox row = new HBox(12, num, code);
+                    Label num = text(String.format("%02d", i + 1), MONO, 13, "#718a9d");
+                    num.setMinWidth(30);
+                    String source = CODE_LINES[order.get(i)];
+                    int cut = source.indexOf('(');
+                    if (cut < 0) cut = source.indexOf(' ');
+                    HBox code = new HBox(0,
+                        text(source.substring(0, cut), MONO, 15, "#7ec9f5"),
+                        text(source.substring(cut), MONO, 15, "#dfcca6"));
+                    Label marker = text(solved ? "OK" : sel == i ? "SELECTED" : "SWAP", MONO, 10,
+                        solved ? "#62e6bd" : "#849cae");
+                    HBox row = new HBox(12, num, code, spacer(), marker);
                     row.setAlignment(Pos.CENTER_LEFT);
                     row.setPadding(new Insets(10, 14, 10, 14));
                     boolean on = sel == i;
-                    row.setStyle("-fx-background-color: " + (on ? "rgba(77,255,158,0.16)" : "rgba(4,16,12,0.9)") + ";"
-                        + " -fx-border-color: " + (on ? "rgba(77,255,158,0.7)" : "rgba(77,255,158,0.2)") + "; -fx-cursor: hand;");
+                    row.setStyle("-fx-background-color: " + (on ? "rgba(77,255,158,0.16)" : "#101d2a") + ";"
+                        + " -fx-border-color: " + (on ? "rgba(77,255,158,0.7)" : "#2b4051") + "; -fx-background-radius: 5; -fx-border-radius: 5; -fx-cursor: hand;");
                     row.setOnMouseClicked(e -> pick(idx));
                     lines.getChildren().add(row);
                 }
