@@ -640,7 +640,7 @@ boolean on = sel == i, at = cur == i && !solved;
 
     /**
      * Node 03: Syntax Snake, the Chapter 1 arcade mini-game, run in mission mode
-     * inside the shared node frame. Clearing the beat (300) takes the node;
+     * inside the shared node frame. Clearing the beat takes the node;
      * crashing the cursor, or running the clock out, resets it.
      *
      * <p>The limit is 120s before difficulty scaling. Syntax Snake scores a
@@ -687,7 +687,9 @@ boolean on = sel == i, at = cur == i && !solved;
                 if (left <= 0) finish(Outcome.FAILED);
             }
 
-            void redraw() { status.setText("BEAT 300 · " + clock(left)); }
+            void redraw() {
+                status.setText("BEAT " + SnakeGame.STORY_GATE_TARGET + " · " + clock(left));
+            }
 
             void finish(Outcome o) {
                 if (over) return;

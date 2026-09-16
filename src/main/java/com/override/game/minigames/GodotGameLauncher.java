@@ -31,6 +31,9 @@ public final class GodotGameLauncher {
     private static final Path RESULT =
         PROJECT.resolve("build").resolve("chapter2_result.json");
 
+    /** Machine-local pointer at a Godot binary, beside the project. Gitignored. */
+    private static final String POINTER_FILE = "godot-path.txt";
+
     private static Process godotProcess;
     private static Runnable processExitHook;
 
@@ -65,10 +68,7 @@ public final class GodotGameLauncher {
         } else {
             String godot = findGodot();
             if (godot == null) {
-                show("Chapter 2 isn't built yet.\n\n"
-                    + "Export chapter2-godot (Project > Export > Windows Desktop) to "
-                    + "chapter2-godot/build/Chapter2.exe, or set the GODOT environment "
-                    + "variable to your Godot editor executable.");
+                showNoGodot();
                 return false;
             }
             godotProcess = spawn(godot, "--path", PROJECT.toAbsolutePath().toString());
@@ -104,10 +104,7 @@ public final class GodotGameLauncher {
         } else {
             String godot = findGodot();
             if (godot == null) {
-                show("Chapter 2 isn't built yet.\n\n"
-                    + "Export chapter2-godot (Project > Export > Windows Desktop) to "
-                    + "chapter2-godot/build/Chapter2.exe, or set the GODOT environment "
-                    + "variable to your Godot editor executable.");
+                showNoGodot();
                 return;
             }
             cmd.add(godot);
