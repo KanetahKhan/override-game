@@ -1,15 +1,19 @@
 package com.override.shared.ui;
 
+import com.override.game.minigames.ChiptuneSfx;
 import javafx.animation.AnimationTimer;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.Slider;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
 
 import java.util.List;
 import java.util.Objects;
@@ -116,11 +120,36 @@ final class OpeningMenuView extends StackPane {
             background.menu(seconds, reduced.isSelected());
         });
         Label help = text("Disables rain, camera sweeps and sprite motion\nin the menu and classroom opening.\nStory subtitles and controls stay available.", 13, "#9bb1bd");
+        CheckBox fullscreen = new CheckBox("Fullscreen"); fullscreen.setId("fullscreen");
+        fullscreen.setStyle("-fx-text-fill: #d6e8e8; -fx-font-size: 17px;");
+        // Main scales the 1280x720 design space to the window, so this only resizes it.
+        Stage window = com.override.Main.getStage();
+        fullscreen.setDisable(window == null);
+        fullscreen.setSelected(window != null && window.isFullScreen());
+        fullscreen.setOnAction(e -> {
+            if (window != null) window.setFullScreen(fullscreen.isSelected());
+        });
+
+        Label volumeValue = text(percent(OpeningPreferences.VOLUME.get()), 15, "#b9ffdf");
+        Slider volume = new Slider(0, 1, OpeningPreferences.VOLUME.get());
+        volume.setId("volume");
+        volume.setPrefWidth(250);
+        volume.setBlockIncrement(0.05);
+        volume.getStyleClass().add("menu-slider");
+        volume.valueProperty().addListener((o, was, now) -> {
+            OpeningPreferences.VOLUME.set(now.doubleValue());
+            volumeValue.setText(percent(now.doubleValue()));
+        });
+        // A cue on release, so the chosen level can actually be heard.
+        volume.setOnMouseReleased(e -> ChiptuneSfx.door());
+        HBox volumeRow = new HBox(14, text("Sound", 17, "#d6e8e8"), volume, volumeValue);
+        volumeRow.setAlignment(Pos.CENTER_LEFT);
+
         Button close = option("BACK", false); close.setId("close-options");
         Runnable dismiss = () -> { modal.getChildren().clear(); modal.setVisible(false); modal.setManaged(false); source.requestFocus(); };
         close.setOnAction(e -> dismiss.run());
-        VBox panel = new VBox(24, text("DISPLAY OPTIONS", 25, "#e6f5ee"), reduced, help, close);
-        panel.setMaxSize(480, 300); panel.setPadding(new Insets(32));
+        VBox panel = new VBox(22, text("DISPLAY OPTIONS", 25, "#e6f5ee"), reduced, help, fullscreen, volumeRow, close);
+        panel.setMaxSize(520, VBox.USE_PREF_SIZE); panel.setPadding(new Insets(32));
         panel.setStyle("-fx-background-color: #0d1a27; -fx-border-color: #416b75; -fx-border-width: 1;");
         modal.setStyle("-fx-background-color: rgba(3,8,15,0.9);");
         modal.getChildren().setAll(panel); modal.setVisible(true); modal.setManaged(true);
@@ -143,6 +172,10 @@ final class OpeningMenuView extends StackPane {
         button.hoverProperty().addListener((o, a, b) -> restyle.run());
         button.focusedProperty().addListener((o, a, b) -> restyle.run());
         restyle.run(); return button;
+    }
+
+    private static String percent(double value) {
+        return Math.round(value * 100) + "%";
     }
 
     static Label text(String value, double size, String color) {

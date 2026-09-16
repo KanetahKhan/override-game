@@ -48,7 +48,8 @@ public final class SnakeGame extends MiniGame {
     private static final double MIN_STEP = 0.055;      // cap at hard mode
     private static final double STEP_DECAY = 0.0035;   // per bit eaten
     private static final int SCORE_PER_BIT = 10;
-    private static final int STORY_GATE_TARGET = 300;  // ~30 bits to clear the beat
+    /** Score that clears the chapter beat. Public so hosts can label it without drifting. */
+    public static final int STORY_GATE_TARGET = 100;   // ~10 bits to clear the beat
     private static final int INDEPENDENCE_SCORE_BONUS = 500;
     private static final int INDEPENDENCE_XP_BONUS = 50;
     private static final int NUM_BITS = 4;             // bits on the board at once
