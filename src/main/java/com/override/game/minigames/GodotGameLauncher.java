@@ -13,6 +13,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import javafx.application.Platform;
+import java.util.Locale;
 
 /**
  * Launches Chapter 2 – Harvest Protocol, the Godot endless runner in
@@ -166,9 +167,23 @@ public final class GodotGameLauncher {
         }
     }
 
+    /**
+     * Locate a Godot editor: the {@code override.godot} JVM flag, the {@code GODOT}
+     * environment variable, the pointer file beside the project, then PATH.
+     *
+     * <p>The pointer file exists because environment variables only reach processes
+     * started after they are set, so setting {@code GODOT} changes nothing until the
+     * editor and every terminal under it are restarted. A file is read at the moment
+     * the player presses Play.</p>
+     */
     private static String findGodot() {
+        String flag = System.getProperty("override.godot");
+        if (flag != null && isFile(flag)) return flag;
         String env = System.getenv("GODOT");
         if (env != null && isFile(env)) return env;
+        String pointed = readPointer();
+        if (pointed != null && isFile(pointed)) return pointed;
+
         String path = System.getenv("PATH");
         if (path == null) return null;
         for (String dir : path.split(File.pathSeparator)) {
@@ -176,8 +191,55 @@ public final class GodotGameLauncher {
                 String candidate = dir + File.separator + name;
                 if (isFile(candidate)) return candidate;
             }
+            String scanned = scanForGodot(dir);
+            if (scanned != null) return scanned;
         }
         return null;
+    }
+
+    /** First non-blank, non-comment line of the pointer file, or null. */
+    private static String readPointer() {
+        try {
+            for (String line : Files.readAllLines(PROJECT.resolve(POINTER_FILE))) {
+                String trimmed = line.trim();
+                if (!trimmed.isEmpty() && !trimmed.startsWith("#")) return trimmed;
+            }
+        } catch (IOException | RuntimeException ignored) {
+            // No pointer on this machine; fall through to the remaining sources.
+        }
+        return null;
+    }
+
+    /**
+     * Any {@code godot*} executable in one PATH directory. Official downloads keep
+     * their version in the filename (Godot_v4.7.1-stable_win64.exe), so the exact
+     * names above never match them. A console build is taken only if it is the one
+     * thing there: it opens a second terminal window over the game.
+     */
+    private static String scanForGodot(String dir) {
+        File[] hits = new File(dir).listFiles((d, name) -> {
+            String n = name.toLowerCase(Locale.ROOT);
+            return n.startsWith("godot") && (n.endsWith(".exe") || n.indexOf('.') < 0);
+        });
+        if (hits == null) return null;
+        String console = null;
+        for (File f : hits) {
+            if (!f.isFile()) continue;
+            if (f.getName().toLowerCase(Locale.ROOT).contains("console")) console = f.getAbsolutePath();
+            else return f.getAbsolutePath();
+        }
+        return console;
+    }
+
+    private static void showNoGodot() {
+        show("Chapter 2 isn't built yet, and no Godot editor was found.\n\n"
+            + "Quickest fix: put the full path to your Godot executable on the first "
+            + "line of chapter2-godot/" + POINTER_FILE + " — it takes effect straight "
+            + "away, with no restart.\n\n"
+            + "It is also picked up from the GODOT environment variable (only in "
+            + "processes started after you set it), the -Doverride.godot JVM flag, or "
+            + "any godot*.exe on PATH. An export to chapter2-godot/build/Chapter2.exe "
+            + "is used ahead of all of them.");
     }
 
     private static boolean isFile(String p) {
