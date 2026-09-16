@@ -641,17 +641,26 @@ boolean on = sel == i, at = cur == i && !solved;
     /**
      * Node 03: Syntax Snake, the Chapter 1 arcade mini-game, run in mission mode
      * inside the shared node frame. Clearing the beat (300) takes the node;
-     * crashing the cursor resets it.
+     * crashing the cursor, or running the clock out, resets it.
+     *
+     * <p>The limit is 120s before difficulty scaling. Syntax Snake scores a
+     * mission run against 90s as fast and 180s as no longer worth a speed bonus,
+     * so 120 leaves a competent run room to spare while still costing a fifth of
+     * a NORMAL curfew — this node is the longest of the three, and the unit keeps
+     * walking the whole time.</p>
      *
      * <p>The game's own SPACE autopilot is deliberately not forwarded: a node has
      * exactly one assist route, the frame's ASK ASTRA / [H], so the dependency
      * cost is always the node's advertised price.</p>
      */
-    static NodeGame syntaxSnake(Consumer<Outcome> done) {
+    static NodeGame syntaxSnake(double timeScale, Consumer<Outcome> done) {
         return new NodeGame() {
             final SnakeGame snake = SnakeGame.mission();
-            final Label status = text("BEAT TARGET 300", MONO, 13, "#ffb347");
+            final int time = (int) Math.round(120 * timeScale);
+            final Label status = text("", MONO, 13, "#ffb347");
+            final Timeline countdown = new Timeline(new KeyFrame(Duration.seconds(1), e -> tickDown()));
             final Parent view;
+            int left = time;
             boolean over;
 
             {
@@ -661,16 +670,29 @@ boolean on = sel == i, at = cur == i && !solved;
                     "linear-gradient(to bottom, rgba(5,22,16,0.98), rgba(3,10,8,0.98))",
                     status, "The lockdown routine ran away with the terminal cursor. Steer it with WASD "
                         + "or the arrow keys, swallow the knowledge bits, and clear the beat before you "
-                        + "run into yourself.",
+                        + "run into yourself — or before the node resets.",
                     board, 700, () -> finish(Outcome.QUIT), () -> finish(Outcome.ASSISTED));
                 snake.setResultListener(r -> finish(!r.won() ? Outcome.FAILED
                     : r.dependencyUsed() > 0 ? Outcome.ASSISTED : Outcome.WON));
+                redraw();
+                countdown.setCycleCount(time);
+                countdown.play();
                 snake.start();
             }
+
+            void tickDown() {
+                if (over) return;
+                left--;
+                redraw();
+                if (left <= 0) finish(Outcome.FAILED);
+            }
+
+            void redraw() { status.setText("BEAT 300 · " + clock(left)); }
 
             void finish(Outcome o) {
                 if (over) return;
                 over = true;
+                countdown.stop();
                 snake.setResultListener(null);
                 snake.cancel();
                 done.accept(o);
@@ -690,12 +712,15 @@ boolean on = sel == i, at = cur == i && !solved;
 
             @Override public void stop() {
                 over = true;
+                countdown.stop();
                 snake.setResultListener(null);
                 snake.cancel();
             }
 
             @Override public void setPaused(boolean p) {
-                if (!over) snake.setPaused(p);
+                if (over) return;
+                snake.setPaused(p);
+                if (p) countdown.pause(); else countdown.play();
             }
         };
     }
