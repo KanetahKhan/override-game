@@ -84,6 +84,13 @@ final class OpeningMenuView extends StackPane {
         layout.getChildren().add(footer);
         modal.setVisible(false); modal.setManaged(false);
         getChildren().addAll(background, layout, modal);
+        addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, e -> {
+            if (!modal.isVisible() && e.getCode() == KeyCode.ENTER && getScene() != null
+                    && getScene().getFocusOwner() instanceof Button focused && options.contains(focused)
+                    && !focused.isDisabled()) {
+                focused.fire(); e.consume();
+            }
+        });
         setOnKeyPressed(e -> {
             if (modal.isVisible()) return;
             if (e.getCode() == KeyCode.UP || e.getCode() == KeyCode.DOWN) {
