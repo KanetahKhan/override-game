@@ -12,6 +12,7 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import javafx.application.Platform;
 
 /**
  * Launches Chapter 2 – Harvest Protocol, the Godot endless runner in
@@ -76,9 +77,9 @@ public final class GodotGameLauncher {
         if (godotProcess != null) {
             new Thread(() -> {
                 try {
-                    int code = godotProcess.waitFor();
+                    godotProcess.waitFor();
                     if (processExitHook != null) {
-                        processExitHook.run();
+                        Platform.runLater(processExitHook);
                     }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
