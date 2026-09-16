@@ -16,7 +16,11 @@ import javafx.scene.SubScene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
+import javafx.scene.image.PixelFormat;
+import javafx.scene.image.PixelReader;
+import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
+import javafx.scene.image.WritablePixelFormat;
 import javafx.scene.input.KeyCode;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
@@ -31,6 +35,9 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
 import javafx.scene.transform.Rotate;
+
+import java.io.IOException;
+import java.io.InputStream;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -83,7 +90,18 @@ final class CurfewWorld {
      */
     record Tick(double px, double pz, double sx, double sz, String state, double dist,
                 boolean hidden, double stamina, String posture, String hideHint,
-                double suspicion, boolean sentinelSeen, int books) {}
+                double suspicion, boolean sentinelSeen, int books, double yaw, double sentinelYaw,
+                boolean twoUnits, double ex, double ez) {}
+
+    /** X/Z footprints in the same coordinates as the player, without collision padding. */
+    record MapFootprint(double minX, double minZ, double width, double depth, boolean wall) {
+        static MapFootprint of(Bounds bounds, boolean wall) {
+            return new MapFootprint(bounds.getMinX(), bounds.getMinZ(),
+                bounds.getWidth(), bounds.getDepth(), wall);
+        }
+    }
+
+    record MapRoom(String name, double x, double z) {}
 
     /* ------------------------------------------------------------ data types */
 
@@ -133,7 +151,7 @@ final class CurfewWorld {
         }
     }
 
-    private record Coin(Node node, Rotate spin, int value, double x, double z, double baseY) {}
+    private record Coin(MeshView node, Rotate face, int value, double x, double z, double baseY) {}
 
     private static final class Panel {
         final double x, z;
@@ -172,6 +190,11 @@ final class CurfewWorld {
     private final Rotate camPitch = new Rotate(0, Rotate.X_AXIS);
     private final PointLight lamp = new PointLight(Color.rgb(150, 172, 190));
     private final PointLight roomLight = new PointLight(Color.WHITE);
+    private final AmbientLight ambient = new AmbientLight(Color.rgb(82, 91, 104));
+    private static final Color AMBIENT_ON = Color.rgb(82, 91, 104);
+    private static final Color AMBIENT_OUT = Color.rgb(9, 11, 14);
+    /** Seconds left of an Astra power cut; the floor runs on your lamp alone. */
+    private double blackoutLeft;
     private final PointLight sentinelLight = new PointLight(Color.web("#35e0d8"));
 
     private final Listener listener;
@@ -179,6 +202,8 @@ final class CurfewWorld {
     private final Map<Color, Image> solidImages = new HashMap<>();
 
     private final List<Aabb> colliders = new ArrayList<>();
+    private final List<MapFootprint> mapFootprints = new ArrayList<>();
+    private final List<MapRoom> mapRooms = new ArrayList<>();
     private final List<Aabb> sightBlockers = new ArrayList<>();
     private final List<Node> interactionWalls = new ArrayList<>();
     private final List<Interactable> interactables = new ArrayList<>();
@@ -214,9 +239,11 @@ final class CurfewWorld {
 
     private final Group sentinel = new Group();
     private final Rotate sentinelYaw = new Rotate(0, Rotate.Y_AXIS);
-    private Shape3D visor, hem;
+    private Shape3D visor, hem;                       // hooded fallback only
+    private MeshView jaeger;                          // the Striker Eureka body
     private final PhongMaterial[] visorMats = new PhongMaterial[3];
     private final PhongMaterial[] hemMats = new PhongMaterial[3];
+    private final PhongMaterial[] jaegerMats = new PhongMaterial[3];
     private static final Color[] STATE_COLORS = {
         Color.web("#35e0d8"), Color.web("#ffb347"), Color.web("#ff3d5a")
     };
@@ -234,7 +261,24 @@ final class CurfewWorld {
     private double huntTime;             // time spent walking to that spot
     private double stepDist, chaseBeatT; // sound pacing
     private boolean lockdown;
+    /** Extra sentinel pace once the floor is hunting. */
+    private double lockdownSpeed = 1.0;
     private double awareness = 1;        // difficulty: how fast suspicion fills
+    // The second hunter (Nightmare only): patrols the far half of the floor,
+    // sees a narrower cone, and calls the first unit the moment it spots you.
+    private final Group escort = new Group();
+    private final Rotate escortYaw = new Rotate(0, Rotate.Y_AXIS);
+    private MeshView escortBody;
+    private boolean twoUnits;
+    private double ex = WAYPOINTS[0][0], ez = WAYPOINTS[0][1];
+    private double eYaw, eStun, eCall;
+    private int eWp;
+    private boolean eChasing;
+
+    /** Where this unit has grabbed you, newest first: it patrols your habits. */
+    private final List<double[]> caughtSpots = new ArrayList<>();
+    private static final int MEMORY = 4;
+    private static final double MEMORY_PULL = 0.6;   // chance a patrol leg heads for a remembered spot
 
     // this run's layout: which almirahs hold a stash, which book on each shelf is a ledger (-1: none)
     private final boolean[] almirahLoot = new boolean[3];
@@ -305,6 +349,22 @@ final class CurfewWorld {
 
     SubScene view() { return subScene; }
 
+    List<MapFootprint> mapFootprints() { return List.copyOf(mapFootprints); }
+
+    List<MapRoom> mapRooms() { return List.copyOf(mapRooms); }
+
+    /** Also supplies the real spawn positions before the first animation frame. */
+    Tick snapshot() {
+        HideSpot hs = hidden ? null : currentHideSpot();
+        String posture = hidden ? "HIDDEN" : sitting != null ? "SEATED" : crouch ? "CROUCHED" : "STANDING";
+        double dist = Math.hypot(px - sx, pz - sz);
+        if (twoUnits) dist = Math.min(dist, Math.hypot(px - ex, pz - ez));
+        boolean seen = dist < 22 && !segBlocked(px, pz, sx, sz);
+        return new Tick(px, pz, sx, sz, aiState, dist, hidden, stamina, posture,
+            hs == null ? null : hs.ready ? hs.label : "Open the almirah first", suspicion, seen, books, yaw, aiYaw,
+            twoUnits, ex, ez);
+    }
+
     void start() { timer.start(); }
 
     void dispose() { timer.stop(); }
@@ -322,6 +382,42 @@ final class CurfewWorld {
     void setDifficulty(double d) { difficulty = d; }
 
     void setAwareness(double a) { awareness = a; }
+
+    /** Nightmare: put a second unit on the floor, starting far from the player. */
+    void setSecondUnit(boolean on) {
+        twoUnits = on;
+        if (!on) {
+            escort.setVisible(false);
+            return;
+        }
+        if (escort.getChildren().isEmpty()) buildEscort();
+        escort.setVisible(true);
+        eWp = WAYPOINTS.length - 1;               // the east end, opposite the spawn
+        ex = WAYPOINTS[eWp][0];
+        ez = WAYPOINTS[eWp][1];
+    }
+
+    private void buildEscort() {
+        escort.getTransforms().add(escortYaw);
+        if (jaeger != null && jaeger.getMesh() != null) {
+            escortBody = new MeshView(jaeger.getMesh());
+            escortBody.setMaterial(jaegerMats[0]);
+            escortBody.setCullFace(CullFace.BACK);
+            escort.getChildren().add(escortBody);
+        } else {
+            // hooded fallback, same silhouette as the first unit
+            MeshView robe = new MeshView(cone(0.68, 2.0, 14));
+            robe.setMaterial(mat(0x10141b));
+            robe.setCullFace(CullFace.NONE);
+            at(robe, 0, 1.0, 0);
+            Sphere hood = new Sphere(0.36, 14);
+            hood.setMaterial(mat(0x0b0e13));
+            at(hood, 0, 2.16, 0);
+            escort.getChildren().addAll(robe, hood,
+                at(box(0.3, 0.07, 0.05, visorMats[0]), 0, 2.12, 0.33));
+        }
+        add(escort);
+    }
 
     void setLook(double sensitivity, boolean invert) {
         lookSens = sensitivity;
@@ -368,6 +464,7 @@ final class CurfewWorld {
         if (lockdown) return;
         lockdown = true;
         difficulty *= 1.2;
+        lockdownSpeed = 1.15;
         Color red = Color.web("#ff3d3d");
         for (Panel p : panels) {
             p.color = red;
@@ -398,6 +495,15 @@ final class CurfewWorld {
             restored ? "Manual access enabled" : "Restore the kernel node"},
             restored ? "#4dff9e" : "#7ef3e8"), 0.65);
     }
+
+    /** Astra cuts the power: panels dead, ambient gone, only the lamp and the visor left. */
+    void blackout(double seconds) {
+        blackoutLeft = Math.max(blackoutLeft, seconds);
+        ambient.setColor(AMBIENT_OUT);
+        for (Panel p : panels) p.mesh.setMaterial(p.off);
+    }
+
+    boolean isBlackout() { return blackoutLeft > 0; }
 
     void stunSentinel(double seconds) { aiStun = seconds; }
 
@@ -447,6 +553,7 @@ final class CurfewWorld {
         Box m = box(horiz ? len : 0.3, H, horiz ? 0.3 : len, wallMat);
         at(m, (x1 + x2) / 2, H / 2, (z1 + z2) / 2);
         add(m);
+        mapFootprints.add(MapFootprint.of(worldBounds(m), true));
         Aabb b = new Aabb(worldBounds(m), 0.18);
         colliders.add(b);
         sightBlockers.add(b);
@@ -459,7 +566,7 @@ final class CurfewWorld {
     }
 
     private void buildLighting() {
-        world.getChildren().add(new AmbientLight(Color.rgb(82, 91, 104)));
+        world.getChildren().add(ambient);
 
         lamp.setMaxRange(15);
         lamp.setLinearAttenuation(0.06);
@@ -507,6 +614,7 @@ final class CurfewWorld {
     }
 
     private void sign(String text, String accent, double x, double y, double z, double ry) {
+        mapRooms.add(new MapRoom(text, x, z + Math.copySign(1.0, z)));
         MeshView m = quad(2.2, 0.55, emissiveTexture(signTexture(text, accent), 0.9));
         rotY(at(m, x, y, z), ry);
         add(m);
@@ -647,7 +755,9 @@ final class CurfewWorld {
             at(box(2.12, 0.64, 0.06, deskTopMat), 0, 0.42, -0.47),
             at(box(0.08, 0.72, 1.0, deskTopMat), 0.03, 0.39, 0));
         Group drawer = new Group();
-        Cylinder coinInside = cyl(0.11, 0.02, glow(Color.web("#ffb347"), 0.9));
+        // Lies flat and face-up in the tray: a drawer coin is seen from above,
+        // so it keeps the face-on frame rather than billboarding edge-on.
+        MeshView coinInside = quad(0.24, 0.24, coinFace());
         at(coinInside, 0, -0.06, -0.2).getTransforms().add(new Rotate(90, Rotate.X_AXIS));
         drawer.getChildren().addAll(
             box(0.95, 0.34, 0.08, mat(0x5b4838)),
@@ -719,11 +829,13 @@ final class CurfewWorld {
     }
 
     private void coin(double x, double z, int value, double y) {
-        Cylinder m = cyl(0.17, 0.035, glow(Color.web("#ffb347"), 1.0));
-        Rotate spin = new Rotate(0, Rotate.Z_AXIS);
-        at(m, x, y, z).getTransforms().addAll(new Rotate(90, Rotate.X_AXIS), spin);
+        // A sprite, not a disc: the sheet already carries the spin, so the quad
+        // only has to keep its face turned to the player.
+        MeshView m = quad(COIN_SIZE, COIN_SIZE, coinFrames()[0]);
+        Rotate face = new Rotate(0, Rotate.Y_AXIS);
+        at(m, x, y, z).getTransforms().add(face);
         add(m);
-        coins.add(new Coin(m, spin, value, x, z, y));
+        coins.add(new Coin(m, face, value, x, z, y));
     }
 
     private void buildRooms() {
@@ -772,9 +884,9 @@ final class CurfewWorld {
         bookshelf(-11.0, 13.0, Math.PI, ledgerAt[2]);
         coin(-20.4, 12.6, 5, 0.75);
 
-        // SERVER ROOM (south-middle): silent code node + racks
-        terminal(-4.2, 13.6, Math.PI, "node3", "SILENT CODE NODE", "#4dff9e",
-            new String[] {"> NODE 03 / SEQUENCE", "> order lost", "> minigame: SILENT CODE", "> reward: 35 CR + token"});
+        // SERVER ROOM (south-middle): syntax snake node + racks
+        terminal(-4.2, 13.6, Math.PI, "node3", "SYNTAX SNAKE NODE", "#4dff9e",
+            new String[] {"> NODE 03 / CURSOR", "> cursor loose", "> minigame: SYNTAX SNAKE", "> reward: 35 CR + token"});
         PhongMaterial rackMat = metal(0x141a20);
         for (int i = 0; i < 5; i++) {
             Box rack = box(1.1, 2.4, 0.9, rackMat);
@@ -857,6 +969,85 @@ final class CurfewWorld {
             visorMats[i] = glow(STATE_COLORS[i], 1.0);
             hemMats[i] = glow(STATE_COLORS[i], 0.7);
         }
+        sentinel.getTransforms().add(sentinelYaw);
+        if (buildJaeger()) { add(sentinel); return; }
+        buildHoodedSentinel();
+        add(sentinel);
+    }
+
+    /**
+     * SENTINEL-01 as the Striker Eureka model: one merged mesh, already scaled
+     * and stood on its feet facing +Z by {@code tools/convert.py}, so it needs
+     * no transform of its own beyond the shared yaw.
+     *
+     * <p>The three AI states are still readable at a glance: the body keeps one
+     * material per state, each differing only in the glow mask's tint, so the
+     * unit's lights go teal, amber then red exactly as the hooded figure's visor
+     * did.</p>
+     *
+     * @return false if the model or its textures are missing, leaving the caller
+     *         to build the original hooded figure instead
+     */
+    private boolean buildJaeger() {
+        try {
+            TriangleMesh mesh = MeshAsset.load("/assets/striker/striker-eureka.mesh");
+            Image color = texture("/assets/striker/color.png");
+            Image normal = texture("/assets/striker/normal.png");
+            Image glowMask = texture("/assets/striker/glowmask.png");
+            for (int i = 0; i < 3; i++) {
+                PhongMaterial m = new PhongMaterial(Color.WHITE);
+                m.setDiffuseMap(color);
+                m.setBumpMap(normal);
+                m.setSelfIlluminationMap(tint(glowMask, STATE_COLORS[i]));
+                m.setSpecularColor(Color.gray(0.22));
+                m.setSpecularPower(28);
+                jaegerMats[i] = m;
+            }
+            jaeger = new MeshView(mesh);
+            jaeger.setMaterial(jaegerMats[0]);
+            jaeger.setCullFace(CullFace.BACK);
+            sentinel.getChildren().add(jaeger);
+            return true;
+        } catch (IOException | RuntimeException e) {
+            System.err.println("[CurfewWorld] Striker Eureka unavailable (" + e.getMessage()
+                + "); falling back to the hooded sentinel.");
+            jaeger = null;
+            return false;
+        }
+    }
+
+    private static Image texture(String resource) throws IOException {
+        try (InputStream in = CurfewWorld.class.getResourceAsStream(resource)) {
+            if (in == null) throw new IOException("not on the classpath: " + resource);
+            Image img = new Image(in);
+            if (img.isError()) throw new IOException("unreadable: " + resource);
+            return img;
+        }
+    }
+
+    /** Multiply an unlit mask by a colour, for a per-state self-illumination map. */
+    private static Image tint(Image src, Color c) {
+        int w = (int) src.getWidth(), h = (int) src.getHeight();
+        int[] px = new int[w * h];
+        WritablePixelFormat<java.nio.IntBuffer> fmt = PixelFormat.getIntArgbInstance();
+        src.getPixelReader().getPixels(0, 0, w, h, fmt, px, 0, w);
+        int cr = (int) Math.round(c.getRed() * 255);
+        int cg = (int) Math.round(c.getGreen() * 255);
+        int cb = (int) Math.round(c.getBlue() * 255);
+        for (int i = 0; i < px.length; i++) {
+            int p = px[i];
+            px[i] = 0xff000000
+                | ((((p >> 16) & 0xff) * cr / 255) << 16)
+                | ((((p >> 8) & 0xff) * cg / 255) << 8)
+                | (((p & 0xff) * cb / 255));
+        }
+        WritableImage out = new WritableImage(w, h);
+        out.getPixelWriter().setPixels(0, 0, w, h, fmt, px, 0, w);
+        return out;
+    }
+
+    /** The original robed figure, kept as the no-asset fallback. */
+    private void buildHoodedSentinel() {
         MeshView robe = new MeshView(cone(0.68, 2.0, 14));
         robe.setMaterial(mat(0x10141b));
         robe.setCullFace(CullFace.NONE);
@@ -874,8 +1065,6 @@ final class CurfewWorld {
         // reliable transparency, so it rendered as a solid wall of colour.
 
         sentinel.getChildren().addAll(robe, shoulders, hood, visor, hem);
-        sentinel.getTransforms().add(sentinelYaw);
-        add(sentinel);
     }
 
     /* ======================================================== interaction */
@@ -1082,17 +1271,31 @@ final class CurfewWorld {
         clock += dt;
         double tt = clock;
 
+        if (blackoutLeft > 0) {
+            blackoutLeft -= dt;
+            if (blackoutLeft <= 0) {
+                blackoutLeft = 0;
+                ambient.setColor(AMBIENT_ON);
+                for (Panel p : panels) p.mesh.setMaterial(p.on);
+                listener.onNoise("The panels stutter back on.");
+            }
+        }
+
         // flicker + emissive life
         for (Panel p : panels) {
-            if (!p.flick) continue;
+            if (!p.flick || blackoutLeft > 0) continue;
             double n = (Math.sin(tt * 13.7 + 15) * Math.sin(tt * 4.1) + 1) / 2;
             p.level = n > 0.35 ? 1 : 0.14 + rng.nextDouble() * 0.2;
             p.mesh.setMaterial(p.level > 0.5 ? p.on : p.off);
         }
         double ledN = (Math.sin(tt * 13.7) * Math.sin(tt * 4.1) + 1) / 2;
         for (Led l : leds) l.mesh().setMaterial(ledN > 0.35 ? l.on() : l.off());
+        PhongMaterial[] coinSpin = coinFrames();
         for (Coin c : coins) {
-            c.spin().setAngle(c.spin().getAngle() + Math.toDegrees(dt * 2.4));
+            // Billboard: same convention the sentinel uses to face a target.
+            c.face().setAngle(Math.toDegrees(Math.atan2(px - c.x(), pz - c.z())));
+            c.node().setMaterial(coinSpin[Math.floorMod(
+                (int) (tt * COIN_FPS + c.x()), coinSpin.length)]);
             c.node().setTranslateY(c.baseY() + Math.sin(tt * 2 + c.x()) * 0.04);
         }
         for (Anim a : animators) {
@@ -1105,7 +1308,7 @@ final class CurfewWorld {
         }
 
         if (!paused) step(dt, tt);
-        else if (hacking) { stepSentinel(dt, tt); emitTick(dt); }
+        else if (hacking) { stepSentinel(dt, tt); stepEscort(dt); emitTick(dt); }
 
         placeCamera(dt);
         placeLights(tt);
@@ -1178,6 +1381,7 @@ final class CurfewWorld {
 
         stepFlights(dt);
         stepSentinel(dt, tt);
+        stepEscort(dt);
         updateHover();
         emitTick(dt);
     }
@@ -1202,15 +1406,34 @@ final class CurfewWorld {
         tickAcc += dt;
         if (tickAcc <= 0.08) return;
         tickAcc = 0;
-        HideSpot hs = hidden ? null : currentHideSpot();
-        String posture = hidden ? "HIDDEN" : sitting != null ? "SEATED" : crouch ? "CROUCHED" : "STANDING";
-        double dist = Math.hypot(px - sx, pz - sz);
-        boolean seen = dist < 22 && !segBlocked(px, pz, sx, sz);
-        listener.onTick(new Tick(px, pz, sx, sz, aiState, dist, hidden, stamina, posture,
-            hs == null ? null : hs.ready ? hs.label : "Open the almirah first", suspicion, seen, books));
+        listener.onTick(snapshot());
+    }
+
+    /** Adds a capture point to the unit's short memory (newest first, capped). */
+    private void remember(double x, double z) {
+        caughtSpots.add(0, new double[] {x, z});
+        while (caughtSpots.size() > MEMORY) caughtSpots.remove(caughtSpots.size() - 1);
+    }
+
+    /** The waypoint closest to one of the places it has taken you before. */
+    private int rememberedWaypoint(int exclude) {
+        double[] spot = caughtSpots.get(rng.nextInt(caughtSpots.size()));
+        int best = -1;
+        double bestDist = Double.MAX_VALUE;
+        for (int i = 0; i < WAYPOINTS.length; i++) {
+            if (i == exclude) continue;
+            double d = Math.hypot(WAYPOINTS[i][0] - spot[0], WAYPOINTS[i][1] - spot[1]);
+            if (d < bestDist) { bestDist = d; best = i; }
+        }
+        return best;
     }
 
     private int pickNearWaypoint(int exclude) {
+        // It learns: once it has caught you somewhere, it keeps coming back.
+        if (!caughtSpots.isEmpty() && rng.nextDouble() < MEMORY_PULL) {
+            int learned = rememberedWaypoint(exclude);
+            if (learned >= 0) return learned;
+        }
         List<Integer> near = new ArrayList<>();
         for (int i = 0; i < WAYPOINTS.length; i++) {
             double d = Math.hypot(WAYPOINTS[i][0] - sx, WAYPOINTS[i][1] - sz);
@@ -1256,7 +1479,18 @@ final class CurfewWorld {
             if (aiLost > 3.4) { aiState = "SEARCH"; aiLost = 0; searchIndex = -1; suspicion = 0.6; listener.onAlert("SEARCH"); }
         } else if ("SEARCH".equals(aiState)) {
             aiLost += dt;
-            if (aiLost > 5.5) { aiState = "PATROL"; aiLost = 0; searchIndex = -1; listener.onAlert("PATROL"); }
+            if (aiLost > 5.5) {
+                if (lockdown) {
+                    // The floor is hunting: it never settles back into a patrol,
+                    // it just gets told roughly where you are and starts again.
+                    aiLost = 0;
+                    searchIndex = -1;
+                    investigate(px, pz);
+                    listener.onNoise("The grid just told it where you are.");
+                } else {
+                    aiState = "PATROL"; aiLost = 0; searchIndex = -1; listener.onAlert("PATROL");
+                }
+            }
         }
 
         double targetX, targetZ;
@@ -1287,7 +1521,7 @@ final class CurfewWorld {
         }
 
         double spd = ("CHASE".equals(aiState) ? 3.45 : "SEARCH".equals(aiState) ? 2.5 : 1.95)
-            * difficulty * (aiStun > 0 ? 0.25 : 1);
+            * difficulty * lockdownSpeed * (aiStun > 0 ? 0.25 : 1);
         double vx = targetX - sx, vz = targetZ - sz;
         double vl = Math.hypot(vx, vz);
         if (vl == 0) vl = 1;
@@ -1341,8 +1575,12 @@ final class CurfewWorld {
         aiYaw += dy * Math.min(1, dt * 4.5);
 
         int si = "CHASE".equals(aiState) ? 2 : "SEARCH".equals(aiState) ? 1 : 0;
-        visor.setMaterial(visorMats[si]);
-        hem.setMaterial(hemMats[si]);
+        if (jaeger != null) {
+            jaeger.setMaterial(jaegerMats[si]);
+        } else {
+            visor.setMaterial(visorMats[si]);
+            hem.setMaterial(hemMats[si]);
+        }
         sentinelLight.setColor(scale(STATE_COLORS[si], si == 2 ? 0.85 + Math.sin(tt * 9) * 0.15 : 0.6));
 
         boolean pulledOut = hidden && seenHiding != null && aiStun <= 0
@@ -1350,9 +1588,98 @@ final class CurfewWorld {
         if ((dToPlayer < 1.25 && !hidden && aiStun <= 0) || pulledOut) {
             sitting = null;
             crouch = false;
+            remember(px, pz);
             listener.onCaught(pulledOut ? "It saw you climb in and dragged you out." : "Grabbed.");
             resetPlayer();
         }
+    }
+
+    /**
+     * The second unit. Simpler senses than the first: a narrow cone, no interest
+     * in hiding spots — but the moment it sees you it calls the hunter onto your
+     * position, which is what makes Nightmare feel like the floor is closing.
+     */
+    private void stepEscort(double dt) {
+        if (!twoUnits) return;
+        if (eStun > 0) eStun -= dt;
+        if (eCall > 0) eCall -= dt;
+
+        double dxp = px - ex, dzp = pz - ez;
+        double dist = Math.hypot(dxp, dzp);
+        double len = dist == 0 ? 1 : dist;
+        double facingDot = (Math.sin(eYaw) * dxp + Math.cos(eYaw) * dzp) / len;
+        double angle = Math.acos(clamp(facingDot, -1, 1));
+        boolean sees = !hidden && eStun <= 0 && dist < 11
+            && (angle < 0.5 || dist < 2.6) && !segBlocked(ex, ez, px, pz);
+
+        if (sees) {
+            eChasing = true;
+            if (eCall <= 0) {
+                eCall = 6;                       // it radios your position, not constantly
+                investigate(px, pz);             // the hunter drops everything and comes
+                listener.onNoise("The second unit called your position in.");
+            }
+        } else if (eChasing && dist > 16) {
+            eChasing = false;
+        }
+
+        double targetX, targetZ;
+        if (eChasing) {
+            targetX = px;
+            targetZ = pz;
+        } else {
+            targetX = WAYPOINTS[eWp][0];
+            targetZ = WAYPOINTS[eWp][1];
+            if (Math.hypot(targetX - ex, targetZ - ez) < 1.0) eWp = pickEscortWaypoint();
+        }
+
+        double spd = (eChasing ? 3.1 : 1.9) * difficulty * lockdownSpeed * (eStun > 0 ? 0.25 : 1);
+        double vx = targetX - ex, vz = targetZ - ez;
+        double vl = Math.hypot(vx, vz);
+        if (vl == 0) vl = 1;
+        vx = vx / vl * spd * dt;
+        vz = vz / vl * spd * dt;
+        double step = spd * dt;
+        if (!blocked(ex + vx, ez)) ex += vx;
+        else if (!blocked(ex, ez + Math.signum(vz == 0 ? 1 : vz) * step)) ez += Math.signum(vz == 0 ? 1 : vz) * step;
+        if (!blocked(ex, ez + vz)) ez += vz;
+        else if (!blocked(ex + Math.signum(vx == 0 ? 1 : vx) * step, ez)) ex += Math.signum(vx == 0 ? 1 : vx) * step;
+        ex = clamp(ex, -HX + 0.55, HX - 0.55);
+        ez = clamp(ez, -HZ + 0.55, HZ - 0.55);
+
+        double wantYaw = Math.atan2(targetX - ex, targetZ - ez);
+        double dy = wantYaw - eYaw;
+        while (dy > Math.PI) dy -= Math.PI * 2;
+        while (dy < -Math.PI) dy += Math.PI * 2;
+        eYaw += dy * Math.min(1, dt * 4.0);
+
+        int si = eChasing ? 2 : 0;
+        if (escortBody != null) escortBody.setMaterial(jaegerMats[si]);
+
+        if (dist < 1.25 && !hidden && eStun <= 0) {
+            sitting = null;
+            crouch = false;
+            remember(px, pz);
+            listener.onCaught("The second unit walked into you.");
+            resetPlayer();
+            eStun = 2.5;                         // it loses you again after the grab
+            eChasing = false;
+        }
+    }
+
+    /** Keeps the escort roughly on the opposite side of the floor from the hunter. */
+    private int pickEscortWaypoint() {
+        int best = eWp;
+        double bestScore = -1;
+        for (int i = 0; i < WAYPOINTS.length; i++) {
+            if (i == eWp) continue;
+            double toHere = Math.hypot(WAYPOINTS[i][0] - ex, WAYPOINTS[i][1] - ez);
+            if (toHere < 1 || toHere > 13) continue;
+            double fromHunter = Math.hypot(WAYPOINTS[i][0] - sx, WAYPOINTS[i][1] - sz);
+            double score = fromHunter + rng.nextDouble() * 6;
+            if (score > bestScore) { bestScore = score; best = i; }
+        }
+        return best;
     }
 
     private void updateHover() {
@@ -1398,8 +1725,12 @@ final class CurfewWorld {
             if (d < nd) { nd = d; nearest = p; }
         }
         at(roomLight, nearest.x, H - 0.45, nearest.z);
-        roomLight.setColor(scale(nearest.color, 0.9 * nearest.level));
+        roomLight.setColor(blackoutLeft > 0 ? Color.BLACK : scale(nearest.color, 0.9 * nearest.level));
 
+        if (twoUnits) {
+            at(escort, ex, Math.sin(tt * 2.6 + 1.7) * 0.045, ez);
+            escortYaw.setAngle(Math.toDegrees(eYaw));
+        }
         at(sentinel, sx, Math.sin(tt * 2.6) * 0.045, sz);
         sentinelYaw.setAngle(Math.toDegrees(aiYaw));
         at(sentinelLight, sx, 2.1, sz);
@@ -1416,7 +1747,9 @@ final class CurfewWorld {
     }
 
     private void addCollider(Node n, double grow, boolean blocksSight) {
-        Aabb b = new Aabb(worldBounds(n), grow);
+        Bounds bounds = worldBounds(n);
+        mapFootprints.add(MapFootprint.of(bounds, false));
+        Aabb b = new Aabb(bounds, grow);
         colliders.add(b);
         if (blocksSight) sightBlockers.add(b);
     }
@@ -1536,6 +1869,102 @@ final class CurfewWorld {
             mesh.getFaces().addAll(0, 0, a, 1, b, 2);
         }
         return mesh;
+    }
+
+    /* ------------------------------------------------------------ coin sprite */
+
+    private static final String COIN_SHEET =
+        "/assets/WhatsApp_Image_2026-09-16_at_5.36.12_PM-removebg-preview.png";
+    private static final double COIN_SIZE = 0.38;   // world units, edge to edge
+    private static final double COIN_FPS = 10;      // sheet frames per second
+
+    private static PhongMaterial[] coinSheet;
+    private static int coinFaceIndex;        // widest frame: the coin seen face-on
+
+    /** The spinning-coin sheet, sliced to one material per frame (loaded once). */
+    private static PhongMaterial[] coinFrames() {
+        if (coinSheet == null) coinSheet = loadCoinFrames();
+        return coinSheet;
+    }
+
+    /** The face-on frame, for a coin that lies still instead of spinning. */
+    private static PhongMaterial coinFace() {
+        PhongMaterial[] frames = coinFrames();
+        return frames[Math.min(coinFaceIndex, frames.length - 1)];
+    }
+
+    /**
+     * Cut the sprite sheet into frames.
+     *
+     * <p>Frames are the runs of columns holding a visible pixel, so a replacement
+     * sheet with different padding, a different frame count or a different frame
+     * order still works without touching this code. Each frame is centred in a
+     * square cell sized to the widest one, which keeps the coin spinning in place
+     * instead of shrinking sideways as the edge-on frames narrow.</p>
+     *
+     * <p>If the sheet is missing or unreadable the coins fall back to a single
+     * flat amber frame: still collectable, just not animated.</p>
+     */
+    private static PhongMaterial[] loadCoinFrames() {
+        try (InputStream in = CurfewWorld.class.getResourceAsStream(COIN_SHEET)) {
+            if (in == null) throw new IOException("not on the classpath: " + COIN_SHEET);
+            Image sheet = new Image(in);
+            if (sheet.isError()) throw new IOException("unreadable: " + COIN_SHEET);
+            PixelReader src = sheet.getPixelReader();
+            int w = (int) sheet.getWidth(), h = (int) sheet.getHeight();
+
+            boolean[] inked = new boolean[w];
+            int top = h, bottom = -1;
+            for (int x = 0; x < w; x++) {
+                for (int y = 0; y < h; y++) {
+                    if ((src.getArgb(x, y) >>> 24) <= 16) continue;   // transparent
+                    inked[x] = true;
+                    if (y < top) top = y;
+                    if (y > bottom) bottom = y;
+                }
+            }
+            if (bottom < 0) throw new IOException("blank sheet: " + COIN_SHEET);
+
+            List<int[]> runs = new ArrayList<>();
+            for (int x = 0; x < w; x++) {
+                if (!inked[x]) continue;
+                int start = x;
+                while (x + 1 < w && inked[x + 1]) x++;
+                runs.add(new int[] {start, x});
+            }
+
+            int cell = bottom - top + 1, widest = 0;
+            for (int i = 0; i < runs.size(); i++) {
+                int[] r = runs.get(i);
+                cell = Math.max(cell, r[1] - r[0] + 1);
+                if (r[1] - r[0] > runs.get(widest)[1] - runs.get(widest)[0]) widest = i;
+            }
+            coinFaceIndex = widest;
+
+            PhongMaterial[] out = new PhongMaterial[runs.size()];
+            for (int i = 0; i < out.length; i++) {
+                int[] r = runs.get(i);
+                int ox = (r[0] + r[1] - cell) / 2, oy = (top + bottom - cell) / 2;
+                WritableImage frame = new WritableImage(cell, cell);
+                PixelWriter dst = frame.getPixelWriter();
+                for (int y = 0; y < cell; y++) {
+                    for (int x = 0; x < cell; x++) {
+                        int sx = ox + x, sy = oy + y;
+                        // Clamped to this frame's own run: the narrow edge-on
+                        // frames sit closer together than the cell is wide, so
+                        // an unclamped copy would drag in the neighbours.
+                        boolean mine = sx >= r[0] && sx <= r[1] && sy >= top && sy <= bottom;
+                        dst.setArgb(x, y, mine ? src.getArgb(sx, sy) : 0);
+                    }
+                }
+                out[i] = emissiveTexture(frame, 0.85);
+            }
+            return out;
+        } catch (IOException | RuntimeException e) {
+            System.err.println("[CurfewWorld] coin sheet unavailable (" + e.getMessage()
+                + "); falling back to a flat coin.");
+            return new PhongMaterial[] { emissiveTexture(solid(Color.web("#ffb347")), 1.0) };
+        }
     }
 
     /* --------------------------------------------------- procedural textures */

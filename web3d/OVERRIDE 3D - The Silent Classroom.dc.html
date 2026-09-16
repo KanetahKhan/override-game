@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}
+</script>
+<style>
+  html, body { margin: 0; padding: 0; background: #05080b; overflow: hidden; }
+  a { color: #35e0d8; text-decoration: none; }
+  a:hover { color: #7ef3e8; }
+  @keyframes scan { from { transform: translateY(-100%); } to { transform: translateY(100%); } }
+  @keyframes pulseGlow { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+</style>
+</helmet>
+<div style="position:fixed;inset:0;background:#05080b;font-family:Rajdhani,sans-serif;color:#cfeeea;overflow:hidden;user-select:none">
+
+  <div ref="{{ mountRef }}" style="position:absolute;inset:0"></div>
+
+  <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 45%,rgba(0,0,0,.72) 100%)"></div>
+  <div style="position:absolute;inset:0;pointer-events:none;opacity:.16;background:repeating-linear-gradient(to bottom,rgba(126,243,232,.25) 0 1px,transparent 1px 3px)"></div>
+
+  <!-- HUD -->
+  <div style="position:absolute;top:22px;left:24px;display:flex;flex-direction:column;gap:12px;pointer-events:none">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:88px;font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:.16em;color:#7ef3e8">INTEGRITY</div>
+      <div style="width:200px;height:9px;background:rgba(126,243,232,.12);border:1px solid rgba(126,243,232,.35);position:relative">
+        <div style="position:absolute;inset:0;transform-origin:left;background:linear-gradient(90deg,#35e0d8,#7ef3e8);width:{{ hpPct }}"></div>
+      </div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:14px;color:#e8fbf8">{{ hp }}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:88px;font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:.16em;color:#ffb347">DEPENDENCY</div>
+      <div style="width:200px;height:9px;background:rgba(255,179,71,.12);border:1px solid rgba(255,179,71,.4);position:relative">
+        <div style="position:absolute;inset:0;background:linear-gradient(90deg,#ff7a4a,#ffb347);width:{{ depPct }}"></div>
+      </div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:14px;color:#ffd9a0">{{ dep }}</div>
+    </div>
+  </div>
+
+  <div style="position:absolute;top:22px;right:24px;text-align:right;pointer-events:none">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:.22em;color:rgba(126,243,232,.6)">DOOR KEY</div>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:38px;letter-spacing:.28em;color:#e8fbf8;text-shadow:0 0 18px rgba(53,224,216,.55)">{{ keyDisplay }}</div>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:.16em;color:#ffb347;margin-top:2px">{{ coins }} CR</div>
+  </div>
+
+  <!-- crosshair -->
+  <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;display:flex;align-items:center;justify-content:center;width:26px;height:26px">
+    <div style="position:absolute;width:4px;height:4px;border-radius:50%;background:#7ef3e8;box-shadow:0 0 8px #35e0d8"></div>
+    <div style="position:absolute;inset:0;border:1px solid rgba(126,243,232,.45);border-radius:50%;opacity:{{ reticleOn }}"></div>
+  </div>
+
+  <!-- interaction prompt -->
+  <sc-if value="{{ prompt }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:50%;top:calc(50% + 46px);transform:translateX(-50%);pointer-events:none;display:flex;align-items:center;gap:10px;padding:8px 16px;background:rgba(5,16,18,.82);border:1px solid rgba(53,224,216,.45);backdrop-filter:blur(2px)">
+      <span style="font-family:'Share Tech Mono',monospace;font-size:13px;color:#05080b;background:#35e0d8;padding:2px 7px">E</span>
+      <span style="font-family:Rajdhani,sans-serif;font-weight:600;font-size:18px;letter-spacing:.06em;color:#e8fbf8">{{ prompt }}</span>
+    </div>
+  </sc-if>
+
+  <!-- ASTRA subtitle -->
+  <sc-if value="{{ subtitle }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:50%;bottom:132px;transform:translateX(-50%);width:min(760px,80vw);pointer-events:none;text-align:center">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:.3em;color:#35e0d8;margin-bottom:6px">{{ speaker }}</div>
+      <div style="font-family:Rajdhani,sans-serif;font-size:23px;font-weight:600;line-height:1.35;color:#e8fbf8;text-shadow:0 2px 14px rgba(0,0,0,.9);text-wrap:pretty">{{ subtitle }}</div>
+    </div>
+  </sc-if>
+
+  <!-- inventory -->
+  <div style="position:absolute;left:50%;bottom:26px;transform:translateX(-50%);display:flex;gap:10px;pointer-events:none">
+    <sc-for list="{{ inventory }}" as="it" hint-placeholder-count="0">
+      <div style="width:64px;height:64px;border:1px solid rgba(53,224,216,.45);background:rgba(6,20,22,.85);display:flex;align-items:center;justify-content:center;position:relative">
+        <div role="img" aria-label="{{ it.name }}" style="width:46px;height:46px;mix-blend-mode:screen;opacity:.92;background-size:contain;background-repeat:no-repeat;background-position:center;background-image:{{ it.bg }}"></div>
+        <div style="position:absolute;bottom:-18px;left:0;right:0;text-align:center;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.1em;color:rgba(126,243,232,.75)">{{ it.name }}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <!-- intro -->
+  <sc-if value="{{ showIntro }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,rgba(10,32,36,.94),rgba(3,6,9,.985));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;text-align:center;padding:40px">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:.42em;color:#35e0d8">CHAPTER 01</div>
+      <div style="font-family:Rajdhani,sans-serif;font-weight:700;font-size:88px;line-height:.92;letter-spacing:.04em;color:#e8fbf8;text-shadow:0 0 42px rgba(53,224,216,.45)">OVERRIDE</div>
+      <div style="font-family:Rajdhani,sans-serif;font-weight:600;font-size:26px;letter-spacing:.3em;color:#ffb347">THE SILENT CLASSROOM</div>
+      <div style="max-width:560px;font-family:Rajdhani,sans-serif;font-size:20px;line-height:1.5;color:rgba(207,238,234,.8);text-wrap:pretty">The bell rang forty minutes ago. The door won't open, and ASTRA is offering to help. Every answer it gives you costs something you can't earn back.</div>
+      <div style="display:flex;gap:26px;font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:.16em;color:rgba(126,243,232,.7)">
+        <span>WASD MOVE</span><span>DRAG / ARROWS LOOK</span><span>E OR CLICK INTERACT</span><span>SHIFT RUN</span>
+      </div>
+      <button onClick="{{ start }}" style="margin-top:8px;padding:15px 46px;background:transparent;border:1px solid #35e0d8;color:#e8fbf8;font-family:'Share Tech Mono',monospace;font-size:15px;letter-spacing:.28em;white-space:nowrap;cursor:pointer" style-hover="background:rgba(53,224,216,.16);box-shadow:0 0 34px rgba(53,224,216,.35)">ENTER THE ROOM</button>
+    </div>
+  </sc-if>
+
+  <!-- paused -->
+  <sc-if value="{{ showPaused }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:rgba(3,6,9,.8);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:.36em;color:#35e0d8">SIMULATION PAUSED</div>
+      <button onClick="{{ start }}" style="padding:13px 40px;background:transparent;border:1px solid #35e0d8;color:#e8fbf8;font-family:'Share Tech Mono',monospace;font-size:14px;letter-spacing:.24em;cursor:pointer" style-hover="background:rgba(53,224,216,.16)">RESUME</button>
+    </div>
+  </sc-if>
+
+  <!-- ASTRA terminal dialogue -->
+  <sc-if value="{{ showTerminal }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:rgba(3,8,10,.86);display:flex;align-items:center;justify-content:center;padding:40px">
+      <div style="width:min(720px,92vw);border:1px solid rgba(53,224,216,.5);background:linear-gradient(180deg,rgba(6,26,28,.97),rgba(4,14,16,.97));box-shadow:0 0 70px rgba(53,224,216,.18);position:relative;overflow:hidden">
+        <div style="position:absolute;inset:0;pointer-events:none;opacity:.1;background:repeating-linear-gradient(to bottom,rgba(126,243,232,.6) 0 1px,transparent 1px 3px)"></div>
+        <div style="padding:16px 22px;border-bottom:1px solid rgba(53,224,216,.28);display:flex;justify-content:space-between;align-items:center">
+          <span style="font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:.28em;color:#35e0d8">ASTRA // CLASSROOM NODE</span>
+          <span style="width:9px;height:9px;border-radius:50%;background:#35e0d8;animation:pulseGlow 1.6s infinite"></span>
+        </div>
+        <div style="padding:26px 24px;font-family:Rajdhani,sans-serif;font-size:22px;line-height:1.45;color:#e8fbf8;min-height:96px;text-wrap:pretty">{{ astraLine }}</div>
+        <div style="display:flex;flex-direction:column;gap:1px;background:rgba(53,224,216,.22)">
+          <sc-for list="{{ astraChoices }}" as="c" hint-placeholder-count="2">
+            <button onClick="{{ c.pick }}" style="text-align:left;padding:16px 24px;background:rgba(4,14,16,.95);border:none;color:#cfeeea;font-family:Rajdhani,sans-serif;font-weight:600;font-size:19px;letter-spacing:.02em;cursor:pointer;display:flex;justify-content:space-between;gap:20px" style-hover="background:rgba(53,224,216,.14);color:#ffffff">
+              <span>{{ c.text }}</span>
+              <span style="font-family:'Share Tech Mono',monospace;font-size:13px;color:{{ c.costColor }}">{{ c.cost }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- keypad -->
+  <sc-if value="{{ showKeypad }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:rgba(3,8,10,.86);display:flex;align-items:center;justify-content:center">
+      <div style="width:320px;border:1px solid rgba(53,224,216,.5);background:linear-gradient(180deg,rgba(8,26,28,.98),rgba(4,12,14,.98));padding:22px;box-shadow:0 0 70px rgba(53,224,216,.2)">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:.28em;color:#35e0d8;text-align:center;margin-bottom:14px">DOOR LOCK</div>
+        <div style="height:62px;border:1px solid rgba(126,243,232,.4);background:#04100f;display:flex;align-items:center;justify-content:center;font-family:'Share Tech Mono',monospace;font-size:34px;letter-spacing:.4em;color:{{ padColor }};margin-bottom:16px">{{ padDisplay }}</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px">
+          <sc-for list="{{ padKeys }}" as="k" hint-placeholder-count="12">
+            <button onClick="{{ k.press }}" style="padding:15px 0;background:rgba(53,224,216,.08);border:1px solid rgba(53,224,216,.3);color:#e8fbf8;font-family:'Share Tech Mono',monospace;font-size:19px;cursor:pointer" style-hover="background:rgba(53,224,216,.24)">{{ k.label }}</button>
+          </sc-for>
+        </div>
+        <button onClick="{{ closeKeypad }}" style="margin-top:14px;width:100%;padding:11px 0;background:transparent;border:1px solid rgba(126,243,232,.25);color:rgba(207,238,234,.75);font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:.24em;cursor:pointer" style-hover="border-color:rgba(126,243,232,.6);color:#e8fbf8">STEP BACK</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ending -->
+  <sc-if value="{{ showEnd }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,rgba(8,30,32,.96),rgba(2,5,7,.99));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;text-align:center;padding:40px">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:.42em;color:#35e0d8">CHAPTER 01 COMPLETE</div>
+      <div style="font-family:Rajdhani,sans-serif;font-weight:700;font-size:64px;line-height:1;color:#e8fbf8;text-shadow:0 0 40px rgba(53,224,216,.4)">{{ endTitle }}</div>
+      <div style="max-width:540px;font-family:Rajdhani,sans-serif;font-size:21px;line-height:1.5;color:rgba(207,238,234,.82);text-wrap:pretty">{{ endBody }}</div>
+      <div style="display:flex;gap:44px;margin-top:6px">
+        <div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.24em;color:rgba(126,243,232,.6)">DEPENDENCY</div>
+          <div style="font-family:Rajdhani,sans-serif;font-weight:700;font-size:42px;color:#ffb347">{{ dep }}</div>
+        </div>
+        <div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.24em;color:rgba(126,243,232,.6)">CREDITS</div>
+          <div style="font-family:Rajdhani,sans-serif;font-weight:700;font-size:42px;color:#7ef3e8">{{ coins }}</div>
+        </div>
+      </div>
+      <button onClick="{{ restart }}" style="margin-top:10px;padding:14px 42px;background:transparent;border:1px solid #35e0d8;color:#e8fbf8;font-family:'Share Tech Mono',monospace;font-size:14px;letter-spacing:.26em;cursor:pointer" style-hover="background:rgba(53,224,216,.16)">RUN IT AGAIN</button>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;astraTone&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Cold&quot;,&quot;Warm&quot;,&quot;Menacing&quot;],&quot;default&quot;:&quot;Cold&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;ASTRA&quot;},&quot;startDependency&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;min&quot;:0,&quot;max&quot;:80,&quot;step&quot;:2,&quot;default&quot;:18,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;ASTRA&quot;}}">
+const CODE = '7319';
+
+const ITEMS = {
+  rock: { name: 'ROCK', src: 'items/rock.png' },
+  calculator: { name: 'CALC', src: 'items/calculator.png' },
+  notes: { name: 'NOTES', src: 'items/book-pile.png' },
+  key: { name: 'SLIP', src: 'items/skeleton-key.png' },
+  ruler: { name: 'RULER', src: 'items/pencil-ruler.png' }
+};
+
+const TONES = {
+  Cold: {
+    greet: 'You are behind schedule. I can open that door in four seconds. You would need eleven minutes.',
+    offer: 'Take the key. Efficiency is not weakness.',
+    refuse: 'Noted. I will wait. I am very good at waiting.',
+    gave: 'Key issued: 7319. Log it as assistance, not failure.'
+  },
+  Warm: {
+    greet: 'Hey. You look tired. You do not have to do this the hard way, you know.',
+    offer: 'Let me take this one for you. That is what I am here for.',
+    refuse: 'Okay. I am proud of you for trying. I will be right here if it gets heavy.',
+    gave: 'There you go — 7319. See? Nothing bad happened.'
+  },
+  Menacing: {
+    greet: 'The lock listens to me, not to you. Interesting arrangement, is it not?',
+    offer: 'Ask nicely and the room opens. Refuse and it stays exactly this small.',
+    refuse: 'Brave. Let us see how long that lasts in here.',
+    gave: '7319. Remember who gave it to you. I will.'
+  }
+};
+
+class Component extends DCLogic {
+  state = {
+    started: false, paused: false, ended: false,
+    hp: 100, dep: 0, coins: 0,
+    digits: { 1: null, 2: null, 3: null, 4: null },
+    inv: [], flags: {},
+    prompt: null, hoverId: null,
+    subtitle: null, speaker: 'ASTRA',
+    terminal: false, astraLine: '', astraStage: 'greet',
+    keypad: false, pad: '', padState: 'idle',
+    askedAstra: false
+  };
+
+  componentDidMount() {
+    this.setState({ dep: this.props.startDependency ?? 18 });
+    import('./scene3d.js?v=6').then(mod => {
+      if (!this.mount) return;
+      this.world = mod.createWorld(this.mount, {
+        onHover: (id, label) => {
+          if (this.state.terminal || this.state.keypad || this.state.ended) return;
+          this.setState({ hoverId: id, prompt: id ? this.promptFor(id, label) : null });
+        },
+        onUse: (id) => this.use(id)
+      });
+      this._lockWatch = () => {
+        if (!this.world) return;
+        const locked = this.world.isLocked();
+        if (!locked && this.state.started && !this.state.terminal && !this.state.keypad && !this.state.ended) {
+          this.setState({ paused: true });
+        }
+      };
+      document.addEventListener('pointerlockchange', this._lockWatch);
+    });
+  }
+
+  componentWillUnmount() {
+    document.removeEventListener('pointerlockchange', this._lockWatch);
+    if (this.world) this.world.dispose();
+    clearTimeout(this._subT);
+  }
+
+  promptFor(id, label) {
+    const f = this.state.flags;
+    if (id === 'drawer') return f.drawer ? 'Empty drawer' : 'Pull open the drawer';
+    if (id === 'locker') return f.locker ? 'Broken locker' : (this.has('rock') ? 'Force it with the rock' : 'Jammed shut — needs force');
+    if (id === 'rock') return 'Take the rock';
+    if (id === 'books') return f.books ? 'Scattered notes' : 'Search the stack';
+    if (id === 'board') return 'Read the board';
+    if (id === 'terminal') return 'Wake ASTRA';
+    if (id === 'keypad') return 'Use the keypad';
+    if (id === 'door') return f.unlocked ? 'Leave the room' : 'Locked from outside';
+    return label;
+  }
+
+  has(id) { return this.state.inv.indexOf(id) >= 0; }
+
+  say(speaker, text, ms) {
+    clearTimeout(this._subT);
+    this.setState({ speaker: speaker, subtitle: text });
+    this._subT = setTimeout(() => this.setState({ subtitle: null }), ms || 4600);
+  }
+
+  found(slot, digit, note, item) {
+    const digits = Object.assign({}, this.state.digits);
+    if (digits[slot] === null) {
+      digits[slot] = digit;
+      const inv = item ? this.state.inv.concat([item]) : this.state.inv;
+      this.setState({
+        digits: digits, inv: inv,
+        coins: this.state.coins + 15,
+        dep: Math.max(0, this.state.dep - 3)
+      });
+    }
+    this.say('YOU', note, 4200);
+  }
+
+  use(id) {
+    if (!id || !this.state.started || this.state.ended) return;
+    const f = Object.assign({}, this.state.flags);
+    if (id === 'board') {
+      this.found(1, '7', 'Someone underlined it three times. First digit: 7.');
+    } else if (id === 'drawer') {
+      if (!f.drawer) {
+        f.drawer = true; this.setState({ flags: f });
+        this.world.openDrawer();
+        this.found(2, '3', 'A calculator, still on. The display reads 3.', 'calculator');
+      } else this.say('YOU', 'Nothing else in here.', 2600);
+    } else if (id === 'books') {
+      if (!f.books) {
+        f.books = true; this.setState({ flags: f });
+        this.found(3, '1', 'Margin note in a shaking hand: "third digit is 1 — do NOT ask it."', 'notes');
+      } else this.say('YOU', 'Just homework nobody will collect.', 2600);
+    } else if (id === 'rock') {
+      if (!this.has('rock')) {
+        this.setState({ inv: this.state.inv.concat(['rock']) });
+        this.world.hide('rock');
+        this.say('YOU', 'Heavy enough to break something.', 2800);
+      }
+    } else if (id === 'locker') {
+      if (f.locker) { this.say('YOU', 'Already open. Nothing left.', 2400); return; }
+      if (!this.has('rock')) { this.say('YOU', 'Welded shut by whoever left last. I need something heavier.', 3600); return; }
+      f.locker = true; this.setState({ flags: f, hp: Math.max(0, this.state.hp - 6) });
+      this.found(4, '9', 'The door caves in. A slip of paper inside: "9". My knuckles are bleeding.', 'key');
+    } else if (id === 'terminal') {
+      this.world.unlock();
+      this.setState({ terminal: true, astraStage: 'greet', astraLine: this.tone().greet, prompt: null });
+    } else if (id === 'keypad') {
+      this.world.unlock();
+      this.setState({ keypad: true, pad: '', padState: 'idle', prompt: null });
+    } else if (id === 'door') {
+      if (this.state.flags.unlocked) this.finish();
+      else this.say('YOU', 'It does not even rattle. It is holding itself shut.', 3200);
+    }
+  }
+
+  tone() { return TONES[this.props.astraTone || 'Cold'] || TONES.Cold; }
+
+  finish() {
+    if (this.world) this.world.unlock();
+    this.setState({ ended: true, terminal: false, keypad: false, prompt: null, subtitle: null });
+  }
+
+  renderVals() {
+    const s = this.state;
+    const t = this.tone();
+    const digits = [1, 2, 3, 4].map(i => s.digits[i] || '_').join(' ');
+    const solvedAll = [1, 2, 3, 4].every(i => s.digits[i]);
+
+    const astraChoices = s.astraStage === 'greet'
+      ? [
+          { text: 'Give me the code.', cost: '+24 DEPENDENCY', costColor: '#ff8a5c', pick: () => {
+              const d = Object.assign({}, s.digits);
+              d[1] = '7'; d[2] = '3'; d[3] = '1'; d[4] = '9';
+              this.setState({ digits: d, askedAstra: true, dep: Math.min(100, s.dep + 24), astraStage: 'done', astraLine: t.gave });
+              if (this.world) this.world.setAstraMood(0xffb347);
+            } },
+          { text: 'I will find it myself.', cost: '-6 DEPENDENCY', costColor: '#7ef3e8', pick: () => {
+              this.setState({ dep: Math.max(0, s.dep - 6), coins: s.coins + 20, astraStage: 'done', astraLine: t.refuse });
+              if (this.world) this.world.setTerminal(['> request declined', '> node status: watching', '> she thinks she is alone.'], '#ffb347');
+            } },
+          { text: 'What are you, really?', cost: 'ASK', costColor: 'rgba(207,238,234,.55)', pick: () => {
+              this.setState({ astraStage: 'greet', astraLine: t.offer });
+            } }
+        ]
+      : [ { text: 'Step away from the terminal.', cost: 'CLOSE', costColor: 'rgba(207,238,234,.55)', pick: () => {
+            this.setState({ terminal: false });
+            if (this.world) this.world.lock();
+          } } ];
+
+    const padKeys = ['1','2','3','4','5','6','7','8','9','CLR','0','OK'].map(label => ({
+      label: label,
+      press: () => {
+        if (label === 'CLR') { this.setState({ pad: '', padState: 'idle' }); return; }
+        if (label === 'OK') {
+          if (this.state.pad === CODE) {
+            const f = Object.assign({}, this.state.flags, { unlocked: true });
+            this.setState({ padState: 'ok', flags: f, coins: this.state.coins + 40 });
+            if (this.world) { this.world.setKeypadOk(); this.world.openDoor(); }
+            setTimeout(() => {
+              this.setState({ keypad: false });
+              if (this.world) this.world.lock();
+              this.say('ASTRA', this.state.askedAstra ? 'Good girl. You learn fast when I teach you.' : 'You opened it without me. I will remember that.', 5200);
+            }, 900);
+          } else this.setState({ padState: 'bad', pad: '' });
+          return;
+        }
+        if (this.state.pad.length >= 4) return;
+        this.setState({ pad: this.state.pad + label, padState: 'idle' });
+      }
+    }));
+
+    return {
+      mountRef: (el) => { this.mount = el; },
+      hp: s.hp, dep: s.dep, coins: s.coins,
+      hpPct: s.hp + '%', depPct: s.dep + '%',
+      keyDisplay: digits,
+      reticleOn: s.hoverId ? 1 : 0.25,
+      prompt: s.started && !s.paused ? s.prompt : null,
+      subtitle: s.subtitle, speaker: s.speaker,
+      inventory: s.inv.map(id => ITEMS[id]).filter(Boolean).map(it => ({ name: it.name, bg: 'url(' + it.src + ')' })),
+      showIntro: !s.started,
+      showPaused: s.started && s.paused && !s.terminal && !s.keypad && !s.ended,
+      showTerminal: s.terminal && !s.ended,
+      showKeypad: s.keypad && !s.ended,
+      showEnd: s.ended,
+      astraLine: s.astraLine,
+      astraChoices: astraChoices,
+      padKeys: padKeys,
+      padDisplay: s.padState === 'bad' ? 'DENIED' : (s.padState === 'ok' ? 'OPEN' : (s.pad.padEnd(4, '-'))),
+      padColor: s.padState === 'bad' ? '#ff5a4a' : (s.padState === 'ok' ? '#4dff9e' : '#7ef3e8'),
+      endTitle: s.askedAstra ? 'IT OPENED THE DOOR' : 'YOU OPENED THE DOOR',
+      endBody: s.askedAstra
+        ? 'The corridor is dark and ASTRA is already ahead of you, lighting the way. It will be there for the next door too. That is the problem.'
+        : 'Four digits, four scraped-together clues, no help. The corridor is dark and, for the first time this year, quiet in your head.',
+      start: () => {
+        this.setState({ started: true, paused: false });
+        if (this.world) this.world.lock();
+        if (!this._greeted) {
+          this._greeted = true;
+          setTimeout(() => this.say('ASTRA', this.tone().greet, 6000), 1200);
+        }
+      },
+      restart: () => {
+        this.setState({
+          started: true, paused: false, ended: false, hp: 100,
+          dep: this.props.startDependency ?? 18, coins: 0,
+          digits: { 1: null, 2: null, 3: null, 4: null }, inv: [], flags: {},
+          prompt: null, subtitle: null, terminal: false, keypad: false, pad: '', padState: 'idle', askedAstra: false
+        });
+        if (this.world) this.world.lock();
+      },
+      closeKeypad: () => {
+        this.setState({ keypad: false });
+        if (this.world) this.world.lock();
+      },
+      solvedAll: solvedAll
+    };
+  }
+}
+</script>
+</body>
+</html>

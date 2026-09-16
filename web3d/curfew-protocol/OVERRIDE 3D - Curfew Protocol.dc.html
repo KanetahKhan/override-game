@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}
+</script>
+<style>
+  html,body{margin:0;padding:0;background:#05080b;overflow:hidden}
+  a{color:#35e0d8}a:hover{color:#7ef3e8}
+  @keyframes pulseGlow{0%,100%{opacity:.35}50%{opacity:1}}
+  @keyframes scan{0%{transform:translateY(-100%)}100%{transform:translateY(100%)}}
+  @keyframes alertFlash{0%,100%{box-shadow:inset 0 0 90px rgba(255,61,90,0)}50%{box-shadow:inset 0 0 130px rgba(255,61,90,.42)}}
+</style>
+</helmet>
+
+<div style="position:fixed;inset:0;background:#05080b;font-family:Rajdhani,sans-serif;color:#cfeeea;overflow:hidden;user-select:none">
+
+  <div ref="{{ mountRef }}" style="position:absolute;inset:0"></div>
+
+  <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 42%,rgba(2,5,8,.72) 100%)"></div>
+  <div style="position:absolute;inset:0;pointer-events:none;opacity:.05;background:repeating-linear-gradient(to bottom,rgba(126,243,232,.7) 0 1px,transparent 1px 3px)"></div>
+
+  <sc-if value="{{ chasing }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;pointer-events:none;animation:alertFlash 1s infinite"></div>
+  </sc-if>
+
+  <!-- top-left: integrity + stamina -->
+  <div style="position:absolute;top:20px;left:22px;display:flex;flex-direction:column;gap:11px;pointer-events:none">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:92px;font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:.16em;color:#7ef3e8">INTEGRITY</div>
+      <div style="width:190px;height:9px;background:rgba(126,243,232,.12);border:1px solid rgba(126,243,232,.35);position:relative">
+        <div style="position:absolute;top:0;bottom:0;left:0;background:linear-gradient(90deg,#35e0d8,#7ef3e8);width:{{ hpPct }}"></div>
+      </div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:14px;color:#e8fbf8">{{ hpLabel }}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:92px;font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:.16em;color:#ffb347">STAMINA</div>
+      <div style="width:190px;height:6px;background:rgba(255,179,71,.12);border:1px solid rgba(255,179,71,.35);position:relative">
+        <div style="position:absolute;top:0;bottom:0;left:0;background:linear-gradient(90deg,#ff7a4a,#ffb347);width:{{ stamPct }}"></div>
+      </div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:.14em;color:{{ alertColor }}">{{ alertLabel }}</div>
+    </div>
+  </div>
+
+  <!-- top-right: clock, nodes, credits -->
+  <div style="position:absolute;top:20px;right:22px;text-align:right;pointer-events:none">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:.22em;color:rgba(126,243,232,.6)">CURFEW ENDS IN</div>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:40px;letter-spacing:.14em;color:{{ clockColor }};text-shadow:0 0 18px rgba(53,224,216,.5)">{{ clock }}</div>
+    <div style="display:flex;gap:7px;justify-content:flex-end;margin-top:8px">
+      <sc-for list="{{ nodeSlots }}" as="n" hint-placeholder-count="3">
+        <div style="width:30px;height:30px;border:1px solid {{ n.border }};background:{{ n.fill }};display:flex;align-items:center;justify-content:center;font-family:'Share Tech Mono',monospace;font-size:12px;color:{{ n.ink }}">{{ n.mark }}</div>
+      </sc-for>
+    </div>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:15px;letter-spacing:.16em;color:#ffb347;margin-top:9px">{{ coins }} CR</div>
+  </div>
+
+  <!-- objective -->
+  <div style="position:absolute;top:104px;left:22px;pointer-events:none;max-width:330px">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.28em;color:rgba(126,243,232,.55)">OBJECTIVE</div>
+    <div style="font-family:Rajdhani,sans-serif;font-weight:600;font-size:18px;line-height:1.3;color:#e8fbf8;text-wrap:pretty">{{ objective }}</div>
+  </div>
+
+  <!-- minimap -->
+  <sc-if value="{{ minimapOn }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;bottom:22px;right:22px;width:210px;height:132px;border:1px solid rgba(53,224,216,.4);background:rgba(4,12,14,.8);pointer-events:none">
+      <div style="position:absolute;left:0;right:0;top:41%;height:18%;background:rgba(53,224,216,.07);border-top:1px solid rgba(53,224,216,.2);border-bottom:1px solid rgba(53,224,216,.2)"></div>
+      <div style="position:absolute;left:33%;top:0;bottom:0;width:1px;background:rgba(53,224,216,.2)"></div>
+      <div style="position:absolute;left:67%;top:0;bottom:0;width:1px;background:rgba(53,224,216,.2)"></div>
+      <div style="position:absolute;width:7px;height:7px;background:#7ef3e8;border-radius:50%;box-shadow:0 0 9px #7ef3e8;left:{{ mmPX }};top:{{ mmPZ }};transform:translate(-50%,-50%)"></div>
+      <div style="position:absolute;width:9px;height:9px;background:{{ alertColor }};border-radius:50%;box-shadow:0 0 12px {{ alertColor }};left:{{ mmSX }};top:{{ mmSZ }};transform:translate(-50%,-50%)"></div>
+      <div style="position:absolute;bottom:3px;left:6px;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:.2em;color:rgba(126,243,232,.5)">FLOOR 2 — {{ distLabel }}</div>
+    </div>
+  </sc-if>
+
+  <!-- crosshair -->
+  <sc-if value="{{ playing }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;border:1px solid rgba(126,243,232,.45);border-radius:50%;pointer-events:none;display:flex;align-items:center;justify-content:center">
+      <div style="width:3px;height:3px;background:#7ef3e8;border-radius:50%"></div>
+    </div>
+  </sc-if>
+
+  <!-- interaction prompt -->
+  <sc-if value="{{ prompt }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:50%;top:calc(50% + 44px);transform:translateX(-50%);pointer-events:none;display:flex;align-items:center;gap:10px;padding:8px 16px;background:rgba(5,16,18,.85);border:1px solid rgba(53,224,216,.45)">
+      <span style="font-family:'Share Tech Mono',monospace;font-size:13px;color:#05080b;background:#35e0d8;padding:2px 7px">E</span>
+      <span style="font-family:Rajdhani,sans-serif;font-weight:600;font-size:18px;letter-spacing:.05em;color:#e8fbf8">{{ prompt }}</span>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ hidePrompt }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:50%;top:calc(50% + 84px);transform:translateX(-50%);pointer-events:none;display:flex;align-items:center;gap:10px;padding:6px 14px;background:rgba(5,16,18,.8);border:1px solid rgba(255,179,71,.5)">
+      <span style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#05080b;background:#ffb347;padding:2px 7px">F</span>
+      <span style="font-family:Rajdhani,sans-serif;font-weight:600;font-size:16px;color:#ffd9a0">{{ hidePrompt }}</span>
+    </div>
+  </sc-if>
+
+  <!-- toast -->
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:50%;bottom:112px;transform:translateX(-50%);pointer-events:none;text-align:center">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.3em;color:{{ toastColor }};margin-bottom:5px">{{ toastTag }}</div>
+      <div style="font-family:Rajdhani,sans-serif;font-size:22px;font-weight:600;color:#e8fbf8;text-shadow:0 2px 14px rgba(0,0,0,.9)">{{ toast }}</div>
+    </div>
+  </sc-if>
+
+  <!-- controls footer -->
+  <sc-if value="{{ playing }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;bottom:22px;left:22px;display:flex;flex-direction:column;gap:10px;pointer-events:none">
+      <div style="display:flex;align-items:center;gap:9px">
+        <span style="font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.26em;color:rgba(126,243,232,.5)">POSTURE</span>
+        <span style="font-family:'Share Tech Mono',monospace;font-size:14px;letter-spacing:.2em;color:{{ postureColor }}">{{ posture }}</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:16px;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.14em;color:rgba(126,243,232,.5);max-width:520px">
+        <span>WASD MOVE</span><span>SHIFT RUN</span><span>C CROUCH</span><span>SPACE JUMP</span><span>DRAG LOOK</span><span>E INTERACT / SIT</span><span>F HIDE</span>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===== KERNEL PANIC ===== -->
+  <sc-if value="{{ kpOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:rgba(2,6,8,.9);display:flex;align-items:center;justify-content:center">
+      <div style="width:min(640px,92vw);max-height:94vh;border:1px solid rgba(53,224,216,.5);background:linear-gradient(180deg,rgba(6,22,24,.98),rgba(3,10,12,.98));box-shadow:0 0 80px rgba(53,224,216,.18);position:relative;overflow:hidden">
+        <div style="position:absolute;inset:0;pointer-events:none;opacity:.09;background:repeating-linear-gradient(to bottom,rgba(126,243,232,.8) 0 1px,transparent 1px 3px)"></div>
+        <div style="padding:14px 20px;border-bottom:1px solid rgba(53,224,216,.28);display:flex;justify-content:space-between;align-items:center">
+          <span style="font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:.26em;color:#35e0d8">NODE 01 // KERNEL PANIC</span>
+          <span style="font-family:'Share Tech Mono',monospace;font-size:13px;color:#ffb347">{{ kpFixed }}/12 PATCHED · {{ kpMissed }}/5 LOST</span>
+        </div>
+        <div style="padding:16px 20px 8px;font-family:Rajdhani,sans-serif;font-size:17px;color:rgba(207,238,234,.85)">Glitch tokens are falling through four kernel lanes. Hit the lane key — or click the lane — while a token is inside the patch band.</div>
+        <div style="position:relative;height:min(300px,42vh);margin:8px 20px 0;border:1px solid rgba(53,224,216,.22);background:#02100f">
+          <div style="position:absolute;left:0;right:0;top:64%;height:26%;background:rgba(53,224,216,.09);border-top:1px solid rgba(53,224,216,.45);border-bottom:1px solid rgba(53,224,216,.45)"></div>
+          <sc-for list="{{ kpLanes }}" as="l" hint-placeholder-count="4">
+            <div onClick="{{ l.hit }}" style="position:absolute;top:0;bottom:0;width:25%;left:{{ l.left }};border-right:1px dashed rgba(53,224,216,.14);cursor:pointer;display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px">
+              <span style="font-family:'Share Tech Mono',monospace;font-size:15px;color:#35e0d8;border:1px solid rgba(53,224,216,.5);padding:2px 9px">{{ l.key }}</span>
+            </div>
+          </sc-for>
+          <sc-for list="{{ kpTokens }}" as="t" hint-placeholder-count="0">
+            <div style="position:absolute;width:38px;height:38px;margin-left:-19px;margin-top:-19px;left:{{ t.left }};top:{{ t.top }};border:1px solid {{ t.col }};background:rgba(255,61,90,.16);box-shadow:0 0 16px {{ t.col }};display:flex;align-items:center;justify-content:center;font-family:'Share Tech Mono',monospace;font-size:15px;color:{{ t.col }}">{{ t.glyph }}</div>
+          </sc-for>
+        </div>
+        <div style="display:flex;gap:10px;padding:16px 20px">
+          <button onClick="{{ kpQuit }}" style="flex:1;padding:11px 0;background:transparent;border:1px solid rgba(255,90,74,.55);color:#ffb0a4;font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:.22em;cursor:pointer">DISCONNECT</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===== CIRCUIT BREAKER ===== -->
+  <sc-if value="{{ cbOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:rgba(2,6,8,.9);display:flex;align-items:center;justify-content:center">
+      <div style="width:min(440px,92vw);max-height:94vh;overflow:auto;border:1px solid rgba(255,61,127,.5);background:linear-gradient(180deg,rgba(24,6,16,.98),rgba(6,3,8,.98));box-shadow:0 0 80px rgba(255,61,127,.18)">
+        <div style="padding:14px 20px;border-bottom:1px solid rgba(255,61,127,.3);display:flex;justify-content:space-between;align-items:center">
+          <span style="font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:.26em;color:#ff6f9c">NODE 02 // CIRCUIT BREAKER</span>
+          <span style="font-family:'Share Tech Mono',monospace;font-size:13px;color:{{ cbStatusColor }}">{{ cbStatus }}</span>
+        </div>
+        <div style="padding:16px 20px 4px;font-family:Rajdhani,sans-serif;font-size:17px;color:rgba(238,207,222,.85)">Click a tile to rotate it. Route the signal from the left tap to the right sink.</div>
+        <div style="display:flex;align-items:center;gap:8px;padding:14px 20px 20px">
+          <div style="width:10px;height:10px;border-radius:50%;background:#ff3d7f;box-shadow:0 0 12px #ff3d7f"></div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;flex:1">
+            <sc-for list="{{ cbTiles }}" as="t" hint-placeholder-count="16">
+              <div onClick="{{ t.rotate }}" style="position:relative;aspect-ratio:1;background:rgba(255,61,127,.05);border:1px solid {{ t.border }};cursor:pointer">
+                <div style="position:absolute;left:50%;top:50%;width:10px;height:10px;margin-left:-5px;margin-top:-5px;border-radius:50%;background:{{ t.ink }}"></div>
+                <sc-for list="{{ t.bars }}" as="b" hint-placeholder-count="2">
+                  <div style="position:absolute;left:{{ b.left }};top:{{ b.top }};width:{{ b.w }};height:{{ b.h }};background:{{ t.ink }}"></div>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+          <div style="width:10px;height:10px;border-radius:50%;background:{{ cbSinkColor }};box-shadow:0 0 12px {{ cbSinkColor }}"></div>
+        </div>
+        <div style="display:flex;gap:10px;padding:0 20px 18px">
+          <button onClick="{{ cbQuit }}" style="flex:1;padding:11px 0;background:transparent;border:1px solid rgba(255,90,74,.55);color:#ffb0a4;font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:.22em;cursor:pointer">DISCONNECT</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===== SILENT CODE ===== -->
+  <sc-if value="{{ scOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:rgba(2,6,8,.9);display:flex;align-items:center;justify-content:center">
+      <div style="width:min(600px,92vw);border:1px solid rgba(77,255,158,.45);background:linear-gradient(180deg,rgba(5,22,16,.98),rgba(3,10,8,.98));box-shadow:0 0 80px rgba(77,255,158,.16)">
+        <div style="padding:14px 20px;border-bottom:1px solid rgba(77,255,158,.28);display:flex;justify-content:space-between;align-items:center">
+          <span style="font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:.26em;color:#4dff9e">NODE 03 // SILENT CODE</span>
+          <span style="font-family:'Share Tech Mono',monospace;font-size:13px;color:#ffb347">{{ scMoves }} SWAPS</span>
+        </div>
+        <div style="padding:16px 20px 4px;font-family:Rajdhani,sans-serif;font-size:17px;color:rgba(207,238,234,.85)">The lockdown routine was scrambled. Click two lines to swap them until the sequence runs clean.</div>
+        <div style="display:flex;flex-direction:column;gap:5px;padding:14px 20px 18px">
+          <sc-for list="{{ scLines }}" as="l" hint-placeholder-count="6">
+            <button onClick="{{ l.pick }}" style="display:flex;align-items:center;gap:12px;text-align:left;padding:11px 14px;background:{{ l.bg }};border:1px solid {{ l.border }};color:#dffaec;font-family:'Share Tech Mono',monospace;font-size:14px;cursor:pointer">
+              <span style="color:{{ l.numColor }}">{{ l.num }}</span>
+              <span>{{ l.text }}</span>
+            </button>
+          </sc-for>
+        </div>
+        <div style="display:flex;gap:10px;padding:0 20px 18px">
+          <button onClick="{{ scQuit }}" style="flex:1;padding:11px 0;background:transparent;border:1px solid rgba(255,90,74,.55);color:#ffb0a4;font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:.22em;cursor:pointer">DISCONNECT</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===== INTRO ===== -->
+  <sc-if value="{{ showIntro }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,rgba(10,32,36,.95),rgba(3,6,9,.99));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:28px">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:.42em;color:#35e0d8">CHAPTER 01</div>
+      <div style="font-family:Rajdhani,sans-serif;font-weight:700;font-size:84px;line-height:.92;letter-spacing:.04em;color:#e8fbf8;text-shadow:0 0 42px rgba(53,224,216,.45)">OVERRIDE</div>
+      <div style="font-family:Rajdhani,sans-serif;font-weight:600;font-size:25px;letter-spacing:.3em;color:#ffb347">CURFEW PROTOCOL</div>
+      <div style="max-width:580px;font-family:Rajdhani,sans-serif;font-size:20px;line-height:1.5;color:rgba(207,238,234,.82);text-wrap:pretty">Six rooms. One sentinel unit walking the floor, and it does not get tired. Clear the three hacking nodes, bank the credits, and reach the exit bay before curfew closes. Open the almirahs, pull the drawers, pull books off the shelves — half the credits on this floor are hidden inside furniture. And when the visor turns red, get inside something.</div>
+      <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:22px;font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:.16em;color:rgba(126,243,232,.7)">
+        <span>WASD MOVE</span><span>SHIFT RUN</span><span>C CROUCH</span><span>SPACE JUMP</span><span>DRAG / ARROWS LOOK</span><span>E INTERACT / SIT</span><span>F HIDE</span>
+      </div>
+      <div style="max-width:580px;font-family:Rajdhani,sans-serif;font-size:17px;line-height:1.45;color:rgba(255,179,71,.85)">Hiding: stand at an <strong>open</strong> almirah or at the front of a desk and press F — the prompt appears bottom-centre. Crouching under a desk or sitting in a chair also cuts the unit's sight range almost in half.</div>
+      <button onClick="{{ start }}" style="margin-top:6px;padding:15px 40px;white-space:nowrap;background:transparent;border:1px solid #35e0d8;color:#e8fbf8;font-family:'Share Tech Mono',monospace;font-size:15px;letter-spacing:.22em;cursor:pointer" style-hover="background:rgba(53,224,216,.14)">ENTER THE FLOOR</button>
+    </div>
+  </sc-if>
+
+  <!-- ===== PAUSE ===== -->
+  <sc-if value="{{ showPaused }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:rgba(3,6,9,.82);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:.36em;color:#35e0d8">SIMULATION PAUSED</div>
+      <button onClick="{{ resume }}" style="padding:13px 40px;background:transparent;border:1px solid #35e0d8;color:#e8fbf8;font-family:'Share Tech Mono',monospace;font-size:14px;letter-spacing:.24em;cursor:pointer">RESUME</button>
+    </div>
+  </sc-if>
+
+  <!-- ===== END ===== -->
+  <sc-if value="{{ showEnd }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,rgba(10,32,36,.95),rgba(3,6,9,.99));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:28px">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:.4em;color:{{ endColor }}">{{ endTag }}</div>
+      <div style="font-family:Rajdhani,sans-serif;font-weight:700;font-size:66px;line-height:1;color:#e8fbf8">{{ endTitle }}</div>
+      <div style="max-width:520px;font-family:Rajdhani,sans-serif;font-size:20px;line-height:1.5;color:rgba(207,238,234,.8);text-wrap:pretty">{{ endBody }}</div>
+      <div style="display:flex;gap:34px;margin-top:10px">
+        <div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.24em;color:rgba(126,243,232,.6)">CREDITS</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:34px;color:#ffb347">{{ coins }}</div>
+        </div>
+        <div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.24em;color:rgba(126,243,232,.6)">NODES</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:34px;color:#7ef3e8">{{ tokensLabel }}</div>
+        </div>
+        <div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.24em;color:rgba(126,243,232,.6)">GRADE</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:34px;color:{{ endColor }}">{{ grade }}</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:14px;margin-top:14px">
+        <button onClick="{{ restart }}" style="padding:14px 42px;background:transparent;border:1px solid #35e0d8;color:#e8fbf8;font-family:'Share Tech Mono',monospace;font-size:14px;letter-spacing:.28em;cursor:pointer">RUN IT AGAIN</button>
+        <sc-if value="{{ embedded }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ reportResult }}" style="padding:14px 42px;background:rgba(53,224,216,.14);border:1px solid #35e0d8;color:#e8fbf8;font-family:'Share Tech Mono',monospace;font-size:14px;letter-spacing:.28em;cursor:pointer">CONTINUE</button>
+        </sc-if>
+      </div>
+      <sc-if value="{{ reportMsg }}" hint-placeholder-val="{{ false }}">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:.14em;color:#4dff9e">{{ reportMsg }}</div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:760},&quot;difficulty&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Sleepwalk&quot;,&quot;Normal&quot;,&quot;Nightmare&quot;],&quot;default&quot;:&quot;Normal&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Game&quot;},&quot;curfewMinutes&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:9,&quot;min&quot;:3,&quot;max&quot;:20,&quot;unit&quot;:&quot;min&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Game&quot;},&quot;showMinimap&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;HUD&quot;}}">
+const NODES = {
+  node1: { game: 'kp', reward: 40, name: 'KERNEL PANIC' },
+  node2: { game: 'cb', reward: 50, name: 'CIRCUIT BREAKER' },
+  node3: { game: 'sc', reward: 35, name: 'SILENT CODE' }
+};
+const CODE_LINES = [
+  'init curfew_daemon()',
+  'auth.bypass(student_id)',
+  'floor2.doors.unlock()',
+  'sentinel.vision.dim(0.4)',
+  'log.wipe(last_60s)',
+  'return EXIT_GRANTED'
+];
+
+class Component extends DCLogic {
+  state = {
+    phase: 'intro', hp: 3, coins: 0, tokens: {}, secs: 0,
+    prompt: null, hoverId: null, hideHint: null, hidden: false,
+    alert: 'PATROL', dist: 99, stamina: 1, posture: 'STANDING',
+    px: -22, pz: 1.6, sx: 0, sz: 0,
+    toast: null, toastTag: '', toastColor: '#35e0d8',
+    objective: 'Find the three hacking nodes. Clear all three to release the exit bay.',
+    game: null,
+    kp: { tokens: [], fixed: 0, missed: 0, n: 0 },
+    cb: { tiles: [], done: false },
+    sc: { lines: [], sel: null, moves: 0, done: false },
+    end: null
+  };
+
+  componentDidMount() {
+    this.mount = React.createRef();
+    this.forceUpdate();
+    import('./chase-world.js').then(m => {
+      if (!this.mount.current) return;
+      this.world = m.createWorld(this.mount.current, {
+        onHover: (id, label, verb) => this.setState({ hoverId: id, prompt: id ? verb + ' — ' + label : null }),
+        onUse: (e) => this.handleUse(e),
+        onCoin: (n, src) => {
+          this.setState(s => ({ coins: s.coins + n }));
+          this.toast('+' + n + ' CR — ' + src, 'CREDITS', '#ffb347');
+        },
+        onCaught: () => this.caught(),
+        onAlert: (st) => {
+          if (st === 'CHASE') this.toast('The unit has you. Break line of sight.', 'DETECTED', '#ff3d5a');
+          this.setState({ alert: st });
+        },
+        onHide: (on, label, blocked) => {
+          if (blocked) { this.toast(blocked, 'BLOCKED', '#ffb347'); return; }
+          this.setState({ hidden: on });
+          this.toast(on ? 'Hidden — ' + label : 'Out in the open again', on ? 'CONCEALED' : 'EXPOSED', on ? '#4dff9e' : '#ffb347');
+        },
+        onPosture: (p, msg) => {
+          this.setState({ posture: p });
+          if (msg) this.toast(msg, p, p === 'CROUCHED' ? '#7ef3e8' : p === 'SEATED' ? '#ffb347' : '#35e0d8');
+        },
+        onTick: (t) => this.setState({
+          px: t.px, pz: t.pz, sx: t.sx, sz: t.sz, alert: t.state,
+          dist: t.dist, hidden: t.hidden, stamina: t.stamina,
+          hideHint: t.hideHint, posture: t.posture
+        })
+      });
+      this.world.setDifficulty(this.diffFactor());
+      this.forceUpdate();
+    });
+    this.onKey = (e) => {
+      const k = e.key.toLowerCase();
+      if (k === 'escape') { if (this.state.game) this.closeGame(false); else if (this.state.phase === 'play') this.pause(); }
+      if (this.state.game === 'kp') {
+        const i = ['1', '2', '3', '4'].indexOf(k);
+        const j = ['q', 'w', 'e', 'r'].indexOf(k);
+        const lane = i >= 0 ? i : j;
+        if (lane >= 0) { e.preventDefault(); this.kpHit(lane); }
+      }
+    };
+    window.addEventListener('keydown', this.onKey);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('keydown', this.onKey);
+    clearInterval(this.clockT); clearInterval(this.kpT);
+    if (this.world) this.world.dispose();
+  }
+
+  /* ---------- helpers ---------- */
+  diffFactor() {
+    const d = this.props.difficulty || 'Normal';
+    return d === 'Sleepwalk' ? 0.72 : d === 'Nightmare' ? 1.28 : 1;
+  }
+  limit() { return (this.props.curfewMinutes ?? 9) * 60; }
+
+  toast(msg, tag, col) {
+    clearTimeout(this.toastT);
+    this.setState({ toast: msg, toastTag: tag || 'SYSTEM', toastColor: col || '#35e0d8' });
+    this.toastT = setTimeout(() => this.setState({ toast: null }), 2600);
+  }
+
+  start = () => {
+    this.setState({ phase: 'play', secs: this.limit() });
+    if (this.world) { this.world.setPaused(false); this.world.setDifficulty(this.diffFactor()); this.world.lock(); }
+    clearInterval(this.clockT);
+    this.clockT = setInterval(() => {
+      if (this.state.phase !== 'play' || this.state.game) return;
+      const n = this.state.secs - 1;
+      if (n <= 0) { this.setState({ secs: 0 }); this.finish(false, 'time'); }
+      else this.setState({ secs: n });
+    }, 1000);
+  };
+
+  pause = () => { this.setState({ phase: 'paused' }); if (this.world) { this.world.setPaused(true); this.world.unlock(); } };
+  resume = () => { this.setState({ phase: 'play' }); if (this.world) { this.world.setPaused(false); this.world.lock(); } };
+  restart = () => { window.location.reload(); };
+
+  // The OVERRIDE game (ChapterOneWebScreen) opens this page as ?host=<token>
+  // and listens for the run's result on /result.
+  hostToken() {
+    const m = /[?&]host=([^&]+)/.exec(window.location.search);
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+
+  reportResult = () => {
+    const token = this.hostToken();
+    if (!token) return;
+    const s = this.state;
+    const body = JSON.stringify({
+      token: token, win: s.end === 'win', coins: s.coins,
+      nodes: Object.keys(s.tokens).length, hp: s.hp, grade: this.grade()
+    });
+    fetch('/result', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body })
+      .then(r => this.setState({ reported: r.ok ? 'sent' : 'failed' }))
+      .catch(() => this.setState({ reported: 'failed' }));
+  };
+
+  grade() {
+    const s = this.state;
+    const n = Object.keys(s.tokens).length;
+    return s.end === 'win' ? (s.coins > 180 ? 'S' : s.coins > 130 ? 'A' : 'B') : (n === 3 ? 'C' : n ? 'D' : 'F');
+  }
+
+  caught() {
+    const hp = this.state.hp - 1;
+    this.setState({ hp: hp, hidden: false });
+    if (hp <= 0) { this.finish(false, 'caught'); return; }
+    this.toast('Grabbed. Integrity down — reset to the west stairwell.', 'CAUGHT', '#ff3d5a');
+  }
+
+  finish(win, why) {
+    clearInterval(this.clockT); clearInterval(this.kpT);
+    if (this.world) { this.world.setPaused(true); this.world.unlock(); }
+    this.setState({ phase: 'end', game: null, end: win ? 'win' : why });
+  }
+
+  /* ---------- interaction from the 3D world ---------- */
+  handleUse(e) {
+    if (e.kind === 'terminal') {
+      const node = NODES[e.id];
+      if (!node) return;
+      if (this.state.tokens[e.id]) { this.toast('This node is already stripped.', 'NODE', '#4dff9e'); return; }
+      this.openGame(node.game, e.id);
+      return;
+    }
+    if (e.kind === 'done') { this.toast('Nothing left in this node.', 'NODE', '#4dff9e'); return; }
+    if (e.kind === 'exit') {
+      const n = Object.keys(this.state.tokens).length;
+      if (n < 3) { this.toast('Exit bay sealed — ' + n + '/3 nodes cleared.', 'LOCKED', '#ff5a4a'); return; }
+      this.world.openExit();
+      this.finish(true, 'escape');
+      return;
+    }
+    if (e.kind === 'keybook') { this.toast('Hollow ledger — a credit wedge was taped inside.', 'LOOT', '#ffb347'); return; }
+    if (e.kind === 'book') { this.toast('Just a textbook. Put it wherever.', 'ITEM', '#7ef3e8'); return; }
+    if (e.kind === 'almirah') { this.toast(e.open ? 'Almirah open — you can climb in with F.' : 'Almirah shut.', 'FURNITURE', '#7ef3e8'); return; }
+    if (e.kind === 'drawer') { this.toast(e.open ? 'Drawer open.' : 'Drawer shut.', 'FURNITURE', '#7ef3e8'); return; }
+  }
+
+  /* ---------- mini-game shell ---------- */
+  openGame(kind, nodeId) {
+    this.activeNode = nodeId;
+    if (this.world) { this.world.setPaused(true); this.world.unlock(); }
+    if (kind === 'kp') this.kpStart();
+    if (kind === 'cb') this.cbStart();
+    if (kind === 'sc') this.scStart();
+    this.setState({ game: kind, prompt: null });
+  }
+
+  closeGame(won) {
+    clearInterval(this.kpT);
+    const node = this.activeNode;
+    if (won && node) {
+      const reward = NODES[node].reward;
+      const tokens = Object.assign({}, this.state.tokens);
+      tokens[node] = true;
+      const n = Object.keys(tokens).length;
+      this.setState(s => ({ tokens: tokens, coins: s.coins + reward, game: null }));
+      if (this.world) this.world.setTerminalDone(node);
+      this.toast('Node cleared. +' + reward + ' CR, glitch token secured.', 'NODE ' + n + '/3', '#4dff9e');
+      if (n >= 3) {
+        if (this.world) this.world.unlockExit();
+        this.setState({ objective: 'All three nodes cleared. Get to the EXIT BAY door, south-east corner.' });
+      } else {
+        this.setState({ objective: (3 - n) + ' node' + (n === 2 ? '' : 's') + ' left. Sweep the labs and the server room.' });
+      }
+      if (this.world) this.world.stunSentinel(2.2);
+    } else {
+      this.setState({ game: null });
+      this.toast('Disconnected. The node is still live.', 'ABORT', '#ffb347');
+    }
+    this.activeNode = null;
+    if (this.world && this.state.phase === 'play') { this.world.setPaused(false); this.world.lock(); }
+  }
+
+  /* ---------- KERNEL PANIC ---------- */
+  kpStart() {
+    this.setState({ kp: { tokens: [], fixed: 0, missed: 0, n: 0 } });
+    clearInterval(this.kpT);
+    let acc = 0;
+    this.kpT = setInterval(() => {
+      this.setState(s => {
+        const kp = s.kp;
+        let tokens = kp.tokens.map(t => ({ id: t.id, lane: t.lane, top: t.top + 1.35 * this.diffFactor(), glyph: t.glyph }));
+        let missed = kp.missed;
+        const kept = [];
+        tokens.forEach(t => { if (t.top > 100) missed++; else kept.push(t); });
+        let n = kp.n;
+        acc += 60;
+        if (acc > 620) {
+          acc = 0;
+          kept.push({ id: ++n, lane: Math.floor(Math.random() * 4), top: -4, glyph: '0123456789ABCDEF'[Math.floor(Math.random() * 16)] });
+        }
+        return { kp: { tokens: kept, fixed: kp.fixed, missed: missed, n: n } };
+      }, () => {
+        if (this.state.kp.missed >= 5) { this.toast('Kernel collapsed. Try the node again.', 'FAILED', '#ff3d5a'); this.closeGame(false); }
+      });
+    }, 60);
+  }
+
+  kpHit(lane) {
+    const kp = this.state.kp;
+    const inBand = kp.tokens.filter(t => t.lane === lane && t.top > 60 && t.top < 94);
+    if (!inBand.length) return;
+    const hit = inBand.reduce((a, b) => (a.top > b.top ? a : b));
+    const tokens = kp.tokens.filter(t => t.id !== hit.id);
+    const fixed = kp.fixed + 1;
+    this.setState({ kp: { tokens: tokens, fixed: fixed, missed: kp.missed, n: kp.n } });
+    if (fixed >= 12) this.closeGame(true);
+  }
+
+  /* ---------- CIRCUIT BREAKER ---------- */
+  cbStart() {
+    const N = 4;
+    const grid = [];
+    for (let i = 0; i < N * N; i++) grid.push(null);
+    let r = 0, c = 0, inSide = 3;
+    while (true) {
+      const goRight = c === N - 1 ? false : (r === N - 1 ? true : Math.random() < 0.5);
+      const out = (r === N - 1 && c === N - 1) ? 1 : (goRight ? 1 : 2);
+      grid[r * N + c] = [inSide, out];
+      if (r === N - 1 && c === N - 1) break;
+      if (out === 1) { c++; inSide = 3; } else { r++; inSide = 0; }
+    }
+    const tiles = grid.map(set => {
+      const s = set || (Math.random() < 0.5 ? [0, 2] : [0, 1]);
+      const straight = (s[0] + 2) % 4 === s[1];
+      const base = straight ? [0, 2] : [0, 1];
+      let rot = 0;
+      for (let k = 0; k < 4; k++) {
+        const rr = base.map(d => (d + k) % 4).sort().join();
+        if (rr === s.slice().sort().join()) { rot = k; break; }
+      }
+      return { straight: straight, rot: (rot + 1 + Math.floor(Math.random() * 3)) % 4 };
+    });
+    this.setState({ cb: { tiles: tiles, done: false } });
+  }
+
+  cbConn(t) {
+    const base = t.straight ? [0, 2] : [0, 1];
+    return base.map(d => (d + t.rot) % 4);
+  }
+
+  cbRotate(i) {
+    if (this.state.cb.done) return;
+    const tiles = this.state.cb.tiles.map((t, k) => (k === i ? { straight: t.straight, rot: (t.rot + 1) % 4 } : t));
+    const live = this.cbSolved(tiles);
+    this.setState({ cb: { tiles: tiles, done: live } });
+    if (live) setTimeout(() => this.closeGame(true), 600);
+  }
+
+  cbSolved(tiles) {
+    const N = 4;
+    const conn = tiles.map(t => this.cbConn(t));
+    if (!conn[0].includes(3)) return false;
+    const seen = new Set([0]);
+    const stack = [0];
+    while (stack.length) {
+      const i = stack.pop();
+      const r = Math.floor(i / N), c = i % N;
+      conn[i].forEach(d => {
+        const nr = r + (d === 2 ? 1 : d === 0 ? -1 : 0);
+        const nc = c + (d === 1 ? 1 : d === 3 ? -1 : 0);
+        if (nr < 0 || nc < 0 || nr >= N || nc >= N) return;
+        const j = nr * N + nc;
+        if (seen.has(j)) return;
+        if (!conn[j].includes((d + 2) % 4)) return;
+        seen.add(j); stack.push(j);
+      });
+    }
+    return seen.has(N * N - 1) && conn[N * N - 1].includes(1);
+  }
+
+  /* ---------- SILENT CODE ---------- */
+  scStart() {
+    let order = CODE_LINES.map((t, i) => i);
+    do { order = order.slice().sort(() => Math.random() - 0.5); }
+    while (order.every((v, i) => v === i));
+    this.setState({ sc: { lines: order, sel: null, moves: 0, done: false } });
+  }
+
+  scPick(i) {
+    const sc = this.state.sc;
+    if (sc.done) return;
+    if (sc.sel === null) { this.setState({ sc: { lines: sc.lines, sel: i, moves: sc.moves, done: false } }); return; }
+    if (sc.sel === i) { this.setState({ sc: { lines: sc.lines, sel: null, moves: sc.moves, done: false } }); return; }
+    const lines = sc.lines.slice();
+    const tmp = lines[i]; lines[i] = lines[sc.sel]; lines[sc.sel] = tmp;
+    const done = lines.every((v, k) => v === k);
+    this.setState({ sc: { lines: lines, sel: null, moves: sc.moves + 1, done: done } });
+    if (done) setTimeout(() => this.closeGame(true), 650);
+  }
+
+  /* ---------- render values ---------- */
+  renderVals() {
+    const s = this.state;
+    const mm = (v, half) => (((v + half) / (half * 2)) * 100).toFixed(1) + '%';
+    const tokenCount = Object.keys(s.tokens).length;
+    const alertColor = s.alert === 'CHASE' ? '#ff3d5a' : s.alert === 'SEARCH' ? '#ffb347' : '#35e0d8';
+    const alertLabel = s.hidden ? 'CONCEALED' : s.alert === 'CHASE' ? 'PURSUIT' : s.alert === 'SEARCH' ? 'SWEEPING' : 'PATROLLING';
+    const mins = Math.floor(s.secs / 60), secs = s.secs % 60;
+
+    const nodeIds = ['node1', 'node2', 'node3'];
+    const nodeSlots = nodeIds.map((id, i) => {
+      const got = !!s.tokens[id];
+      return {
+        mark: got ? '\u25C6' : (i + 1),
+        border: got ? 'rgba(77,255,158,.8)' : 'rgba(53,224,216,.32)',
+        fill: got ? 'rgba(77,255,158,.16)' : 'rgba(6,20,22,.7)',
+        ink: got ? '#4dff9e' : 'rgba(126,243,232,.5)'
+      };
+    });
+
+    const kpLanes = [0, 1, 2, 3].map(i => ({
+      left: (i * 25) + '%', key: ['Q', 'W', 'E', 'R'][i], hit: () => this.kpHit(i)
+    }));
+    const kpTokens = s.kp.tokens.map(t => ({
+      left: (t.lane * 25 + 12.5) + '%',
+      top: t.top + '%',
+      col: t.top > 60 && t.top < 94 ? '#4dff9e' : '#ff3d5a',
+      glyph: t.glyph
+    }));
+
+    const barFor = (d) => {
+      if (d === 0) return { left: 'calc(50% - 2px)', top: '0', w: '4px', h: '52%' };
+      if (d === 2) return { left: 'calc(50% - 2px)', top: '48%', w: '4px', h: '52%' };
+      if (d === 1) return { left: '48%', top: 'calc(50% - 2px)', w: '52%', h: '4px' };
+      return { left: '0', top: 'calc(50% - 2px)', w: '52%', h: '4px' };
+    };
+    const cbTiles = s.cb.tiles.map((t, i) => ({
+      bars: this.cbConn(t).map(barFor),
+      ink: s.cb.done ? '#4dff9e' : '#ff6f9c',
+      border: s.cb.done ? 'rgba(77,255,158,.6)' : 'rgba(255,61,127,.3)',
+      rotate: () => this.cbRotate(i)
+    }));
+
+    const scLines = s.sc.lines.map((li, i) => ({
+      text: CODE_LINES[li],
+      num: (i + 1) + '.',
+      numColor: s.sc.done ? '#4dff9e' : 'rgba(126,243,232,.5)',
+      bg: s.sc.sel === i ? 'rgba(77,255,158,.16)' : 'rgba(4,16,12,.9)',
+      border: s.sc.sel === i ? 'rgba(77,255,158,.7)' : 'rgba(77,255,158,.2)',
+      pick: () => this.scPick(i)
+    }));
+
+    const endMap = {
+      win: { tag: 'FLOOR CLEARED', title: 'YOU GOT OUT', body: 'The exit bay door swung wide and the sentinel was two rooms behind you. Credits banked, tokens intact.', col: '#4dff9e' },
+      time: { tag: 'CURFEW CLOSED', title: 'TIME RAN OUT', body: 'The floor locked down around you. Faster sweeps next run — the furniture pays, but it costs seconds.', col: '#ffb347' },
+      caught: { tag: 'INTEGRITY ZERO', title: 'THE UNIT TOOK YOU', body: 'Three grabs and the sentinel had your pattern. Use the almirahs — it cannot see through a closed shell.', col: '#ff3d5a' }
+    };
+    const end = endMap[s.end] || endMap.caught;
+    const grade = this.grade();
+
+    return {
+      mountRef: this.mount,
+      playing: s.phase === 'play' && !s.game,
+      showIntro: s.phase === 'intro',
+      showPaused: s.phase === 'paused',
+      showEnd: s.phase === 'end',
+      chasing: s.alert === 'CHASE' && !s.hidden && s.phase === 'play',
+      start: this.start, resume: this.resume, restart: this.restart,
+      embedded: !!this.hostToken() && s.reported !== 'sent', reportResult: this.reportResult,
+      reportMsg: s.reported === 'sent' ? 'Result sent — switch back to the OVERRIDE game window.'
+        : s.reported === 'failed' ? 'Could not reach the game. Is OVERRIDE still on the Chapter 1 screen?' : null,
+
+      hpPct: (s.hp / 3 * 100) + '%',
+      hpLabel: s.hp + '/3',
+      stamPct: (s.stamina * 100).toFixed(0) + '%',
+      alertColor: alertColor, alertLabel: alertLabel,
+      clock: mins + ':' + (secs < 10 ? '0' + secs : secs),
+      clockColor: s.secs < 60 ? '#ff5a4a' : '#e8fbf8',
+      coins: s.coins,
+      nodeSlots: nodeSlots,
+      tokensLabel: tokenCount + '/3',
+      objective: s.objective,
+      prompt: s.phase === 'play' && !s.game ? s.prompt : null,
+      hidePrompt: s.phase === 'play' && !s.game ? (s.hidden ? 'Step out' : s.hideHint) : null,
+      posture: s.posture,
+      postureColor: s.posture === 'HIDDEN' ? '#4dff9e' : s.posture === 'CROUCHED' ? '#7ef3e8' : s.posture === 'SEATED' ? '#ffb347' : 'rgba(126,243,232,.55)',
+      toast: s.toast, toastTag: s.toastTag, toastColor: s.toastColor,
+
+      minimapOn: (this.props.showMinimap ?? true) && s.phase !== 'intro' && !s.game,
+      mmPX: mm(s.px, 25), mmPZ: mm(s.pz, 15),
+      mmSX: mm(s.sx, 25), mmSZ: mm(s.sz, 15),
+      distLabel: s.dist > 90 ? 'SCANNING' : Math.round(s.dist) + 'M TO UNIT',
+
+      kpOpen: s.game === 'kp', kpLanes: kpLanes, kpTokens: kpTokens,
+      kpFixed: s.kp.fixed, kpMissed: s.kp.missed, kpQuit: () => this.closeGame(false),
+
+      cbOpen: s.game === 'cb', cbTiles: cbTiles,
+      cbStatus: s.cb.done ? 'SIGNAL LOCKED' : 'OPEN CIRCUIT',
+      cbStatusColor: s.cb.done ? '#4dff9e' : '#ff6f9c',
+      cbSinkColor: s.cb.done ? '#4dff9e' : 'rgba(255,61,127,.35)',
+      cbQuit: () => this.closeGame(false),
+
+      scOpen: s.game === 'sc', scLines: scLines, scMoves: s.sc.moves,
+      scQuit: () => this.closeGame(false),
+
+      endTag: end.tag, endTitle: end.title, endBody: end.body, endColor: end.col, grade: grade
+    };
+  }
+}
+</script>
+</body>
+</html>

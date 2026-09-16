@@ -1,0 +1,25 @@
+{
+	"folders": [
+		{
+			"path": "../../../../../../../../Converting vp_game to 3D (1)/art"
+		},
+		{
+			"path": "../../../../../../../../Converting vp_game to 3D (1)/items"
+		},
+		{
+			"path": "../../../../../../../../Converting vp_game to 3D (1)/shots"
+		},
+		{
+			"path": "../../../../../../../../Converting vp_game to 3D (1)/Escape"
+		},
+		{
+			"path": "../../../../../../../../Converting vp_game to 3D (1)/src"
+		},
+		{
+			"path": "../../../../../../../../Converting vp_game to 3D (1)/uploads"
+		}
+	],
+	"settings": {
+		"java.configuration.updateBuildConfiguration": "interactive"
+	}
+}
