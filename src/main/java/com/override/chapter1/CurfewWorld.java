@@ -90,7 +90,17 @@ final class CurfewWorld {
      */
     record Tick(double px, double pz, double sx, double sz, String state, double dist,
                 boolean hidden, double stamina, String posture, String hideHint,
-                double suspicion, boolean sentinelSeen, int books) {}
+                double suspicion, boolean sentinelSeen, int books, double yaw, double sentinelYaw) {}
+
+    /** X/Z footprints in the same coordinates as the player, without collision padding. */
+    record MapFootprint(double minX, double minZ, double width, double depth, boolean wall) {
+        static MapFootprint of(Bounds bounds, boolean wall) {
+            return new MapFootprint(bounds.getMinX(), bounds.getMinZ(),
+                bounds.getWidth(), bounds.getDepth(), wall);
+        }
+    }
+
+    record MapRoom(String name, double x, double z) {}
 
     /* ------------------------------------------------------------ data types */
 
@@ -186,6 +196,8 @@ final class CurfewWorld {
     private final Map<Color, Image> solidImages = new HashMap<>();
 
     private final List<Aabb> colliders = new ArrayList<>();
+    private final List<MapFootprint> mapFootprints = new ArrayList<>();
+    private final List<MapRoom> mapRooms = new ArrayList<>();
     private final List<Aabb> sightBlockers = new ArrayList<>();
     private final List<Node> interactionWalls = new ArrayList<>();
     private final List<Interactable> interactables = new ArrayList<>();
@@ -313,6 +325,20 @@ final class CurfewWorld {
     /* ================================================================ API */
 
     SubScene view() { return subScene; }
+
+    List<MapFootprint> mapFootprints() { return List.copyOf(mapFootprints); }
+
+    List<MapRoom> mapRooms() { return List.copyOf(mapRooms); }
+
+    /** Also supplies the real spawn positions before the first animation frame. */
+    Tick snapshot() {
+        HideSpot hs = hidden ? null : currentHideSpot();
+        String posture = hidden ? "HIDDEN" : sitting != null ? "SEATED" : crouch ? "CROUCHED" : "STANDING";
+        double dist = Math.hypot(px - sx, pz - sz);
+        boolean seen = dist < 22 && !segBlocked(px, pz, sx, sz);
+        return new Tick(px, pz, sx, sz, aiState, dist, hidden, stamina, posture,
+            hs == null ? null : hs.ready ? hs.label : "Open the almirah first", suspicion, seen, books, yaw, aiYaw);
+    }
 
     void start() { timer.start(); }
 
@@ -456,6 +482,7 @@ final class CurfewWorld {
         Box m = box(horiz ? len : 0.3, H, horiz ? 0.3 : len, wallMat);
         at(m, (x1 + x2) / 2, H / 2, (z1 + z2) / 2);
         add(m);
+        mapFootprints.add(MapFootprint.of(worldBounds(m), true));
         Aabb b = new Aabb(worldBounds(m), 0.18);
         colliders.add(b);
         sightBlockers.add(b);
@@ -516,6 +543,7 @@ final class CurfewWorld {
     }
 
     private void sign(String text, String accent, double x, double y, double z, double ry) {
+        mapRooms.add(new MapRoom(text, x, z + Math.copySign(1.0, z)));
         MeshView m = quad(2.2, 0.55, emissiveTexture(signTexture(text, accent), 0.9));
         rotY(at(m, x, y, z), ry);
         add(m);
@@ -1296,12 +1324,7 @@ final class CurfewWorld {
         tickAcc += dt;
         if (tickAcc <= 0.08) return;
         tickAcc = 0;
-        HideSpot hs = hidden ? null : currentHideSpot();
-        String posture = hidden ? "HIDDEN" : sitting != null ? "SEATED" : crouch ? "CROUCHED" : "STANDING";
-        double dist = Math.hypot(px - sx, pz - sz);
-        boolean seen = dist < 22 && !segBlocked(px, pz, sx, sz);
-        listener.onTick(new Tick(px, pz, sx, sz, aiState, dist, hidden, stamina, posture,
-            hs == null ? null : hs.ready ? hs.label : "Open the almirah first", suspicion, seen, books));
+        listener.onTick(snapshot());
     }
 
     private int pickNearWaypoint(int exclude) {
@@ -1514,7 +1537,9 @@ final class CurfewWorld {
     }
 
     private void addCollider(Node n, double grow, boolean blocksSight) {
-        Aabb b = new Aabb(worldBounds(n), grow);
+        Bounds bounds = worldBounds(n);
+        mapFootprints.add(MapFootprint.of(bounds, false));
+        Aabb b = new Aabb(bounds, grow);
         colliders.add(b);
         if (blocksSight) sightBlockers.add(b);
     }
