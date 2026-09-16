@@ -1,3 +1,4 @@
 # ----- Godot (Chapter 2) -----
 .godot/
-build/
+build/*
+!build/Chapter2.exe
