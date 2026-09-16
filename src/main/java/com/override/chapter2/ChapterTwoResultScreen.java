@@ -172,13 +172,8 @@ public class ChapterTwoResultScreen {
             javafx.scene.effect.BlurType.GAUSSIAN,
             Color.web(NEON_CYAN, 0.6), 18, 0.25, 0, 0));
 
-        Label breakdown = statRow(String.format(
-                "50%% CHAPTER 1 (%.1f%%) + 50%% CHAPTER 2 (%.1f%%), ON A SCALE OF 100%%",
-                ch1Pct, ch2Pct),
-            NEON_CYAN);
-
         // ── Assemble card ──────────────────────────────────────────
-        VBox card = new VBox(10, header, verdict, mainResult, mainSub, stats, finalScore, breakdown, btn);
+        VBox card = new VBox(10, header, verdict, mainResult, mainSub, stats, finalScore, btn);
         card.setAlignment(Pos.CENTER);
         card.setPadding(new Insets(24, 48, 24, 48));
         card.setMaxWidth(860);
