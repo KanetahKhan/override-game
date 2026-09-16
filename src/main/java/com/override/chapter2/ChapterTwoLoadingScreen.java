@@ -38,6 +38,8 @@ public class ChapterTwoLoadingScreen {
     private boolean isReversed = false;
     private Label titleLabel;
     private boolean wasFullScreen = false;
+    private Timeline processPoller;
+    private PauseTransition revealBreak;
 
     public Parent build() {
         // ── Title ──────────────────────────────────────────────────
@@ -107,7 +109,7 @@ public class ChapterTwoLoadingScreen {
         page.getChildren().add(staticOverlay);
 
         // Launch the real game in background
-        startProgress(page, barFill, status);
+        startProgress(barFill, status);
         startGlitchCycle();
         return page;
     }
@@ -162,7 +164,7 @@ public class ChapterTwoLoadingScreen {
 
     // ── Progress ───────────────────────────────────────────────────
 
-private void startProgress(StackPane page, Region barFill, Label status) {
+private void startProgress(Region barFill, Label status) {
         boolean launched = GodotGameLauncher.launchGodotBackgroundStart();
 
         double trackW = 560;
@@ -175,64 +177,75 @@ private void startProgress(StackPane page, Region barFill, Label status) {
                 status.setText("\u25B8 " + STATUS[idx]);
             }));
         }
-        tl.setOnFinished(e -> finish(page, launched));
+        tl.setOnFinished(e -> finish(status, launched));
         tl.play();
     }
 
-    private void finish(StackPane page, boolean launched) {
-        // ── Game already exited during the loading bar (instant crash / short run)
-        if (launched && !GodotGameLauncher.isProcessAlive()) {
-            restoreJavaWindow();
-            if (GodotGameLauncher.hasResult()) {
-                Main.switchScene(new ChapterTwoResultScreen().build());
-            }
-            return;
-        }
-
-        if (launched) {
-            // Chapter 2 is still running as its own window — hang the map screen
-            // in the background, and poll for the game process to exit.  When it
-            // does, restore the Java stage and show the ResultScreen.  Everything
-            // runs on the FX thread, so no volatile / Platform.runLater needed.
-            startProcessWatcher();
-
-            // Give the game window a beat to reveal itself (it was booted hidden
-            // under the fake loading bar), then drop the Java stage to the taskbar
-            // so the game grabs focus automatically — no manual taskbar click.
-            PauseTransition revealBreak = new PauseTransition(Duration.millis(1500));
-            revealBreak.setOnFinished(e -> iconifyJavaWindow());
-            revealBreak.play();
-        }
-        Main.switchScene(new ChapterMapScreen().build());
+    private void finish(Label status, boolean launched) {
         if (!launched) {
+            Main.switchScene(new ChapterMapScreen().build());
             Alert a = new Alert(Alert.AlertType.ERROR,
                 "Chapter 2 could not be launched.\n\n"
                 + GodotGameLauncher.gameSource() + "\n\n"
                 + "Export the game once with GodotGameLauncher.exportGame() so players can\n"
                 + "open Chapter2.exe directly — no Godot install is needed.");
             a.showAndWait();
+            return;
         }
+
+        // ── Game already exited while the fake loading bar was running ──
+        if (!GodotGameLauncher.isProcessAlive()) {
+            restoreJavaWindow();
+            if (GodotGameLauncher.hasResult()) {
+                Main.switchScene(new ChapterTwoResultScreen().build());
+            } else {
+                Main.switchScene(new ChapterMapScreen().build());
+            }
+            return;
+        }
+
+        // ── Game is running in its own window: hold THIS screen as the backdrop
+        //    and wait for the result JSON main.gd writes just before quitting.
+        //    No ChapterMap in the middle — the ResultScreen is the next step.
+        status.setText("\u25B8 MISSION UNDERWAY — STAND BY");
+        startProcessWatcher();
+
+        // Give the game window a beat to reveal itself (it was booted hidden
+        // under the fake loading bar), then drop the Java stage to the taskbar
+        // so the game grabs focus automatically — no manual taskbar click.
+        revealBreak = new PauseTransition(Duration.millis(1500));
+        revealBreak.setOnFinished(e -> iconifyJavaWindow());
+        revealBreak.play();
     }
 
     /**
-     * FX-thread poller: checks every 600 ms whether the Godot process has exited.
-     * When it has, restores the Java window and shows the ResultScreen.
-     * No daemon threads, no volatile, no Platform.runLater — everything on the
-     * Application Thread so {@code Main.switchScene} is always safe.
+     * FX-thread poller: checks every 600 ms whether the game has written its
+     * result JSON (main.gd stores it the instant the run ends, immediately
+     * before {@code get_tree().quit()}). On a result it restores the Java
+     * window and shows the ResultScreen — this is the definitive end-of-game
+     * signal because it survives flaky process-alive checks on Windows.
+     *
+     * <p>Runs entirely on the Application Thread, so {@code Main.switchScene}
+     * is always safe. The Timeline is stored in a field so it cannot be
+     * garbage-collected while playing.
      */
     private void startProcessWatcher() {
-        Timeline poller = new Timeline();
-        poller.getKeyFrames().add(new KeyFrame(Duration.millis(600), e -> {
-            if (!GodotGameLauncher.isProcessAlive()) {
-                poller.stop();
+        processPoller = new Timeline();
+        processPoller.getKeyFrames().add(new KeyFrame(Duration.millis(600), e -> {
+            if (GodotGameLauncher.hasResult()) {
+                processPoller.stop();
                 restoreJavaWindow();
-                if (GodotGameLauncher.hasResult()) {
-                    Main.switchScene(new ChapterTwoResultScreen().build());
-                }
+                Main.switchScene(new ChapterTwoResultScreen().build());
+            } else if (!GodotGameLauncher.isProcessAlive()) {
+                // Game closed without writing a result (manual quit / crash at
+                // the OS level) — fall back to the map so the player is not stuck.
+                processPoller.stop();
+                restoreJavaWindow();
+                Main.switchScene(new ChapterMapScreen().build());
             }
         }));
-        poller.setCycleCount(Timeline.INDEFINITE);
-        poller.play();
+        processPoller.setCycleCount(Timeline.INDEFINITE);
+        processPoller.play();
     }
 
     /** Store the stage's full-screen state, then minimize it off-screen. */
