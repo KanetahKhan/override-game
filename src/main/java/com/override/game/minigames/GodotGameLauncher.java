@@ -66,14 +66,17 @@ public final class GodotGameLauncher {
         }
         Path exported = PROJECT.resolve("build").resolve("Chapter2.exe");
         if (Files.isRegularFile(exported)) {
-            godotProcess = spawn(exported.toAbsolutePath().toString());
+            // Fullscreen so the game covers exactly the screen the JavaFX
+            // window was filling — the handoff happens behind a black fade,
+            // so the player never sees a second window appear.
+            godotProcess = spawn(exported.toAbsolutePath().toString(), "--fullscreen");
         } else {
             String godot = findGodot();
             if (godot == null) {
                 showNoGodot();
                 return false;
             }
-            godotProcess = spawn(godot, "--path", PROJECT.toAbsolutePath().toString());
+            godotProcess = spawn(godot, "--path", PROJECT.toAbsolutePath().toString(), "--fullscreen");
         }
         if (godotProcess != null) {
             new Thread(() -> {
