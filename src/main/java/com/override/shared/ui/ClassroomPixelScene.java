@@ -140,10 +140,10 @@ final class ClassroomPixelScene extends Canvas {
         g.fillOval(actorX + 15, actorY + 68, 46, 10);
         g.drawImage(actor, actorX, Math.floor(actorY), 80, 80);
         if (film && shot == 3) {
-            rect(g, 375, 179, 130, 33, "#061119");
-            rect(g, 376, 180, 128, 1, "#73b6a5");
-            label(g, "NO SIGNAL. A HANDWRITTEN NOTE.", 382, 193, 7, "#b1d7c8");
-            label(g, "REMEMBER HOW TO THINK.", 382, 205, 8, "#ded5ac");
+            rect(g, 68, 185, 160, 40, "#061119");
+            rect(g, 69, 186, 158, 1, "#73b6a5");
+            label(g, "NO SIGNAL. A HANDWRITTEN NOTE.", 76, 201, 7, "#b1d7c8");
+            label(g, "REMEMBER HOW TO THINK.", 76, 217, 8, "#ded5ac");
         }
         // Fine, moving dust and rain use a deterministic seed, with no allocation per frame.
         if (!reduced) for (int i = 0; i < 24; i++) {
