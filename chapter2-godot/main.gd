@@ -168,7 +168,7 @@ var segment_w: float = 1005.0
 
 
 @onready var sky_sprite: Sprite2D = \
-	$ParallaxBackground/SkyLayer/sky1
+	$ParallaxBackground/SkyLayer/sky2
 
 
 

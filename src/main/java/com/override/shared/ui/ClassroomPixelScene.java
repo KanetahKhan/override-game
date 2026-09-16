@@ -22,16 +22,32 @@ final class ClassroomPixelScene extends Canvas {
     static final int WIDTH = 1280, HEIGHT = 720;
     static final double FILM_SECONDS = 40;
     private static final String ROOT = "/Assets_Characters/Ayan/";
+    private static final String[] IDLE_DIRECTIONS = {
+        "north", "north-east", "east", "south-east",
+        "south", "south-west", "west", "north-west"
+    };
     private final Image north = load(ROOT + "Full_body_portrait_of_a/rotations/north.png");
-    private final Image east = load(ROOT + "Full_body_portrait_of_a/rotations/east.png");
-    private final Image[] walk = new Image[6];
+    private final Image[] idleTurn = new Image[8];
+    private final Image[] walkF = new Image[4];
+    private final Image[] walkB = new Image[4];
 
     ClassroomPixelScene() {
         super(WIDTH, HEIGHT);
         setMouseTransparent(true);
-        for (int i = 0; i < walk.length; i++) {
-            walk[i] = load(ROOT + "walking_and_dodging_copy/animations/Walking-0e7f9c42/south/frame_00" + i + ".png");
+        for (int i = 0; i < idleTurn.length; i++) {
+            idleTurn[i] = load(ROOT + "Full_body_portrait_of_a/rotations/"
+                + IDLE_DIRECTIONS[i] + ".png");
         }
+        // Same transition the Chapter 2 Godot walk uses: walk -> bending knee ->
+        // walk -> bent back leg, here driven by the Ayan source rotations.
+        walkF[0] = load(ROOT + "walking/rotations/south.png");
+        walkF[1] = load(ROOT + "benting_knee_to_walk/rotations/south.png");
+        walkF[2] = walkF[0];
+        walkF[3] = load(ROOT + "bent_the_back_leg_kn/rotations/south.png");
+        walkB[0] = load(ROOT + "walking/rotations/north.png");
+        walkB[1] = load(ROOT + "benting_knee_to_walk/rotations/north.png");
+        walkB[2] = walkB[0];
+        walkB[3] = load(ROOT + "bent_the_back_leg_kn/rotations/north.png");
     }
 
     private static Image load(String path) {
@@ -133,9 +149,41 @@ final class ClassroomPixelScene extends Canvas {
         // An open doorway in the foreground, with pixel reflections on the floor.
         rect(g, 413, 336, 73, 4, "#355765");
         for (int i = 0; i < 6; i++) rect(g, 426 + i % 2 * 3, 329 - i * 6, 40 - i * 4, 2, "#274653");
-        double actorY = film ? 165 + Math.min(23, time * 0.7) : 236;
+        // Opening menu untouched: the standing Ren keeps the original pose.
+        // In the chapter intro film he patrols the aisle using the same walk
+        // transition as Chapter 2 (walk -> bending knee -> bent back leg) facing
+        // forward (south), does a single quick half-turn through the idle
+        // directions of Full_body_portrait_of_a/rotations to reverse, then walks
+        // back up the lane facing away (north). Reduced motion parks him north.
         double actorX = 414;
-        Image actor = film && shot == 0 && !reduced ? walk[(int) (time * 7) % walk.length] : (shot >= 3 ? east : north);
+        double actorY;
+        Image actor;
+        if (!film) {
+            actorY = 236;
+            actor = north;
+        } else if (reduced) {
+            actorY = 210;
+            actor = north;
+        } else {
+            double WALK = 3.6, SPIN = 0.9, CYCLE = 2 * (WALK + SPIN);
+            double t = time % CYCLE;
+            double laneTop = 168, laneBottom = 252;
+            if (t < WALK) { // forward: walk cycle down toward the doorway
+                actor = walkF[(int) (t * 8) % walkF.length];
+                actorY = laneTop + (laneBottom - laneTop) * (t / WALK);
+            } else if (t < WALK + SPIN) { // quick half-turn to reverse direction
+                double s = t - WALK;
+                actor = idleTurn[(4 + (int) (s * 5 / SPIN)) % idleTurn.length];
+                actorY = laneBottom;
+            } else if (t < WALK + SPIN + WALK) { // walk cycle back up the lane, facing north
+                actor = walkB[(int) ((t - WALK - SPIN) * 8) % walkB.length];
+                actorY = laneBottom - (laneBottom - laneTop) * ((t - WALK - SPIN) / WALK);
+            } else { // quick half-turn back to face the camera
+                double s = t - 2 * WALK - SPIN;
+                actor = idleTurn[(0 + (int) (s * 5 / SPIN)) % idleTurn.length];
+                actorY = laneTop;
+            }
+        }
         g.setFill(Color.web("#000000", 0.5));
         g.fillOval(actorX + 15, actorY + 68, 46, 10);
         g.drawImage(actor, actorX, Math.floor(actorY), 80, 80);

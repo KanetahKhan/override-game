@@ -91,7 +91,7 @@ public class ChapterMapScreen {
         play.setDisable(!unlocked);
         play.setOnAction(e -> {
             switch (chNum) {
-                // Only Chapter 1 gets this film; Harvest Protocol keeps its existing opening.
+                // Each chapter opens on its own narrated film before its briefing.
                 case 1 -> Main.switchScene(new IntroStoryScreen(
                     () -> Main.switchScene(new CurfewProtocolScreen().build())
                 ).build());
@@ -99,7 +99,9 @@ public class ChapterMapScreen {
                     if (GodotGameLauncher.hasResult()) {
                         Main.switchScene(new ChapterTwoResultScreen().build());
                     } else {
-                        Main.switchScene(new ChapterTwoTutorialScreen().build());
+                        Main.switchScene(new ChapterTwoIntroStoryScreen(
+                            () -> Main.switchScene(new ChapterTwoTutorialScreen().build())
+                        ).build());
                     }
                 }
                 default -> new javafx.scene.control.Alert(
