@@ -4,6 +4,9 @@ import com.override.Main;
 import com.override.chapter1.CurfewNodeGames.NodeGame;
 import com.override.chapter1.CurfewNodeGames.Outcome;
 import com.override.game.minigames.ChiptuneSfx;
+import com.override.net.AstraProtocol;
+import com.override.net.CoopConfig;
+import com.override.net.RelayLink;
 import com.override.game.minigames.HighScoreClient;
 import com.override.shared.model.GameState;
 import com.override.shared.service.SaveService;
@@ -156,6 +159,8 @@ public class CurfewProtocolScreen {
     private HighScoreClient.Best allTimeBest;
 
     private CurfewWorld world;
+    /** Live co-op link to a partner playing Astra; null when playing solo. */
+    private RelayLink coop;
     private NodeGame nodeGame;
 
     // scene nodes
@@ -202,6 +207,7 @@ public class CurfewProtocolScreen {
         new HighScoreClient(difficulty.gameType()).refreshFromBackendAsync();
 
         world = new CurfewWorld(new WorldEvents());
+        connectCoop();
         applySettings();
 
         root.setPrefSize(Main.WIDTH, Main.HEIGHT);
@@ -258,6 +264,68 @@ public class CurfewProtocolScreen {
         world.setLook(settings.sensitivity, settings.invertY);
         world.setFov(settings.fov);
         ChiptuneSfx.setMasterVolume(settings.volume);
+    }
+
+    /* ============================================================== co-op */
+
+    /** Dials the relay as the GAME side; a failure just means a solo run. */
+    private void connectCoop() {
+        if (!CoopConfig.isLinked()) return;
+        coop = new RelayLink(CoopConfig.host(), CoopConfig.port(), CoopConfig.room(),
+            AstraProtocol.ROLE_GAME, "AYAN", new RelayLink.Listener() {
+                @Override public void onLine(String line) { onAstraLine(line); }
+                @Override public void onStatus(String status, boolean connected) {
+                    toast(status, connected ? "ASTRA LINK" : "LINK", connected ? ASTRA_COLOR : "#ffb347");
+                }
+            });
+        coop.connect();
+    }
+
+    /** A command from the partner. Already on the FX thread: RelayLink saw to that. */
+    private void onAstraLine(String line) {
+        if (line.startsWith("PEER ")) {
+            toast("Astra is watching this floor.", "LINKED", ASTRA_COLOR);
+            return;
+        }
+        if ("PEERGONE".equals(line)) {
+            toast("Astra dropped the link. The unit is on its own again.", "LINK LOST", "#ffb347");
+            return;
+        }
+        if (!line.startsWith(AstraProtocol.CMD + " ") || phase != Phase.PLAY || world == null) return;
+        String[] p = line.split(" ", 4);
+        if (p.length < 2) return;
+        switch (p[1]) {
+            case AstraProtocol.CMD_BLACKOUT -> {
+                world.blackout(20);
+                ChiptuneSfx.emp();
+                toast("Astra pulled the breakers on you.", "POWER CUT", ASTRA_COLOR);
+            }
+            case AstraProtocol.CMD_SWEEP -> {
+                if (p.length < 4) return;
+                try {
+                    world.sweepTo(Double.parseDouble(p[2]), Double.parseDouble(p[3]));
+                    toast("Astra just told it where to look.", "SWEEP", ASTRA_COLOR);
+                } catch (NumberFormatException ignored) {
+                    // a malformed command from the other side is not worth crashing over
+                }
+            }
+            case AstraProtocol.CMD_WAKE -> {
+                world.setSecondUnit(true);
+                toast("A second unit just walked onto the floor.", "ESCORT", "#ff3d5a");
+            }
+            case AstraProtocol.CMD_LOCKDOWN -> {
+                world.lockdown();
+                toast("Astra sealed the floor early.", "LOCKDOWN", "#ff3d5a");
+            }
+            case AstraProtocol.CMD_TAUNT -> {
+                if (p.length >= 3) toast(p[2] + (p.length > 3 ? " " + p[3] : ""), "ASTRA", ASTRA_COLOR);
+            }
+            default -> { }
+        }
+    }
+
+    private void sendToAstra(String line) {
+        if (coop != null && coop.isConnected()) coop.send(line);
     }
 
     /* =============================================================== HUD */
@@ -526,6 +594,9 @@ public class CurfewProtocolScreen {
         }
 
         @Override public void onTick(CurfewWorld.Tick t) {
+            sendToAstra(AstraProtocol.tick(t.px(), t.pz(), t.sx(), t.sz(), t.ex(), t.ez(),
+                t.state(), t.twoUnits(), t.hidden(), hp, credits, tokens.size(),
+                lockdownOn ? lockdownSecs : secs));
             alert = t.state();
             hiddenNow = t.hidden();
             hideHint = t.hideHint();
@@ -746,6 +817,7 @@ public class CurfewProtocolScreen {
         }
         toast(how + (midHack ? " The hack dropped." : "") + " Integrity down — back to the west stairwell.",
             "CAUGHT", "#ff3d5a");
+        sendToAstra(AstraProtocol.EVENT + " CAUGHT " + hp);
     }
 
     /* ============================================================ Astra */
@@ -1378,6 +1450,10 @@ public class CurfewProtocolScreen {
     }
 
     private void dispose() {
+        if (coop != null) {
+            coop.close();
+            coop = null;
+        }
         clockTimer.stop();
         toastTimer.stop();
         toastNext.stop();

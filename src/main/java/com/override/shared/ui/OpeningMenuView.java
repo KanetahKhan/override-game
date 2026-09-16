@@ -1,6 +1,11 @@
 package com.override.shared.ui;
 
+import com.override.Main;
+import com.override.chapter1.AstraConsoleScreen;
+import com.override.chapter1.CurfewProtocolScreen;
 import com.override.game.minigames.ChiptuneSfx;
+import com.override.net.CoopConfig;
+import com.override.net.CoopRelayHost;
 import javafx.animation.AnimationTimer;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -8,6 +13,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
+import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.HBox;
@@ -75,10 +81,13 @@ final class OpeningMenuView extends StackPane {
         shop.setId("shop"); shop.setOnAction(e -> actions.shop().run());
         Button settings = option("04   DISPLAY OPTIONS", false);
         settings.setId("display-options"); settings.setOnAction(e -> showSettings(settings));
-        Button quit = option("05   QUIT", false);
+        Button coop = option("05   ASTRA CO-OP", false);
+        coop.setId("astra-coop");
+        coop.setOnAction(e -> showCoop(coop));
+        Button quit = option("06   QUIT", false);
         quit.setId("quit"); quit.setOnAction(e -> actions.quit().run());
-        options = List.of(start, resume, shop, settings, quit);
-        VBox choices = new VBox(7, start, resume, shop, settings, quit);
+        options = List.of(start, resume, shop, settings, coop, quit);
+        VBox choices = new VBox(7, start, resume, shop, settings, coop, quit);
         place(layout, new VBox(0, heading, choices), 70, 116);
         place(layout, text("CHAPTER 01 / THE SILENT CLASSROOM", 11, "#749a9f"), 768, 628);
         place(layout, text("KK IS STILL LISTENING.", 12, "#d9888f"), 768, 648);
@@ -109,6 +118,91 @@ final class OpeningMenuView extends StackPane {
             timer.stop(); previous = 0;
             if (scene != null) { start.requestFocus(); if (animate) timer.start(); }
         });
+    }
+
+    /**
+     * Two seats, one floor: one player runs the chapter while the other plays
+     * Astra from anywhere that can reach the relay.
+     */
+    private void showCoop(Button source) {
+        TextField host = coopField(CoopConfig.host(), 210);
+        host.setId("coop-host");
+        TextField port = coopField(String.valueOf(CoopConfig.port()), 80);
+        TextField room = coopField(CoopConfig.room(), 110);
+        Label relayNote = text("", 12, "#9bb1bd");
+
+        Runnable remember = () -> {
+            int chosen = CoopConfig.port();
+            try {
+                chosen = Integer.parseInt(port.getText().trim());
+            } catch (NumberFormatException ignored) {
+                // keep the previous port when the box holds nonsense
+            }
+            CoopConfig.set(host.getText(), chosen, room.getText());
+        };
+
+        Button relay = option("RUN THE RELAY HERE", false);
+        relay.setId("coop-relay");
+        relay.setOnAction(e -> {
+            remember.run();
+            relayNote.setText(CoopRelayHost.start(CoopConfig.port()));
+        });
+        Button asAyan = option("PLAY AS AYAN  (CHAPTER 1)", true);
+        asAyan.setId("coop-ayan");
+        asAyan.setOnAction(e -> {
+            remember.run();
+            CoopConfig.setLinked(true);
+            Main.switchScene(new CurfewProtocolScreen().build());
+        });
+        Button asAstra = option("PLAY AS ASTRA  (CONSOLE)", false);
+        asAstra.setId("coop-astra");
+        asAstra.setOnAction(e -> {
+            remember.run();
+            Main.switchScene(new AstraConsoleScreen().build());
+        });
+        Button close = option("BACK", false);
+        close.setId("close-coop");
+        Runnable dismiss = () -> {
+            modal.getChildren().clear();
+            modal.setVisible(false);
+            modal.setManaged(false);
+            source.requestFocus();
+        };
+        close.setOnAction(e -> dismiss.run());
+
+        HBox fields = new HBox(10, text("RELAY", 12, "#87a1ae"), host,
+            text("PORT", 12, "#87a1ae"), port, text("ROOM", 12, "#87a1ae"), room);
+        fields.setAlignment(Pos.CENTER_LEFT);
+        VBox help = new VBox(3,
+            text("Same Wi-Fi: one of you runs the relay and reads out the address.", 13, "#9bb1bd"),
+            text("Different cities: run the relay on a cloud box, or join a Tailscale", 13, "#9bb1bd"),
+            text("network and use that address. Both sides dial out - no router setup.", 13, "#9bb1bd"));
+
+        VBox panel = new VBox(16, text("ASTRA CO-OP", 25, "#e6f5ee"), fields, help,
+            relay, relayNote, asAyan, asAstra, close);
+        panel.setMaxSize(660, VBox.USE_PREF_SIZE);
+        panel.setPadding(new Insets(30));
+        panel.setStyle("-fx-background-color: #0d1a27; -fx-border-color: #416b75; -fx-border-width: 1;");
+        modal.setStyle("-fx-background-color: rgba(3,8,15,0.9);");
+        modal.getChildren().setAll(panel);
+        modal.setVisible(true);
+        modal.setManaged(true);
+        modal.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.ESCAPE) {
+                dismiss.run();
+                e.consume();
+            }
+        });
+        host.requestFocus();
+    }
+
+    private static TextField coopField(String value, double width) {
+        TextField f = new TextField(value);
+        f.setPrefWidth(width);
+        f.setStyle("-fx-background-color: #081722; -fx-text-fill: #d6e8e8;"
+            + " -fx-border-color: #2c5563; -fx-background-radius: 0; -fx-border-radius: 0;"
+            + " -fx-font-family: 'Monospaced';");
+        return f;
     }
 
     private void showSettings(Button source) {

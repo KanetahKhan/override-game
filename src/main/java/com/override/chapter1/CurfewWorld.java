@@ -505,6 +505,20 @@ final class CurfewWorld {
 
     boolean isBlackout() { return blackoutLeft > 0; }
 
+    /** Astra (or a co-op partner playing her) points the unit at a spot. */
+    void sweepTo(double x, double z) { investigate(x, z); }
+
+    /** Read-only view for the co-op feed. */
+    double playerX() { return px; }
+    double playerZ() { return pz; }
+    double unitX() { return sx; }
+    double unitZ() { return sz; }
+    double escortX() { return ex; }
+    double escortZ() { return ez; }
+    boolean hasTwoUnits() { return twoUnits; }
+    boolean playerHidden() { return hidden; }
+    String alertState() { return aiState; }
+
     void stunSentinel(double seconds) { aiStun = seconds; }
 
     void resetPlayer() {
