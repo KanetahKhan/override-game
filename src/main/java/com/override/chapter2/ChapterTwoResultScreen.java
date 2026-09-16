@@ -3,6 +3,8 @@ package com.override.chapter2;
 import com.override.Main;
 import com.override.chapter1.CurfewRecords;
 import com.override.game.minigames.GodotGameLauncher;
+import com.override.shared.model.GameState;
+import com.override.shared.service.SaveService;
 import com.override.shared.ui.ChapterMapScreen;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -55,6 +57,11 @@ public class ChapterTwoResultScreen {
         double killPct = badSpawned > 0 ? badKilled * 100.0 / badSpawned : 100.0;
         boolean resistancePossible = win && killPct >= 50.0;
 
+        // Chapter 2 counts as completed the moment its result screen is reached,
+        // mirroring Chapter 1's completeChapter(1) in CurfewProtocolScreen.
+        GameState.get().completeChapter(2);
+        SaveService.save();
+
         // ── Headline (exact Godot show_end_card text) ─────────────
         String headerText = win
             ? "SAFE ZONE REACHED!"
@@ -89,44 +96,53 @@ public class ChapterTwoResultScreen {
 
         // ── Chapter 1 latest run (for the combined campaign verdict) ─
         CurfewRecords.Run ch1 = CurfewRecords.latestRun();
+
+        // ── Combined campaign score: 50% chapter 1 + 50% chapter 2 ──
+        double ch1Pct = chapterOnePercent(ch1);
+        double ch2Pct = Math.max(0.0, Math.min(100.0, score));
+        double finalPct = (ch1Pct + ch2Pct) / 2.0;
+        boolean resistance = finalPct >= 50.0;
+
         Label ch1Row = ch1 == null
-            ? statRow("CHAPTER 1 · CURFEW PROTOCOL — NOT PLAYED", NEON_AMBER)
+            ? statRow("CHAPTER 1 · CURFEW PROTOCOL — NOT PLAYED · 0.0%", NEON_AMBER)
             : statRow(String.format(
-                    "CHAPTER 1 · CURFEW PROTOCOL — ESCAPED · GRADE %s · %d PTS",
-                    ch1.grade(), ch1.score()),
+                    "CHAPTER 1 · CURFEW PROTOCOL — GRADE %s · %.1f%% (50%% OF CAMPAIGN)",
+                    ch1.grade(), ch1Pct),
                 NEON_CYAN);
 
+        Label ch2Row = statRow(String.format(
+                "CHAPTER 2 · HARVEST PROTOCOL — %s · %.1f%% (50%% OF CAMPAIGN)",
+                resistancePossible ? "RESISTANCE POSSIBLE" : "MISSION FAILED",
+                ch2Pct),
+            resistancePossible ? NEON_GREEN : NEON_RED);
+
         // ── Combined campaign verdict: RESISTANCE or OVERRIDDEN ─────
-        boolean bothHold = ch1 != null && resistancePossible;
-        Label mainResult = new Label(bothHold ? "RESISTANCE" : "OVERRIDDEN");
-        mainResult.setStyle("-fx-text-fill: " + (bothHold ? NEON_GREEN : NEON_RED) + ";"
+        Label mainResult = new Label(resistance ? "RESISTANCE" : "OVERRIDDEN");
+        mainResult.setStyle("-fx-text-fill: " + (resistance ? NEON_GREEN : NEON_RED) + ";"
             + " -fx-font-size: 38px; -fx-font-weight: 900;"
             + " -fx-font-family: 'Monospaced';"
             + " -fx-letter-spacing: 5px;");
         mainResult.setEffect(new DropShadow(
             javafx.scene.effect.BlurType.GAUSSIAN,
-            Color.web(bothHold ? NEON_GREEN : NEON_RED, 0.6), 26, 0.25, 0, 0));
+            Color.web(resistance ? NEON_GREEN : NEON_RED, 0.6), 26, 0.25, 0, 0));
 
-        Label mainSub = new Label(bothHold
+        Label mainSub = new Label(resistance
             ? "BOTH CHAPTERS HELD — THE HUMAN PATH STAYS OPEN"
             : (ch1 == null
                 ? "COMPLETE CHAPTER 1 TO EARN FULL RESISTANCE"
                 : "THE OVERRIDE WINS THIS ROUND — TRY AGAIN IN CHAPTER 2"));
-        mainSub.setStyle("-fx-text-fill: " + (bothHold ? NEON_GREEN : NEON_AMBER) + ";"
+        mainSub.setStyle("-fx-text-fill: " + (resistance ? NEON_GREEN : NEON_AMBER) + ";"
             + " -fx-font-size: 13px; -fx-font-weight: bold;"
             + " -fx-font-family: 'Monospaced';"
             + " -fx-letter-spacing: 1px;");
 
-        // ── Stat list (Godot's exact lines) ────────────────────────
+        // ── Stat list ─────────────────────────────────────────────
         VBox stats = new VBox(10);
         stats.setAlignment(Pos.CENTER);
         stats.setPadding(new Insets(16, 0, 4, 0));
 
         stats.getChildren().add(ch1Row);
-        stats.getChildren().add(statRow(
-            String.format("CHAPTER 2 · HARVEST PROTOCOL — %s",
-                resistancePossible ? "RESISTANCE POSSIBLE" : "MISSION FAILED"),
-            resistancePossible ? NEON_GREEN : NEON_RED));
+        stats.getChildren().add(ch2Row);
 
         if (win) {
             stats.getChildren().add(
@@ -148,7 +164,7 @@ public class ChapterTwoResultScreen {
             NEON_AMBER));
 
         Label finalScore = new Label(String.format(
-            "FINAL SCORE: %.1f%%", score));
+            "FINAL CAMPAIGN SCORE: %.1f%%", finalPct));
         finalScore.setStyle("-fx-text-fill: " + NEON_CYAN + ";"
             + " -fx-font-size: 22px; -fx-font-weight: 900;"
             + " -fx-font-family: 'Monospaced';");
@@ -156,8 +172,13 @@ public class ChapterTwoResultScreen {
             javafx.scene.effect.BlurType.GAUSSIAN,
             Color.web(NEON_CYAN, 0.6), 18, 0.25, 0, 0));
 
+        Label breakdown = statRow(String.format(
+                "50%% CHAPTER 1 (%.1f%%) + 50%% CHAPTER 2 (%.1f%%), ON A SCALE OF 100%%",
+                ch1Pct, ch2Pct),
+            NEON_CYAN);
+
         // ── Assemble card ──────────────────────────────────────────
-        VBox card = new VBox(10, header, verdict, mainResult, mainSub, stats, finalScore, btn);
+        VBox card = new VBox(10, header, verdict, mainResult, mainSub, stats, finalScore, breakdown, btn);
         card.setAlignment(Pos.CENTER);
         card.setPadding(new Insets(24, 48, 24, 48));
         card.setMaxWidth(860);
@@ -240,6 +261,17 @@ public class ChapterTwoResultScreen {
             + " -fx-font-family: 'Monospaced';"
             + " -fx-letter-spacing: 1px;");
         return lbl;
+    }
+
+    /** Maps the latest Chapter 1 grade onto a 0-100 scale (50% of the campaign). */
+    private double chapterOnePercent(CurfewRecords.Run ch1) {
+        if (ch1 == null) return 0.0;
+        return switch (ch1.grade()) {
+            case "S" -> 100.0;
+            case "A" -> 80.0;
+            case "B" -> 60.0;
+            default  -> 40.0;
+        };
     }
 
     private String extract(String json, String key) {
