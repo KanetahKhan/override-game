@@ -63,7 +63,7 @@ public class ChapterTwoResultScreen {
 
         Label header = new Label(headerText);
         header.setStyle("-fx-text-fill: " + headerColor + ";"
-            + " -fx-font-size: 42px; -fx-font-weight: 900;"
+            + " -fx-font-size: 30px; -fx-font-weight: 900;"
             + " -fx-font-family: 'Monospaced';");
         header.setEffect(new DropShadow(
             javafx.scene.effect.BlurType.GAUSSIAN,
@@ -100,9 +100,9 @@ public class ChapterTwoResultScreen {
         boolean bothHold = ch1 != null && resistancePossible;
         Label mainResult = new Label(bothHold ? "RESISTANCE" : "OVERRIDDEN");
         mainResult.setStyle("-fx-text-fill: " + (bothHold ? NEON_GREEN : NEON_RED) + ";"
-            + " -fx-font-size: 46px; -fx-font-weight: 900;"
+            + " -fx-font-size: 38px; -fx-font-weight: 900;"
             + " -fx-font-family: 'Monospaced';"
-            + " -fx-letter-spacing: 6px;");
+            + " -fx-letter-spacing: 5px;");
         mainResult.setEffect(new DropShadow(
             javafx.scene.effect.BlurType.GAUSSIAN,
             Color.web(bothHold ? NEON_GREEN : NEON_RED, 0.6), 26, 0.25, 0, 0));
@@ -157,10 +157,10 @@ public class ChapterTwoResultScreen {
             Color.web(NEON_CYAN, 0.6), 18, 0.25, 0, 0));
 
         // ── Assemble card ──────────────────────────────────────────
-        VBox card = new VBox(14, header, verdict, mainResult, mainSub, stats, finalScore, btn);
+        VBox card = new VBox(10, header, verdict, mainResult, mainSub, stats, finalScore, btn);
         card.setAlignment(Pos.CENTER);
-        card.setPadding(new Insets(36, 60, 36, 60));
-        card.setMaxWidth(760);
+        card.setPadding(new Insets(24, 48, 24, 48));
+        card.setMaxWidth(860);
         card.setStyle("-fx-border-color: rgba(0,255,255,0.35); -fx-border-width: 1;"
             + " -fx-border-radius: 6; -fx-background-color: rgba(0,255,255,0.04);"
             + " -fx-background-radius: 6;");
