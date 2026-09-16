@@ -89,7 +89,10 @@ public class ChapterMapScreen {
         play.setDisable(!unlocked);
         play.setOnAction(e -> {
             switch (chNum) {
-                case 1 -> Main.switchScene(new CurfewProtocolScreen().build());
+                // Only Chapter 1 gets this film; Harvest Protocol keeps its existing opening.
+                case 1 -> Main.switchScene(new IntroStoryScreen(
+                    () -> Main.switchScene(new CurfewProtocolScreen().build())
+                ).build());
                 case 2 -> GodotGameLauncher.launchGodotAtWindowSize();
                 default -> new javafx.scene.control.Alert(
                     javafx.scene.control.Alert.AlertType.INFORMATION,
