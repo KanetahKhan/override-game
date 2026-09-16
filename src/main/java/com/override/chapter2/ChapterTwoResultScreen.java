@@ -5,7 +5,8 @@ import com.override.chapter1.CurfewRecords;
 import com.override.game.minigames.GodotGameLauncher;
 import com.override.shared.model.GameState;
 import com.override.shared.service.SaveService;
-import com.override.shared.ui.ChapterMapScreen;
+import com.override.shared.service.ScoreboardService;
+import com.override.shared.ui.ScoreboardScreen;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.geometry.Insets;
@@ -86,12 +87,26 @@ public class ChapterTwoResultScreen {
             + " -fx-font-family: 'Monospaced';"
             + " -fx-letter-spacing: 3px;");
 
-        // ── Continue button ────────────────────────────────────────
-        Button btn = new Button("CONTINUE");
-        btn.getStyleClass().add("asset-button");
-        btn.setOnAction(e -> {
+        // ── Actions: see the scoreboard, or replay the whole campaign ──
+        // Replay is a full restart (Chapter 1 → 2); Chapter 2 can only be
+        // reached by playing the campaign again, never standalone.
+        Button boardBtn = new Button("SEE SCOREBOARD");
+        boardBtn.getStyleClass().add("asset-button");
+        boardBtn.setOnAction(e -> {
             GodotGameLauncher.clearResult();
-            Main.switchScene(new ChapterMapScreen().build());
+            Main.switchScene(new ScoreboardScreen().build());
+        });
+
+        Button replayBtn = new Button("REPLAY");
+        replayBtn.getStyleClass().add("asset-button");
+        replayBtn.getStyleClass().add("secondary");
+        replayBtn.setOnAction(e -> {
+            GodotGameLauncher.clearResult();
+            GameState.reset();
+            Main.switchScene(new com.override.shared.ui.IntroStoryScreen(
+                () -> Main.switchScene(
+                    new com.override.chapter1.CurfewProtocolScreen().build())
+            ).build());
         });
 
         // ── Chapter 1 latest run (for the combined campaign verdict) ─
@@ -102,6 +117,16 @@ public class ChapterTwoResultScreen {
         double ch2Pct = Math.max(0.0, Math.min(100.0, score));
         double finalPct = (ch1Pct + ch2Pct) / 2.0;
         boolean resistance = finalPct >= 50.0;
+
+        // Record this finished run on the campaign scoreboard (local until
+        // the login system lands; signature dedupes repeat viewings).
+        ScoreboardService.load().record(
+            new ScoreboardService.CampaignRun(
+                GameState.get().getPlayer().getDisplayName(),
+                finalPct,
+                resistance ? "RESISTANCE" : "OVERRIDDEN",
+                System.currentTimeMillis()),
+            json);
 
         Label ch1Row = ch1 == null
             ? statRow("CHAPTER 1 · CURFEW PROTOCOL — NOT PLAYED · 0.0%", NEON_AMBER)
@@ -172,8 +197,11 @@ public class ChapterTwoResultScreen {
             javafx.scene.effect.BlurType.GAUSSIAN,
             Color.web(NEON_CYAN, 0.6), 18, 0.25, 0, 0));
 
+        HBox actions = new HBox(18, boardBtn, replayBtn);
+        actions.setAlignment(Pos.CENTER);
+
         // ── Assemble card ──────────────────────────────────────────
-        VBox card = new VBox(10, header, verdict, mainResult, mainSub, stats, finalScore, btn);
+        VBox card = new VBox(10, header, verdict, mainResult, mainSub, stats, finalScore, actions);
         card.setAlignment(Pos.CENTER);
         card.setPadding(new Insets(24, 48, 24, 48));
         card.setMaxWidth(860);
