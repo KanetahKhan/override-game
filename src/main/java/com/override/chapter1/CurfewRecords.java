@@ -18,7 +18,7 @@ import java.util.Properties;
  * {@code ~/.override/curfew-records.properties}; the all-time best per
  * difficulty is also synced to the backend through HighScoreClient.
  */
-final class CurfewRecords {
+public final class CurfewRecords {
 
     record Achievement(String id, String title, String description) {}
 
@@ -32,7 +32,7 @@ final class CurfewRecords {
         new Achievement("ARCHIVIST", "Archivist", "Read all six notes on the floor."));
 
     /** One escape: its score, how long it took, the grade and how often Astra helped. */
-    record Run(int score, int escapeSecs, String grade, int astra, long when) {
+    public record Run(int score, int escapeSecs, String grade, int astra, long when) {
         String encode() {
             return score + "|" + escapeSecs + "|" + grade + "|" + astra + "|" + when;
         }
@@ -126,6 +126,20 @@ final class CurfewRecords {
         if (fastest < 0 || run.escapeSecs() < fastest) props.setProperty("fastest." + d.name(), String.valueOf(run.escapeSecs()));
         save();
         return rank <= TOP ? rank : 0;
+    }
+
+    /** The most recent recorded run across all difficulties, or null if none. */
+    public static Run latestRun() {
+        CurfewRecords r = load();
+        Run latest = null;
+        for (CurfewDifficulty d : CurfewDifficulty.values()) {
+            for (Run run : r.topRuns(d)) {
+                if (run != null && (latest == null || run.when() > latest.when())) {
+                    latest = run;
+                }
+            }
+        }
+        return latest;
     }
 
     /** Fastest escape on this difficulty in seconds, or -1 if there is none yet. */

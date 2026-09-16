@@ -12,6 +12,7 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import javafx.application.Platform;
 
 /**
  * Launches Chapter 2 – Harvest Protocol, the Godot endless runner in
@@ -35,7 +36,7 @@ public final class GodotGameLauncher {
     private static final String POINTER_FILE = "godot-path.txt";
 
     private static Process godotProcess;
-    private static Runnable processExitHook;
+    private static volatile Runnable processExitHook;
 
     private GodotGameLauncher() {}
 
@@ -76,9 +77,9 @@ public final class GodotGameLauncher {
         if (godotProcess != null) {
             new Thread(() -> {
                 try {
-                    int code = godotProcess.waitFor();
+                    godotProcess.waitFor();
                     if (processExitHook != null) {
-                        processExitHook.run();
+                        Platform.runLater(processExitHook);
                     }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -127,12 +128,19 @@ public final class GodotGameLauncher {
         }
     }
 
-    public static void onProcessExit(Runnable action) {
+    public static boolean isProcessAlive() {
+        return godotProcess != null && godotProcess.isAlive();
+    }
+
+    public static boolean onProcessExit(Runnable action) {
         if (godotProcess != null && godotProcess.isAlive()) {
             processExitHook = action;
-        } else if (action != null) {
+            return false;
+        }
+        if (action != null) {
             action.run();
         }
+        return true;
     }
 
     public static Path gameSource() {
