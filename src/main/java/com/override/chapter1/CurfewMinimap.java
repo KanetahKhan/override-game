@@ -25,6 +25,8 @@ final class CurfewMinimap extends Pane {
 
     private final List<CurfewWorld.MapRoom> rooms;
     private final Circle sentinel = marker("minimap-robot", 5, ROBOT);
+    /** The Nightmare escort; hidden on every other difficulty. */
+    private final Circle escort = marker("minimap-robot-2", 5, ROBOT);
     private final Circle player = marker("minimap-player", 4, PLAYER);
     private final Line facing = new Line();
     private final Polygon scanCone = new Polygon();
@@ -55,7 +57,8 @@ final class CurfewMinimap extends Pane {
         detail.setLayoutX(LEFT);
         detail.setLayoutY(182);
         detail.setPrefWidth(WIDTH - LEFT * 2);
-        getChildren().addAll(plan, scanCone, facing, sentinel, player, detail);
+        escort.setVisible(false);
+        getChildren().addAll(plan, scanCone, facing, sentinel, escort, player, detail);
         update(world.snapshot());
     }
 
@@ -111,6 +114,11 @@ final class CurfewMinimap extends Pane {
         player.setCenterY(y);
         sentinel.setCenterX(mapX(tick.sx()));
         sentinel.setCenterY(mapZ(tick.sz()));
+        escort.setVisible(tick.twoUnits());
+        if (tick.twoUnits()) {
+            escort.setCenterX(mapX(tick.ex()));
+            escort.setCenterY(mapZ(tick.ez()));
+        }
         facing.setStartX(x);
         facing.setStartY(y);
         facing.setEndX(x - Math.sin(tick.yaw()) * 10);

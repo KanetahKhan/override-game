@@ -116,7 +116,7 @@ public final class MinimapSmoke {
 
     private static CurfewWorld.Tick tick(double px, double pz, double sx, double sz, double yaw) {
         return new CurfewWorld.Tick(px, pz, sx, sz, "PATROL", Math.hypot(px - sx, pz - sz),
-            true, 1, "HIDDEN", null, 0, false, 0, yaw, 0);
+            true, 1, "HIDDEN", null, 0, false, 0, yaw, 0, false, 0, 0);
     }
 
     @SuppressWarnings("unchecked")

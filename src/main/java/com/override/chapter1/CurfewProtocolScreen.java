@@ -25,6 +25,8 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.control.Slider;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -120,6 +122,25 @@ public class CurfewProtocolScreen {
     // run state
     private Phase phase = Phase.INTRO;
     private int hp = 3, credits, secs;
+    /** Seconds to reach the exit once the floor goes into lockdown. */
+    private static final int LOCKDOWN_SECONDS = 60;
+    private int lockdownSecs;
+    private boolean lockdownOn;
+    /** Last-chance EMP round: buy your way out of a grab with run credits. */
+    private static final int EMP_COST = 40;
+    private static final int EMP_MAX_USES = 2;
+    private static final double EMP_STUN = 5.0;
+    private static final double EMP_WINDOW = 2.0;
+    private int empUses;
+    private static Image[] EMP_FRAMES;
+    private boolean empOffered;
+    private String pendingCatch;
+    private Timeline empCountdown;
+
+    /** One scripted power cut per run. */
+    private static final int BLACKOUT_SECONDS = 30;
+    private int blackoutAt;
+    private boolean blackoutDone;
     private final Set<String> tokens = new HashSet<>();
     private boolean hiddenNow, sentinelSeen;
     private double suspicion;
@@ -140,8 +161,11 @@ public class CurfewProtocolScreen {
     // scene nodes
     private final StackPane root = new StackPane();
     private final StackPane overlayLayer = new StackPane();
+    /** Full-screen effects (the EMP blast) above the HUD, below any menu. */
+    private final StackPane effectLayer = new StackPane();
     private StackPane pauseShade, noteView, settingsView;
     private Region integrityFill, staminaFill, suspicionFill, chaseFlash;
+    private Label clockCaption;
     private Label integrityLabel, alertLabel, dependencyLabel, clockLabel, creditsLabel, objectiveLabel,
         postureLabel, booksLabel, promptLabel, hideLabel, toastTag, toastText, hackAlert;
     private HBox promptBox, hideBox;
@@ -213,7 +237,8 @@ public class CurfewProtocolScreen {
         mapLayer.setMouseTransparent(true);
         AnchorPane.setBottomAnchor(minimap, 22.0);
         AnchorPane.setRightAnchor(minimap, 22.0);
-        root.getChildren().addAll(world.view(), vignette, scan, chaseFlash, hud, overlayLayer, mapLayer);
+        effectLayer.setMouseTransparent(true);
+        root.getChildren().addAll(world.view(), vignette, scan, chaseFlash, hud, effectLayer, overlayLayer, mapLayer);
         wireInput();
 
         clockTimer.setCycleCount(Animation.INDEFINITE);
@@ -272,7 +297,8 @@ public class CurfewProtocolScreen {
             slots.getChildren().add(nodeSlots[i]);
         }
         creditsLabel = text("0 CR", MONO, 15, "#ffb347");
-        VBox topRight = new VBox(4, text("CURFEW ENDS IN", MONO, 12, "rgba(126,243,232,0.6)"), clockLabel, slots, creditsLabel);
+        clockCaption = text("CURFEW ENDS IN", MONO, 12, "rgba(126,243,232,0.6)");
+        VBox topRight = new VBox(4, clockCaption, clockLabel, slots, creditsLabel);
         topRight.setAlignment(Pos.TOP_RIGHT);
         VBox.setMargin(creditsLabel, new Insets(5, 0, 0, 0));
         AnchorPane.setTopAnchor(topRight, 20.0);
@@ -389,8 +415,15 @@ public class CurfewProtocolScreen {
         creditsLabel.setText(credits + " CR");
         dependencyLabel.setText(GameState.get().getDependency() + "%" + (astraUses > 0 ? "   ASTRA ×" + astraUses : ""));
         booksLabel.setText(String.valueOf(books));
-        clockLabel.setText(clock(secs));
-        recolor(clockLabel, secs < 60 ? "#ff5a4a" : "#e8fbf8");
+        if (lockdownOn) {
+            clockCaption.setText("GET OUT");
+            recolor(clockCaption, "#ff3d5a");
+            clockLabel.setText(clock(lockdownSecs));
+            recolor(clockLabel, "#ff3d5a");
+        } else {
+            clockLabel.setText(clock(secs));
+            recolor(clockLabel, secs < 60 ? "#ff5a4a" : "#e8fbf8");
+        }
         String[] ids = {"node1", "node2", "node3"};
         for (int i = 0; i < 3; i++) {
             boolean got = tokens.contains(ids[i]);
@@ -408,7 +441,8 @@ public class CurfewProtocolScreen {
         String hide = hiddenNow ? "Step out" : hideHint;
         hideBox.setVisible(playing && hide != null);
         if (hide != null) hideLabel.setText(hide);
-        boolean chasing = "CHASE".equals(alert) && !hiddenNow && phase == Phase.PLAY;
+        boolean chasing = phase == Phase.PLAY
+            && (lockdownOn || ("CHASE".equals(alert) && !hiddenNow));
         suspicionBar.setVisible(playing && !chasing && !hiddenNow && suspicion > 0.02);
         suspicionFill.setMaxWidth(190 * suspicion);
         boolean flash = chasing && settings.chaseFlash;
@@ -559,6 +593,142 @@ public class CurfewProtocolScreen {
     }
 
     private void caught(String how) {
+        // The unit has you: one breath to spend credits and blow it off you.
+        if (canFireEmp()) {
+            offerEmp(how);
+            return;
+        }
+        applyCatch(how);
+    }
+
+    private boolean canFireEmp() {
+        return phase == Phase.PLAY && nodeGame == null && !empOffered
+            && empUses < EMP_MAX_USES && credits >= EMP_COST;
+    }
+
+    /** Freezes the floor and gives the player EMP_WINDOW seconds to answer. */
+    private void offerEmp(String how) {
+        empOffered = true;
+        pendingCatch = how;
+        world.setPaused(true);
+        unlockMouse();
+        ChiptuneSfx.wrongFix();
+
+        Label heading = text("THE UNIT HAS YOU", MONO, 13, "#ff3d5a");
+        Label prompt = text("[F]  FIRE EMP ROUND  -  " + EMP_COST + " CR", MONO, 30, "#ffb347");
+        Label left = text((EMP_MAX_USES - empUses) + " round(s) loaded   ·   credits are your grade",
+            MONO, 12, "rgba(255,179,71,0.75)");
+        Region fuse = new Region();
+        fuse.setStyle("-fx-background-color: linear-gradient(to right, #ff3d5a, #ffb347);");
+        fuse.setMaxHeight(6);
+        fuse.setPrefWidth(420);
+        StackPane fuseTrack = new StackPane(fuse);
+        fuseTrack.setAlignment(Pos.CENTER_LEFT);
+        fuseTrack.setMaxSize(420, 6);
+        fuseTrack.setStyle("-fx-background-color: rgba(255,61,90,0.15); -fx-border-color: rgba(255,61,90,0.5);");
+
+        VBox box = new VBox(14, heading, prompt, fuseTrack, left);
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(28));
+        box.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        box.setStyle("-fx-background-color: rgba(8,3,5,0.92); -fx-border-color: #ff3d5a;");
+        StackPane shade = new StackPane(box);
+        shade.setStyle("-fx-background-color: rgba(40,0,6,0.45);");
+        overlayLayer.getChildren().setAll(shade);
+
+        empCountdown = new Timeline();
+        int steps = 30;
+        for (int i = 1; i <= steps; i++) {
+            final double fraction = 1.0 - (double) i / steps;
+            empCountdown.getKeyFrames().add(new KeyFrame(
+                Duration.seconds(EMP_WINDOW * i / steps), ev -> fuse.setPrefWidth(420 * fraction)));
+        }
+        empCountdown.setOnFinished(ev -> declineEmp(how));
+        empCountdown.play();
+    }
+
+    private void declineEmp(String how) {
+        if (!empOffered) return;
+        closeEmpPrompt();
+        applyCatch(how);
+        // offerEmp() froze the floor to ask the question: hand it back, unless
+        // the grab ended the run or the player opened the pause menu meanwhile.
+        if (phase == Phase.PLAY) {
+            world.setPaused(false);
+            lockMouse();
+        }
+    }
+
+    private void fireEmp() {
+        if (!empOffered) return;
+        closeEmpPrompt();
+        empUses++;
+        credits -= EMP_COST;
+        world.stunSentinel(EMP_STUN);
+        ChiptuneSfx.emp();
+        playEmpBurst();
+        toast("Round away. The unit is down for " + (int) EMP_STUN + " seconds - move.",
+            "EMP FIRED  -" + EMP_COST + " CR", "#ffb347");
+        world.setPaused(false);
+        lockMouse();
+        refreshHud();
+    }
+
+    /** 20-frame pixel blast (PixelSimulations) right where the unit was standing. */
+    private void playEmpBurst() {
+        Image[] frames = empFrames();
+        if (frames.length == 0) return;
+        ImageView burst = new ImageView(frames[0]);
+        burst.setFitWidth(520);
+        burst.setFitHeight(520);
+        burst.setPreserveRatio(true);
+        burst.setSmooth(false);          // keep the pixels crisp
+        burst.setMouseTransparent(true);
+        Region flash = new Region();
+        flash.setStyle("-fx-background-color: rgba(255,214,140,0.85);");
+        flash.setMouseTransparent(true);
+        StackPane layer = new StackPane(flash, burst);
+        layer.setMouseTransparent(true);
+        effectLayer.getChildren().setAll(layer);
+
+        FadeTransition flashOut = new FadeTransition(Duration.millis(260), flash);
+        flashOut.setFromValue(1);
+        flashOut.setToValue(0);
+        flashOut.play();
+
+        Timeline film = new Timeline();
+        for (int i = 0; i < frames.length; i++) {
+            final Image frame = frames[i];
+            film.getKeyFrames().add(new KeyFrame(Duration.millis(38.0 * i), ev -> burst.setImage(frame)));
+        }
+        film.setOnFinished(ev -> effectLayer.getChildren().clear());
+        film.play();
+    }
+
+    private static Image[] empFrames() {
+        if (EMP_FRAMES == null) {
+            List<Image> loaded = new ArrayList<>();
+            for (int i = 1; i <= 20; i++) {
+                String name = String.format("/images/curfew/emp/%04d.png", i);
+                var url = CurfewProtocolScreen.class.getResource(name);
+                if (url != null) loaded.add(new Image(url.toExternalForm()));
+            }
+            EMP_FRAMES = loaded.toArray(new Image[0]);
+        }
+        return EMP_FRAMES;
+    }
+
+    private void closeEmpPrompt() {
+        empOffered = false;
+        pendingCatch = null;
+        if (empCountdown != null) {
+            empCountdown.stop();
+            empCountdown = null;
+        }
+        overlayLayer.getChildren().clear();
+    }
+
+    private void applyCatch(String how) {
         boolean midHack = nodeGame != null;
         if (midHack) {
             closeNodeGameSilently();
@@ -759,8 +929,12 @@ public class CurfewProtocolScreen {
     private void startRun() {
         phase = Phase.PLAY;
         secs = difficulty.seconds;
+        // Astra pulls the power once per run, somewhere in the middle of it.
+        blackoutAt = secs - 60 - new java.util.Random().nextInt(60);
+        blackoutDone = false;
         world.setDifficulty(difficulty.speed);
         world.setAwareness(difficulty.awareness);
+        world.setSecondUnit(difficulty.secondUnit);
         overlayLayer.getChildren().clear();
         world.setPaused(false);
         clockTimer.play();
@@ -772,7 +946,19 @@ public class CurfewProtocolScreen {
         // the curfew keeps counting during hacks, but waits while you read a note
         if (phase != Phase.PLAY || noteView != null) return;
         secs--;
-        if (secs <= 0) { secs = 0; finish(false, "time"); }
+        if (secs <= 0) { secs = 0; finish(false, "time"); return; }
+        if (!blackoutDone && !lockdownOn && secs <= blackoutAt) {
+            blackoutDone = true;
+            world.blackout(BLACKOUT_SECONDS);
+            ChiptuneSfx.emp();
+            toast("Astra pulled the breakers. It does not need the lights — you do.", "POWER CUT", ASTRA_COLOR);
+        }
+        if (lockdownOn) {
+            lockdownSecs--;
+            // The alarm beats faster as the escape window closes.
+            if (lockdownSecs <= 10 || lockdownSecs % 2 == 0) ChiptuneSfx.chaseBeat();
+            if (lockdownSecs <= 0) { lockdownSecs = 0; finish(false, "lockdown"); return; }
+        }
         refreshHud();
     }
 
@@ -883,8 +1069,10 @@ public class CurfewProtocolScreen {
                 world.unlockExit();
                 world.lockdown();
                 ChiptuneSfx.boss();
-                objectiveLabel.setText("LOCKDOWN. The unit is faster now — get to the EXIT BAY door, south-east corner.");
-                toast("The floor knows. Lights are red and the unit is sweeping for you.", "LOCKDOWN", "#ff3d5a");
+                lockdownOn = true;
+                lockdownSecs = LOCKDOWN_SECONDS;
+                objectiveLabel.setText("LOCKDOWN. " + LOCKDOWN_SECONDS + " seconds to the EXIT BAY, south-east corner. It is not patrolling any more.");
+                toast("The floor knows. It stops hunting when you are out of the building.", "LOCKDOWN", "#ff3d5a");
             } else {
                 objectiveLabel.setText((3 - n) + " node" + (n == 2 ? "" : "s") + " left. Sweep the labs and the server room.");
             }
@@ -1002,6 +1190,9 @@ public class CurfewProtocolScreen {
                     + (astraUses > 0 ? " Astra helped " + astraUses + "× — the Dependency Meter noted every one." : ""); }
             case "time" -> { tag = "CURFEW CLOSED"; title = "TIME RAN OUT"; col = "#ffb347";
                 body = "The floor locked down around you. Faster sweeps next run — the furniture pays, but it costs seconds."; }
+            case "lockdown" -> { tag = "LOCKDOWN EXPIRED"; title = "THE FLOOR SEALED"; col = "#ff3d5a";
+                body = "Every door bolted with you still inside. You had the tokens — you just needed the exit bay sooner. "
+                    + "Next run, sweep the furniture before the last node, not after."; }
             default -> { tag = "INTEGRITY ZERO"; title = "THE UNIT TOOK YOU"; col = "#ff3d5a";
                 body = "Three grabs and the sentinel had your pattern. Hide where it can't see you go in — and use the almirahs."; }
         }
@@ -1253,6 +1444,12 @@ public class CurfewProtocolScreen {
     private void keyPressed(KeyEvent e) {
         KeyCode k = e.getCode();
         boolean fresh = held.add(k);
+        if (empOffered) {
+            if (fresh && k == KeyCode.F) fireEmp();
+            else if (fresh && k == KeyCode.ESCAPE) declineEmp(pendingCatch);
+            e.consume();
+            return;
+        }
         if (k == KeyCode.ESCAPE) {
             if (settingsView != null) closeSettings();
             else if (phase == Phase.PAUSED) resume();
