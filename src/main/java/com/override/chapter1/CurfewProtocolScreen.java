@@ -474,6 +474,8 @@ public class CurfewProtocolScreen {
         @Override public void onHover(String id, String label, String verb) {
             prompt = id == null ? null : verb + " — " + label;
             if (prompt != null) promptLabel.setText(prompt);
+            crosshair.setStyle("-fx-border-color: " + (id == null ? "rgba(126,243,232,0.45)" : "#ffcf83")
+                + "; -fx-border-radius: 9; -fx-border-width: " + (id == null ? "1" : "2") + ";");
             refreshHud();
         }
 
@@ -579,6 +581,7 @@ public class CurfewProtocolScreen {
             case "book" -> toast("Book taken. G throws it — the thud pulls the unit away.", "ITEM", "#7ef3e8");
             case "note" -> openNote(id);
             case "almirah" -> toast(open ? "Almirah open — you can climb in with F." : "Almirah shut.", "FURNITURE", "#7ef3e8");
+            case "workstation" -> toast(open ? "Workstation display on." : "Workstation display off.", "LAB", "#7ef3e8");
             case "drawer" -> toast(open ? "Drawer open." : "Drawer shut.", "FURNITURE", "#7ef3e8");
             default -> { }
         }
