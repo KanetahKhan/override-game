@@ -180,24 +180,21 @@ private void startProgress(StackPane page, Region barFill, Label status) {
     }
 
     private void finish(StackPane page, boolean launched) {
+        // ── Game already exited during the loading bar (instant crash / short run)
+        if (launched && !GodotGameLauncher.isProcessAlive()) {
+            restoreJavaWindow();
+            if (GodotGameLauncher.hasResult()) {
+                Main.switchScene(new ChapterTwoResultScreen().build());
+            }
+            return;
+        }
+
         if (launched) {
             // Chapter 2 is still running as its own window — hang the map screen
-            // in the background, and as soon as the game process closes, hand over
-            // to the Java result screen (if the game wrote a result) and bring the
-            // Java stage back to the front.
-            boolean alreadyExited = GodotGameLauncher.onProcessExit(() -> {
-                restoreJavaWindow();
-                if (GodotGameLauncher.hasResult()) {
-                    Main.switchScene(new ChapterTwoResultScreen().build());
-                }
-            });
-
-            // If the game already exited (instant crash / very short run), the
-            // callback above already switched to the ResultScreen — bail out
-            // before we overwrite it with ChapterMapScreen below.
-            if (alreadyExited) {
-                return;
-            }
+            // in the background, and poll for the game process to exit.  When it
+            // does, restore the Java stage and show the ResultScreen.  Everything
+            // runs on the FX thread, so no volatile / Platform.runLater needed.
+            startProcessWatcher();
 
             // Give the game window a beat to reveal itself (it was booted hidden
             // under the fake loading bar), then drop the Java stage to the taskbar
@@ -215,6 +212,27 @@ private void startProgress(StackPane page, Region barFill, Label status) {
                 + "open Chapter2.exe directly — no Godot install is needed.");
             a.showAndWait();
         }
+    }
+
+    /**
+     * FX-thread poller: checks every 600 ms whether the Godot process has exited.
+     * When it has, restores the Java window and shows the ResultScreen.
+     * No daemon threads, no volatile, no Platform.runLater — everything on the
+     * Application Thread so {@code Main.switchScene} is always safe.
+     */
+    private void startProcessWatcher() {
+        Timeline poller = new Timeline();
+        poller.getKeyFrames().add(new KeyFrame(Duration.millis(600), e -> {
+            if (!GodotGameLauncher.isProcessAlive()) {
+                poller.stop();
+                restoreJavaWindow();
+                if (GodotGameLauncher.hasResult()) {
+                    Main.switchScene(new ChapterTwoResultScreen().build());
+                }
+            }
+        }));
+        poller.setCycleCount(Timeline.INDEFINITE);
+        poller.play();
     }
 
     /** Store the stage's full-screen state, then minimize it off-screen. */
