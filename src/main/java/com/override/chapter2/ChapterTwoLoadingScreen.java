@@ -185,12 +185,19 @@ private void startProgress(StackPane page, Region barFill, Label status) {
             // in the background, and as soon as the game process closes, hand over
             // to the Java result screen (if the game wrote a result) and bring the
             // Java stage back to the front.
-            GodotGameLauncher.onProcessExit(() -> {
+            boolean alreadyExited = GodotGameLauncher.onProcessExit(() -> {
                 restoreJavaWindow();
                 if (GodotGameLauncher.hasResult()) {
                     Main.switchScene(new ChapterTwoResultScreen().build());
                 }
             });
+
+            // If the game already exited (instant crash / very short run), the
+            // callback above already switched to the ResultScreen — bail out
+            // before we overwrite it with ChapterMapScreen below.
+            if (alreadyExited) {
+                return;
+            }
 
             // Give the game window a beat to reveal itself (it was booted hidden
             // under the fake loading bar), then drop the Java stage to the taskbar

@@ -131,12 +131,15 @@ public final class GodotGameLauncher {
         }
     }
 
-    public static void onProcessExit(Runnable action) {
+    public static boolean onProcessExit(Runnable action) {
         if (godotProcess != null && godotProcess.isAlive()) {
             processExitHook = action;
-        } else if (action != null) {
+            return false;
+        }
+        if (action != null) {
             action.run();
         }
+        return true;
     }
 
     public static Path gameSource() {
