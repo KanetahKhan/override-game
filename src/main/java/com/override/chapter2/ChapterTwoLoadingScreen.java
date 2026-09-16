@@ -3,6 +3,8 @@ package com.override.chapter2;
 import com.override.Main;
 import com.override.game.minigames.GodotGameLauncher;
 import com.override.shared.ui.ChapterMapScreen;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
@@ -38,8 +40,8 @@ public class ChapterTwoLoadingScreen {
     private boolean isReversed = false;
     private Label titleLabel;
     private boolean wasFullScreen = false;
+    private boolean wasMaximized = false;
     private Timeline processPoller;
-    private PauseTransition revealBreak;
 
     public Parent build() {
         // ── Title ──────────────────────────────────────────────────
@@ -164,7 +166,11 @@ public class ChapterTwoLoadingScreen {
 
     // ── Progress ───────────────────────────────────────────────────
 
-private void startProgress(Region barFill, Label status) {
+    private void startProgress(Region barFill, Label status) {
+        // Pin this screen above everything first, then start the game: it boots
+        // (black splash and all) hidden behind the loading bar, so by the time
+        // the bar finishes the game is ready and the swap has nothing to wait for.
+        keepJavaWindowOnTop();
         boolean launched = GodotGameLauncher.launchGodotBackgroundStart();
 
         double trackW = 560;
@@ -177,45 +183,47 @@ private void startProgress(Region barFill, Label status) {
                 status.setText("\u25B8 " + STATUS[idx]);
             }));
         }
-        tl.setOnFinished(e -> finish(status, launched));
+        tl.setOnFinished(e -> beginHandoff(status, launched));
         tl.play();
     }
 
-    private void finish(Label status, boolean launched) {
+    /**
+     * The seam between chapters: fade this screen to black, and only then
+     * start the game and move the JavaFX window out of the way. Every window
+     * change happens while the screen is solid black, so the player sees one
+     * continuous picture instead of a window swap.
+     */
+    /**
+     * The seam between chapters. The game has been booting behind this screen
+     * for the whole loading bar, so the swap is instant: this window steps out
+     * of the way and the ready game window is already there. No black gap, and
+     * this screen stays up behind it as the backdrop.
+     */
+    private void beginHandoff(Label status, boolean launched) {
         if (!launched) {
+            releaseJavaWindow();
             Main.switchScene(new ChapterMapScreen().build());
             Alert a = new Alert(Alert.AlertType.ERROR,
                 "Chapter 2 could not be launched.\n\n"
                 + GodotGameLauncher.gameSource() + "\n\n"
                 + "Export the game once with GodotGameLauncher.exportGame() so players can\n"
-                + "open Chapter2.exe directly — no Godot install is needed.");
+                + "open Chapter2.exe directly - no Godot install is needed.");
             a.showAndWait();
             return;
         }
 
-        // ── Game already exited while the fake loading bar was running ──
+        // Game already finished while the bar was running (very short run or a crash).
         if (!GodotGameLauncher.isProcessAlive()) {
             restoreJavaWindow();
-            if (GodotGameLauncher.hasResult()) {
-                Main.switchScene(new ChapterTwoResultScreen().build());
-            } else {
-                Main.switchScene(new ChapterMapScreen().build());
-            }
+            Main.switchScene(GodotGameLauncher.hasResult()
+                ? new ChapterTwoResultScreen().build()
+                : new ChapterMapScreen().build());
             return;
         }
 
-        // ── Game is running in its own window: hold THIS screen as the backdrop
-        //    and wait for the result JSON main.gd writes just before quitting.
-        //    No ChapterMap in the middle — the ResultScreen is the next step.
-        status.setText("\u25B8 MISSION UNDERWAY — STAND BY");
+        status.setText("▸ MISSION UNDERWAY — STAND BY");
+        sendJavaWindowBehind();
         startProcessWatcher();
-
-        // Give the game window a beat to reveal itself (it was booted hidden
-        // under the fake loading bar), then drop the Java stage to the taskbar
-        // so the game grabs focus automatically — no manual taskbar click.
-        revealBreak = new PauseTransition(Duration.millis(1500));
-        revealBreak.setOnFinished(e -> iconifyJavaWindow());
-        revealBreak.play();
     }
 
     /**
@@ -249,27 +257,66 @@ private void startProgress(Region barFill, Label status) {
     }
 
     /** Store the stage's full-screen state, then minimize it off-screen. */
-    private void iconifyJavaWindow() {
+    /** Holds this screen above the booting game window so its splash never shows. */
+    private void keepJavaWindowOnTop() {
+        Stage s = Main.getStage();
+        if (s != null && s.isShowing()) {
+            s.setAlwaysOnTop(true);
+        }
+    }
+
+    /** Undoes {@link #keepJavaWindowOnTop()} without moving the window. */
+    private void releaseJavaWindow() {
+        Stage s = Main.getStage();
+        if (s != null) {
+            s.setAlwaysOnTop(false);
+        }
+    }
+
+    /** Drops the stage out of full screen and behind the game, without minimising. */
+    private void sendJavaWindowBehind() {
         Stage s = Main.getStage();
         if (s == null || !s.isShowing()) {
             return;
         }
         wasFullScreen = s.isFullScreen();
+        wasMaximized = s.isMaximized();
+        s.setAlwaysOnTop(false);
         s.setFullScreen(false);
-        s.setIconified(true);
+        s.setMaximized(true);   // still covers the screen, just no longer on top
+        s.toBack();
     }
 
-    /** Un-minimize the Java stage and pull it to the front of the screen. */
     private void restoreJavaWindow() {
         Stage s = Main.getStage();
         if (s == null) {
             return;
         }
+        s.setAlwaysOnTop(false);
         s.setIconified(false);
         s.toFront();
         s.requestFocus();
-        if (wasFullScreen) {
-            s.setFullScreen(true);
+        if (!wasFullScreen) {
+            s.setMaximized(wasMaximized);
+            return;
         }
+        // Windows ignores a full-screen request from a window that is not yet
+        // in the foreground, so give the stage a beat and retry once it has focus.
+        PauseTransition settle = new PauseTransition(Duration.millis(150));
+        settle.setOnFinished(e -> {
+            s.setFullScreen(true);
+            if (!s.isFullScreen()) {
+                s.focusedProperty().addListener(new ChangeListener<Boolean>() {
+                    @Override
+                    public void changed(ObservableValue<? extends Boolean> o, Boolean was, Boolean now) {
+                        if (now) {
+                            s.setFullScreen(true);
+                            s.focusedProperty().removeListener(this);
+                        }
+                    }
+                });
+            }
+        });
+        settle.play();
     }
 }
