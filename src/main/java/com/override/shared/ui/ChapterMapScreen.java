@@ -4,8 +4,6 @@ import com.override.Main;
 import com.override.shared.model.GameState;
 import com.override.shared.service.SaveService;
 import com.override.chapter1.CurfewProtocolScreen;
-import com.override.chapter2.ChapterTwoResultScreen;
-import com.override.chapter2.ChapterTwoTutorialScreen;
 import com.override.game.minigames.GodotGameLauncher;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -92,13 +90,7 @@ public class ChapterMapScreen {
         play.setOnAction(e -> {
             switch (chNum) {
                 case 1 -> Main.switchScene(new CurfewProtocolScreen().build());
-                case 2 -> {
-                    if (GodotGameLauncher.hasResult()) {
-                        Main.switchScene(new ChapterTwoResultScreen().build());
-                    } else {
-                        Main.switchScene(new ChapterTwoTutorialScreen().build());
-                    }
-                }
+                case 2 -> GodotGameLauncher.launchGodotAtWindowSize();
                 default -> new javafx.scene.control.Alert(
                     javafx.scene.control.Alert.AlertType.INFORMATION,
                     "Chapter " + label + ": " + name + "\n\nUnknown chapter."
