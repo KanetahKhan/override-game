@@ -131,6 +131,10 @@ public final class GodotGameLauncher {
         }
     }
 
+    public static boolean isProcessAlive() {
+        return godotProcess != null && godotProcess.isAlive();
+    }
+
     public static boolean onProcessExit(Runnable action) {
         if (godotProcess != null && godotProcess.isAlive()) {
             processExitHook = action;
