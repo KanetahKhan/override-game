@@ -876,7 +876,7 @@ public class CurfewProtocolScreen {
         nodeGame = switch (kind) {
             case "kp" -> CurfewNodeGames.kernelPanic(difficulty.kernelSpeed, this::closeGame);
             case "cb" -> CurfewNodeGames.circuitBreaker(difficulty.hackTime, this::closeGame);
-            default -> CurfewNodeGames.syntaxSnake(this::closeGame);
+            default -> CurfewNodeGames.syntaxSnake(difficulty.hackTime, this::closeGame);
         };
         hackAlert.setText("JACKED IN · THE UNIT IS STILL WALKING");
         StackPane holder = new StackPane(nodeGame.view(), hackAlert);
