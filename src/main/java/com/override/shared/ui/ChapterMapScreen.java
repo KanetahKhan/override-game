@@ -24,7 +24,7 @@ import javafx.scene.layout.VBox;
 public class ChapterMapScreen {
 
     private static final String[][] CHAPTERS = {
-        { "1", "The Silent Classroom",  "Education dependency",   "1" },
+        { "1", "Curfew Protocol",       "Education dependency",   "1" },
         { "2", "Harvest Protocol",      "Agricultural dependency","0" }
     };
 

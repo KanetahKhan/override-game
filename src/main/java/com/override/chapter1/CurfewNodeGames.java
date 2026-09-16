@@ -1,5 +1,6 @@
 package com.override.chapter1;
 
+import com.override.game.minigames.ChiptuneSfx;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
@@ -36,12 +37,18 @@ import java.util.function.Consumer;
  */
 final class CurfewNodeGames {
 
-    enum Outcome { WON, FAILED, QUIT }
+    /** ASSISTED: Astra finished the node for the player. */
+    enum Outcome { WON, FAILED, QUIT, ASSISTED }
+
+    /** What letting Astra finish a node costs on the Dependency Meter. */
+    static final int ASTRA_NODE_DEPENDENCY = 10;
 
     interface NodeGame {
         Parent view();
         void onKey(KeyCode key);
         void stop();
+        /** Freeze the node's own clock while the chapter is paused. */
+        default void setPaused(boolean paused) { }
     }
 
     static final String MONO = "'Consolas', 'Monaco', monospace";
@@ -60,7 +67,7 @@ final class CurfewNodeGames {
     }
 
     private static Parent frame(String title, String accent, String bg, Label status, String help,
-                                Node body, double width, Runnable quit) {
+                                Node body, double width, Runnable quit, Runnable assist) {
         HBox header = new HBox(text(title, MONO, 13, accent), spacer(), status);
         header.setPadding(new Insets(14, 20, 14, 20));
         header.setStyle("-fx-border-color: transparent transparent " + alpha(accent, 0.3) + " transparent;");
@@ -69,14 +76,18 @@ final class CurfewNodeGames {
         desc.setWrapText(true);
         desc.setPadding(new Insets(14, 20, 4, 20));
 
-        Button disconnect = new Button("DISCONNECT");
-        disconnect.setFocusTraversable(false);
-        disconnect.setMaxWidth(Double.MAX_VALUE);
-        disconnect.setStyle("-fx-background-color: transparent; -fx-border-color: rgba(255,90,74,0.55);"
-            + " -fx-text-fill: #ffb0a4; -fx-font-family: " + MONO + "; -fx-font-size: 12px; -fx-padding: 11 0 11 0;"
-            + " -fx-cursor: hand; -fx-background-radius: 0; -fx-border-radius: 0;");
+        Button disconnect = footButton("DISCONNECT  [ESC]", "rgba(255,90,74,0.55)", "#ffb0a4");
         disconnect.setOnAction(e -> quit.run());
-        VBox foot = new VBox(disconnect);
+        // Astra never refuses: the easy way out is always on screen, with its price.
+        Button astra = footButton("ASK ASTRA  [H]", "rgba(179,136,255,0.6)", "#d9c4ff");
+        astra.setOnAction(e -> assist.run());
+        HBox buttons = new HBox(10, astra, disconnect);
+        HBox.setHgrow(astra, Priority.ALWAYS);
+        HBox.setHgrow(disconnect, Priority.ALWAYS);
+        Label price = text("Astra finishes the node for you: half the credits, +" + ASTRA_NODE_DEPENDENCY + " dependency.",
+            MONO, 11, "rgba(217,196,255,0.7)");
+        price.setWrapText(true);
+        VBox foot = new VBox(8, buttons, price);
         foot.setPadding(new Insets(14, 20, 18, 20));
 
         VBox panel = new VBox(header, desc, body, foot);
@@ -88,6 +99,16 @@ final class CurfewNodeGames {
         StackPane shade = new StackPane(panel);
         shade.setStyle("-fx-background-color: rgba(2,6,8,0.9);");
         return shade;
+    }
+
+    private static Button footButton(String label, String border, String ink) {
+        Button b = new Button(label);
+        b.setFocusTraversable(false);
+        b.setMaxWidth(Double.MAX_VALUE);
+        b.setStyle("-fx-background-color: transparent; -fx-border-color: " + border + ";"
+            + " -fx-text-fill: " + ink + "; -fx-font-family: " + MONO + "; -fx-font-size: 12px; -fx-padding: 11 0 11 0;"
+            + " -fx-cursor: hand; -fx-background-radius: 0; -fx-border-radius: 0;");
+        return b;
     }
 
     private static Region spacer() {
@@ -147,7 +168,7 @@ final class CurfewNodeGames {
                 body.setPadding(new Insets(8, 20, 0, 20));
                 view = frame("NODE 01 // KERNEL PANIC", "#35e0d8", "linear-gradient(to bottom, rgba(6,22,24,0.98), rgba(3,10,12,0.98))",
                     status, "Glitch tokens are falling through four kernel lanes. Hit the lane key (Q W E R or 1-4) — or click the lane — while a token is inside the patch band.",
-                    body, 640, () -> finish(Outcome.QUIT));
+                    body, 640, () -> finish(Outcome.QUIT), () -> finish(Outcome.ASSISTED));
                 refresh();
                 tick.setCycleCount(Animation.INDEFINITE);
                 tick.play();
@@ -157,7 +178,7 @@ final class CurfewNodeGames {
                 for (int i = tokens.size() - 1; i >= 0; i--) {
                     double[] t = tokens.get(i);
                     t[1] += 1.35 * difficulty;
-                    if (t[1] > 100) { missed++; remove(i); }
+                    if (t[1] > 100) { missed++; remove(i); ChiptuneSfx.breach(); }
                 }
                 acc += 60;
                 if (acc > 620) {
@@ -182,6 +203,7 @@ final class CurfewNodeGames {
                 if (best < 0) return;
                 remove(best);
                 fixed++;
+                ChiptuneSfx.hit(fixed);
                 refresh();
                 if (fixed >= 12) finish(Outcome.WON);
             }
@@ -224,26 +246,35 @@ final class CurfewNodeGames {
                     default -> -1;
                 };
                 if (lane >= 0) hit(lane);
+                else if (k == KeyCode.H) finish(Outcome.ASSISTED);
             }
 
             @Override public void stop() { over = true; tick.stop(); }
+
+            @Override public void setPaused(boolean p) {
+                if (over) return;
+                if (p) tick.pause(); else tick.play();
+            }
         };
     }
 
     /* ==================================================== CIRCUIT BREAKER */
 
     /** Rotate tiles until the signal runs from the left tap to the right sink. */
-    static NodeGame circuitBreaker(Consumer<Outcome> done) {
+    static NodeGame circuitBreaker(double timeScale, Consumer<Outcome> done) {
         return new NodeGame() {
             static final int N = 4;
             static final double TILE = 82;
             final boolean[] straight = new boolean[N * N];
             final int[] rot = new int[N * N];
             final StackPane[] tiles = new StackPane[N * N];
+            final int time = (int) Math.round(60 * timeScale);
             final Label status = text("OPEN CIRCUIT", MONO, 13, "#ff6f9c");
             final Circle sink = new Circle(5);
             boolean solved, over;
+            int cur, left = time;   // keyboard cursor; seconds before the node resets
             final PauseTransition win = new PauseTransition(Duration.millis(600));
+            final Timeline countdown = new Timeline(new KeyFrame(Duration.seconds(1), e -> tickDown()));
             final Parent view;
 
             {
@@ -255,7 +286,7 @@ final class CurfewNodeGames {
                     final int idx = i;
                     StackPane t = new StackPane();
                     t.setPrefSize(TILE, TILE);
-                    t.setOnMouseClicked(e -> rotate(idx));
+                    t.setOnMouseClicked(e -> { cur = idx; rotate(idx); });
                     tiles[i] = t;
                     grid.add(t, i % N, i / N);
                 }
@@ -271,10 +302,20 @@ final class CurfewNodeGames {
                 body.setAlignment(Pos.CENTER);
                 body.setPadding(new Insets(14, 20, 6, 20));
                 view = frame("NODE 02 // CIRCUIT BREAKER", "#ff3d7f", "linear-gradient(to bottom, rgba(24,6,16,0.98), rgba(6,3,8,0.98))",
-                    status, "Click a tile to rotate it. Route the signal from the left tap to the right sink.",
-                    body, 440, () -> finish(Outcome.QUIT));
+                    status, "Click a tile (or move with the arrow keys and press SPACE) to rotate it. Route the signal "
+                        + "from the left tap to the right sink before the node resets.",
+                    body, 440, () -> finish(Outcome.QUIT), () -> finish(Outcome.ASSISTED));
                 redraw();
                 win.setOnFinished(e -> finish(Outcome.WON));
+                countdown.setCycleCount(time);
+                countdown.play();
+            }
+
+            void tickDown() {
+                if (solved || over) return;
+                left--;
+                redraw();
+                if (left <= 0) finish(Outcome.FAILED);
             }
 
             /** Same construction as the original: carve a monotone path, then scramble every tile. */
@@ -349,7 +390,9 @@ final class CurfewNodeGames {
                 String border = solved ? "rgba(77,255,158,0.6)" : "rgba(255,61,127,0.3)";
                 for (int i = 0; i < N * N; i++) {
                     StackPane t = tiles[i];
-                    t.setStyle("-fx-background-color: rgba(255,61,127,0.05); -fx-border-color: " + border + "; -fx-cursor: hand;");
+                    boolean at = i == cur && !solved;
+                    t.setStyle("-fx-background-color: rgba(255,61,127," + (at ? "0.16" : "0.05") + ");"
+                        + " -fx-border-color: " + (at ? "#ffd0e0" : border) + "; -fx-cursor: hand;");
                     Pane p = new Pane();
                     p.setPrefSize(TILE, TILE);
                     Circle dot = new Circle(TILE / 2, TILE / 2, 5);
@@ -367,7 +410,7 @@ final class CurfewNodeGames {
                     }
                     t.getChildren().setAll(p);
                 }
-                status.setText(solved ? "SIGNAL LOCKED" : "OPEN CIRCUIT");
+                status.setText(solved ? "SIGNAL LOCKED" : "OPEN CIRCUIT · " + clock(left));
                 status.setStyle(status.getStyle().replaceAll("-fx-text-fill: [^;]+;", "-fx-text-fill: " + ink + ";"));
                 String sinkCol = solved ? "#4dff9e" : "rgba(255,61,127,0.35)";
                 sink.setStyle("-fx-fill: " + sinkCol + "; -fx-effect: dropshadow(gaussian, " + sinkCol + ", 12, 0, 0, 0);");
@@ -377,12 +420,31 @@ final class CurfewNodeGames {
                 if (over) return;
                 over = true;
                 win.stop();
+                countdown.stop();
                 done.accept(o);
             }
 
             @Override public Parent view() { return view; }
-            @Override public void onKey(KeyCode k) { }
-            @Override public void stop() { over = true; win.stop(); }
+
+            @Override public void onKey(KeyCode k) {
+                switch (k) {
+                    case LEFT, A -> cur = cur % N == 0 ? cur : cur - 1;
+                    case RIGHT, D -> cur = cur % N == N - 1 ? cur : cur + 1;
+                    case UP, W -> cur = cur < N ? cur : cur - N;
+                    case DOWN, S -> cur = cur >= N * (N - 1) ? cur : cur + N;
+                    case SPACE, ENTER -> { rotate(cur); return; }
+                    case H -> { finish(Outcome.ASSISTED); return; }
+                    default -> { return; }
+                }
+                redraw();
+            }
+
+            @Override public void stop() { over = true; win.stop(); countdown.stop(); }
+
+            @Override public void setPaused(boolean p) {
+                if (over) return;
+                if (p) countdown.pause(); else countdown.play();
+            }
         };
     }
 
@@ -398,14 +460,16 @@ final class CurfewNodeGames {
     };
 
     /** The lockdown routine was scrambled; swap lines until it runs in order. */
-    static NodeGame silentCode(Consumer<Outcome> done) {
+    static NodeGame silentCode(double timeScale, Consumer<Outcome> done) {
         return new NodeGame() {
             final List<Integer> order = new ArrayList<>();
             final VBox lines = new VBox(5);
+            final int time = (int) Math.round(50 * timeScale);
             final Label status = text("0 SWAPS", MONO, 13, "#ffb347");
-            int sel = -1, moves;
+            int sel = -1, moves, cur, left = time;
             boolean solved, over;
             final PauseTransition win = new PauseTransition(Duration.millis(650));
+            final Timeline countdown = new Timeline(new KeyFrame(Duration.seconds(1), e -> tickDown()));
             final Parent view;
 
             {
@@ -413,10 +477,20 @@ final class CurfewNodeGames {
                 do Collections.shuffle(order, RNG); while (isSorted());
                 lines.setPadding(new Insets(14, 20, 4, 20));
                 view = frame("NODE 03 // SILENT CODE", "#4dff9e", "linear-gradient(to bottom, rgba(5,22,16,0.98), rgba(3,10,8,0.98))",
-                    status, "The lockdown routine was scrambled. Click two lines to swap them until the sequence runs clean.",
-                    lines, 600, () -> finish(Outcome.QUIT));
+                    status, "The lockdown routine was scrambled. Click two lines (or use the arrow keys and SPACE) to swap "
+                        + "them until the sequence runs clean, before the node resets.",
+                    lines, 600, () -> finish(Outcome.QUIT), () -> finish(Outcome.ASSISTED));
                 redraw();
                 win.setOnFinished(e -> finish(Outcome.WON));
+                countdown.setCycleCount(time);
+                countdown.play();
+            }
+
+            void tickDown() {
+                if (solved || over) return;
+                left--;
+                redraw();
+                if (left <= 0) finish(Outcome.FAILED);
             }
 
             boolean isSorted() {
@@ -439,7 +513,7 @@ final class CurfewNodeGames {
             }
 
             void redraw() {
-                status.setText(moves + " SWAPS");
+                status.setText(moves + " SWAPS · " + clock(left));
                 lines.getChildren().clear();
                 for (int i = 0; i < order.size(); i++) {
                     final int idx = i;
@@ -448,10 +522,11 @@ final class CurfewNodeGames {
                     HBox row = new HBox(12, num, code);
                     row.setAlignment(Pos.CENTER_LEFT);
                     row.setPadding(new Insets(10, 14, 10, 14));
-                    boolean on = sel == i;
+                    boolean on = sel == i, at = cur == i && !solved;
                     row.setStyle("-fx-background-color: " + (on ? "rgba(77,255,158,0.16)" : "rgba(4,16,12,0.9)") + ";"
-                        + " -fx-border-color: " + (on ? "rgba(77,255,158,0.7)" : "rgba(77,255,158,0.2)") + "; -fx-cursor: hand;");
-                    row.setOnMouseClicked(e -> pick(idx));
+                        + " -fx-border-color: " + (on ? "rgba(77,255,158,0.7)" : at ? "rgba(223,250,236,0.55)" : "rgba(77,255,158,0.2)")
+                        + "; -fx-cursor: hand;");
+                    row.setOnMouseClicked(e -> { cur = idx; pick(idx); });
                     lines.getChildren().add(row);
                 }
             }
@@ -460,12 +535,31 @@ final class CurfewNodeGames {
                 if (over) return;
                 over = true;
                 win.stop();
+                countdown.stop();
                 done.accept(o);
             }
 
             @Override public Parent view() { return view; }
-            @Override public void onKey(KeyCode k) { }
-            @Override public void stop() { over = true; win.stop(); }
+
+            @Override public void onKey(KeyCode k) {
+                switch (k) {
+                    case UP, W -> cur = Math.max(0, cur - 1);
+                    case DOWN, S -> cur = Math.min(order.size() - 1, cur + 1);
+                    case SPACE, ENTER -> { pick(cur); return; }
+                    case H -> { finish(Outcome.ASSISTED); return; }
+                    default -> { return; }
+                }
+                redraw();
+            }
+
+            @Override public void stop() { over = true; win.stop(); countdown.stop(); }
+
+            @Override public void setPaused(boolean p) {
+                if (over) return;
+                if (p) countdown.pause(); else countdown.play();
+            }
         };
     }
+
+    static String clock(int s) { return s / 60 + ":" + String.format("%02d", s % 60); }
 }

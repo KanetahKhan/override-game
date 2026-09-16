@@ -1,6 +1,7 @@
 package com.override.chapter1;
 
 import com.override.Main;
+import com.override.game.minigames.ChiptuneSfx;
 import javafx.animation.AnimationTimer;
 import javafx.geometry.Bounds;
 import javafx.geometry.VPos;
@@ -58,6 +59,8 @@ import java.util.function.DoubleConsumer;
 final class CurfewWorld {
 
     static final double HX = 25, HZ = 15, H = 3.6;
+    /** Hollow ledgers hidden on the floor each run. */
+    static final int LEDGERS = 2;
     private static final double RAY_FAR = 3.6;
 
     /** Callbacks into the chapter screen; all are invoked on the FX thread. */
@@ -65,15 +68,22 @@ final class CurfewWorld {
         void onHover(String id, String label, String verb);
         void onUse(String id, String kind, boolean open);
         void onCoin(int amount, String source);
-        void onCaught();
+        void onCaught(String how);
         void onAlert(String state);
+        /** The unit heard something (running, a landing, a thrown book). */
+        void onNoise(String message);
         void onHide(boolean hidden, String label, String blockedReason);
         void onPosture(String posture, String message);
         void onTick(Tick tick);
     }
 
+    /**
+     * suspicion is 0..1, how close the unit is to spotting you; sentinelSeen is
+     * whether you have line of sight to it; books is how many you carry.
+     */
     record Tick(double px, double pz, double sx, double sz, String state, double dist,
-                boolean hidden, double stamina, String posture, String hideHint) {}
+                boolean hidden, double stamina, String posture, String hideHint,
+                double suspicion, boolean sentinelSeen, int books) {}
 
     /* ------------------------------------------------------------ data types */
 
@@ -126,10 +136,10 @@ final class CurfewWorld {
 
     private static final class Panel {
         final double x, z;
-        final Color color;
         final boolean flick;
         final Shape3D mesh;
-        final PhongMaterial on, off;
+        Color color;             // swapped to red by lockdown()
+        PhongMaterial on, off;
         double level = 1;
 
         Panel(double x, double z, Color color, boolean flick, Shape3D mesh, PhongMaterial on, PhongMaterial off) {
@@ -139,6 +149,18 @@ final class CurfewWorld {
     }
 
     private record Led(Shape3D mesh, PhongMaterial on, PhongMaterial off) {}
+
+    /** A thrown book on its way to the floor. */
+    private static final class Flight {
+        final Node node;
+        final double x0, z0, y0, x1, z1, dur;
+        double t;
+
+        Flight(Node node, double x0, double z0, double y0, double x1, double z1, double dur) {
+            this.node = node; this.x0 = x0; this.z0 = z0; this.y0 = y0;
+            this.x1 = x1; this.z1 = z1; this.dur = dur;
+        }
+    }
 
     /* ----------------------------------------------------------- scene graph */
 
@@ -164,6 +186,7 @@ final class CurfewWorld {
     private final List<Led> leds = new ArrayList<>();
     private final List<Coin> coins = new ArrayList<>();
     private final List<HideSpot> hideSpots = new ArrayList<>();
+    private final List<Flight> flights = new ArrayList<>();
 
     // shared materials
     private final PhongMaterial wallMat;
@@ -198,22 +221,41 @@ final class CurfewWorld {
 
     private String aiState = "PATROL";
     private int aiWp = 6;
+    private int searchIndex = -1;
+    private double searchStall;
     private double aiYaw, aiLost, aiStun;
     private double lastSeenX, lastSeenZ;
     private double sx = WAYPOINTS[6][0], sz = WAYPOINTS[6][1];
+    private double suspicion;            // 0..1; at 1 the unit has you
+    private boolean seesPlayer;          // line of sight to the player this frame
+    private HideSpot seenHiding;         // the spot it watched you climb into
+    private double huntTime;             // time spent walking to that spot
+    private double stepDist, chaseBeatT; // sound pacing
+    private boolean lockdown;
+    private double awareness = 1;        // difficulty: how fast suspicion fills
+
+    // this run's layout: which almirahs hold a stash, which book on each shelf is a ledger (-1: none)
+    private final boolean[] almirahLoot = new boolean[3];
+    private final int[] ledgerAt = new int[LEDGERS + 1];
 
     /* --------------------------------------------------------------- player */
 
     private static final double SPAWN_X = -22.4, SPAWN_Z = 1.6;
     private double px = SPAWN_X, pz = SPAWN_Z, yaw = -1.2, pitch = -0.04, bob;
     private double py, vy, stamina = 1, eye = Double.NaN;
-    private boolean hidden, crouch, grounded = true;
+    private static final int MAX_BOOKS = 3;
+    private boolean hidden, crouch, grounded = true, sprinting;
     private Interactable sitting;
+    private int books;
+    private double noiseT;
     private final Set<KeyCode> keys = EnumSet.noneOf(KeyCode.class);
 
     private boolean paused = true;
+    private boolean hacking;   // jacked into a node: no input, but the unit keeps walking
     private String hoverId;
     private double difficulty = 1;
+    private double lookSens = 1;
+    private boolean invertY;
     private double tickAcc;
     private long lastNanos = -1;
     private double clock;
@@ -237,8 +279,12 @@ final class CurfewWorld {
 
         buildShell();
         buildLighting();
+        rollLayout();
         buildRooms();
         buildSentinel();
+        aiWp = startWaypoint();
+        sx = WAYPOINTS[aiWp][0];
+        sz = WAYPOINTS[aiWp][1];
 
         camera.setFieldOfView(74);
         camera.setNearClip(0.05);
@@ -266,7 +312,21 @@ final class CurfewWorld {
         if (p) keys.clear();
     }
 
+    void setHacking(boolean h) {
+        hacking = h;
+        if (h) { keys.clear(); sprinting = false; }
+    }
+
     void setDifficulty(double d) { difficulty = d; }
+
+    void setAwareness(double a) { awareness = a; }
+
+    void setLook(double sensitivity, boolean invert) {
+        lookSens = sensitivity;
+        invertY = invert;
+    }
+
+    void setFov(double degrees) { camera.setFieldOfView(degrees); }
 
     void keyPressed(KeyCode k) {
         boolean fresh = keys.add(k);
@@ -274,6 +334,7 @@ final class CurfewWorld {
         switch (k) {
             case E -> tryUse();
             case F -> toggleHide();
+            case G -> throwBook();
             case SPACE -> jump();
             default -> { }
         }
@@ -283,8 +344,8 @@ final class CurfewWorld {
 
     /** Mouse look, in screen pixels. */
     void look(double dx, double dy) {
-        yaw -= dx * 0.0024;
-        pitch = clamp(pitch - dy * 0.0024, -1.3, 1.3);
+        yaw -= dx * 0.0024 * lookSens;
+        pitch = clamp(pitch - (invertY ? -dy : dy) * 0.0024 * lookSens, -1.3, 1.3);
     }
 
     /** Left click in the 3D view acts like E. */
@@ -295,7 +356,25 @@ final class CurfewWorld {
         exitAnim.target = 0;
     }
 
-    void openExit() { exitAnim.target = 1; }
+    void openExit() {
+        exitAnim.target = 1;
+        ChiptuneSfx.door();
+    }
+
+    /** All nodes cleared: the floor goes red, the unit speeds up and sweeps toward you. */
+    void lockdown() {
+        if (lockdown) return;
+        lockdown = true;
+        difficulty *= 1.2;
+        Color red = Color.web("#ff3d3d");
+        for (Panel p : panels) {
+            p.color = red;
+            p.on = glow(red, 1.0);
+            p.off = glow(red, 0.22);
+            p.mesh.setMaterial(p.on);
+        }
+        if (!"CHASE".equals(aiState)) investigate(px, pz);
+    }
 
     void setTerminalDone(String id) {
         Interactable t = named.get(id);
@@ -312,8 +391,9 @@ final class CurfewWorld {
         px = SPAWN_X; pz = SPAWN_Z; yaw = -1.2;
         hidden = false; sitting = null; crouch = false;
         py = 0; vy = 0; grounded = true;
-        aiState = "PATROL"; aiStun = 3.2; aiWp = 6;
-        sx = WAYPOINTS[6][0]; sz = WAYPOINTS[6][1];
+        aiState = "PATROL"; aiStun = 3.2; aiWp = startWaypoint(); searchIndex = -1;
+        sx = WAYPOINTS[aiWp][0]; sz = WAYPOINTS[aiWp][1];
+        suspicion = 0; seenHiding = null; huntTime = 0; sprinting = false;
     }
 
     /* ========================================================= world build */
@@ -596,7 +676,7 @@ final class CurfewWorld {
             addCollider(bench, 0.05, false);
             add(at(cyl(0.12, 0.32, beakerMat), -18.2 + i * 0.6, 1.06, -10 + i * 2.4));
         }
-        almirah(-23.6, -6.2, Math.PI / 2, true);
+        almirah(-23.6, -6.2, Math.PI / 2, almirahLoot[0]);
         deskWithDrawer(-13.4, -13.0, 0, "drawer1", "Lab drawer");
         coin(-16.5, -8.4, 5, 0.75);
 
@@ -604,7 +684,7 @@ final class CurfewWorld {
         add(at(box(5.4, 2.2, 0.12, mat(0x1b2426)), -1.2, 2.0, -14.78));
         add(at(quad(5.3, 2.1, emissiveTexture(boardTexture(), 0.75)), -1.2, 2.0, -14.71));
         deskGrid(0, -9.4, 3, 3);
-        bookshelf(6.6, -13.2, 0, 5);
+        bookshelf(6.6, -13.2, 0, ledgerAt[0]);
         deskWithDrawer(-4.6, -13.2, 0, "drawer2", "Teacher desk drawer");
         coin(2.4, -6.0, 5, 0.75);
 
@@ -619,13 +699,13 @@ final class CurfewWorld {
             add(spool);
             addCollider(spool, 0.02, false);
         }
-        bookshelf(23.4, -6.6, -Math.PI / 2, -1);
+        bookshelf(23.4, -6.6, -Math.PI / 2, ledgerAt[1]);
         coin(17.2, -9.2, 5, 0.75);
 
         // CLASS 1B (south-west)
         deskGrid(-16.75, 9.4, 3, 3);
-        almirah(-23.6, 6.4, Math.PI / 2, false);
-        bookshelf(-11.0, 13.0, Math.PI, 2);
+        almirah(-23.6, 6.4, Math.PI / 2, almirahLoot[1]);
+        bookshelf(-11.0, 13.0, Math.PI, ledgerAt[2]);
         coin(-20.4, 12.6, 5, 0.75);
 
         // SERVER ROOM (south-middle): silent code node + racks
@@ -647,7 +727,7 @@ final class CurfewWorld {
         coin(4.6, 12.2, 5, 0.75);
 
         // EXIT BAY (south-east): almirah, crates, exit door
-        almirah(23.4, 12.6, -Math.PI / 2, true);
+        almirah(23.4, 12.6, -Math.PI / 2, almirahLoot[2]);
         PhongMaterial crateMat = mat(0x33404a);
         for (int i = 0; i < 5; i++) {
             Box c = box(1.0, 1.0, 1.0, crateMat);
@@ -672,6 +752,34 @@ final class CurfewWorld {
 
         // loose corridor coins
         for (double[] c : new double[][] {{-22, 0}, {-7.5, 1.2}, {7.5, -1.2}, {22, 0.6}}) coin(c[0], c[1], 5, 0.55);
+
+        // the story notes
+        for (CurfewLore.Note n : CurfewLore.NOTES) note(n);
+    }
+
+    /** Shuffle this run's loot: one almirah is empty, one shelf has no ledger, the rest are random. */
+    private void rollLayout() {
+        int emptyAlmirah = rng.nextInt(almirahLoot.length);
+        for (int i = 0; i < almirahLoot.length; i++) almirahLoot[i] = i != emptyAlmirah;
+        int bareShelf = rng.nextInt(ledgerAt.length);
+        for (int i = 0; i < ledgerAt.length; i++) ledgerAt[i] = i == bareShelf ? -1 : rng.nextInt(12);
+    }
+
+    /** A random patrol start, well away from the west stairwell spawn. */
+    private int startWaypoint() {
+        List<Integer> far = new ArrayList<>();
+        for (int i = 0; i < WAYPOINTS.length; i++) {
+            if (Math.hypot(WAYPOINTS[i][0] - SPAWN_X, WAYPOINTS[i][1] - SPAWN_Z) > 14) far.add(i);
+        }
+        return far.get(rng.nextInt(far.size()));
+    }
+
+    /** A sheet of paper, faintly lit so it can be found in the dark. */
+    private void note(CurfewLore.Note n) {
+        Box paper = box(0.3, 0.012, 0.4, glow(Color.web("#d8e6e3"), 0.55));
+        rotY(at(paper, n.x(), n.y(), n.z()), rng.nextDouble() * 0.8 - 0.4);
+        add(paper);
+        reg(paper, n.id(), n.title(), "Read", "note");
     }
 
     private void buildSentinel() {
@@ -719,6 +827,51 @@ final class CurfewWorld {
         grounded = false;
     }
 
+    /** Throw a carried book where you're looking; it lands with a noise the unit goes to check. */
+    private void throwBook() {
+        if (books <= 0 || hidden) return;
+        books--;
+        double dx = -Math.sin(yaw), dz = -Math.cos(yaw);
+        double x = px, z = pz, d = 0;
+        while (d < 9 && !blocked(x + dx * 0.25, z + dz * 0.25)) {
+            x += dx * 0.25;
+            z += dz * 0.25;
+            d += 0.25;
+        }
+        double y0 = eye + py - 0.25;
+        Box b = box(0.16, 0.3, 0.22, mat(0x6b3b7a));
+        add(at(b, px, y0, pz));
+        flights.add(new Flight(b, px, pz, y0, x, z, Math.max(0.15, d / 11)));
+    }
+
+    /**
+     * Something the unit might hear. Walls muffle it; in range, the unit goes
+     * to look, unless it is already chasing you.
+     */
+    private void noise(double x, double z, double radius, String message, boolean announce) {
+        if ("CHASE".equals(aiState) || aiStun > 0) return;
+        if (segBlocked(sx, sz, x, z)) radius *= 0.55;
+        if (Math.hypot(x - sx, z - sz) > radius) {
+            if (announce) listener.onNoise("Too far away — the unit didn't hear it.");
+            return;
+        }
+        boolean fresh = investigate(x, z);
+        if (fresh || announce) listener.onNoise(message);
+    }
+
+    /** Send the unit to look at a spot. Returns true if it was not already searching. */
+    private boolean investigate(double x, double z) {
+        boolean fresh = !"SEARCH".equals(aiState);
+        aiState = "SEARCH";
+        aiLost = 0;
+        searchIndex = -1;
+        searchStall = 0;
+        lastSeenX = x;
+        lastSeenZ = z;
+        if (fresh) listener.onAlert("SEARCH");
+        return fresh;
+    }
+
     private void sit(Interactable chair) {
         sitting = chair;
         px = chair.sitX; pz = chair.sitZ;
@@ -734,6 +887,7 @@ final class CurfewWorld {
     private void toggleHide() {
         if (hidden) {
             hidden = false;
+            seenHiding = null;
             listener.onHide(false, null, null);
             return;
         }
@@ -743,7 +897,11 @@ final class CurfewWorld {
         if (!s.ready) { listener.onHide(false, null, "Open the almirah before you can climb in."); return; }
         hidden = true;
         px = s.x; pz = s.z; py = 0; vy = 0;
-        listener.onHide(true, s.label, null);
+        // Climbing in while it is watching you gives the spot away.
+        boolean watched = seesPlayer && "CHASE".equals(aiState);
+        seenHiding = watched ? s : null;
+        huntTime = 0;
+        listener.onHide(true, watched ? s.label + " — but it saw you get in" : s.label, null);
     }
 
     private void tryUse() {
@@ -764,6 +922,7 @@ final class CurfewWorld {
                 d.target = d.target > 0.5 ? 0 : 1;
                 boolean open = d.target > 0.5;
                 obj.verb = open ? "Close" : "Open";
+                ChiptuneSfx.door();
                 listener.onUse(obj.id, "almirah", open);
                 if (open && obj.stash != null) {
                     ((Group) obj.node).getChildren().remove(obj.stash);
@@ -777,6 +936,7 @@ final class CurfewWorld {
                 s.target = s.target > 0.5 ? 0 : 1;
                 boolean open = s.target > 0.5;
                 obj.verb = open ? "Push shut" : "Pull open";
+                ChiptuneSfx.door();
                 if (open && !obj.looted) {
                     obj.looted = true;
                     listener.onCoin(10, "Drawer");
@@ -788,6 +948,7 @@ final class CurfewWorld {
                 if (obj.shelf != null) obj.shelf.getChildren().remove(obj.node);
                 interactables.remove(obj);
                 named.remove(obj.id);
+                books = Math.min(MAX_BOOKS, books + 1);
                 hoverId = null;
                 listener.onHover(null, null, null);
                 listener.onUse(obj.id, obj.kind, false);
@@ -865,6 +1026,7 @@ final class CurfewWorld {
         }
 
         if (!paused) step(dt, tt);
+        else if (hacking) { stepSentinel(dt, tt); emitTick(dt); }
 
         placeCamera(dt);
         placeLights(tt);
@@ -883,11 +1045,12 @@ final class CurfewWorld {
         if (!grounded || py > 0) {
             vy -= 15.5 * dt;
             py += vy * dt;
-            if (py <= 0) { py = 0; vy = 0; grounded = true; }
+            if (py <= 0) { py = 0; vy = 0; grounded = true; noise(px, pz, 6, "It heard you land.", false); }
         }
 
         // movement
-        boolean sprinting = false;
+        sprinting = false;
+        boolean moving = false;
         if (!hidden && sitting == null) {
             sprinting = keys.contains(KeyCode.SHIFT) && stamina > 0.05 && !crouch;
             double sp = (sprinting ? 5.0 : crouch ? 1.45 : 2.9) * dt;
@@ -907,7 +1070,15 @@ final class CurfewWorld {
                 px = clamp(px, -HX + 0.45, HX - 0.45);
                 pz = clamp(pz, -HZ + 0.45, HZ - 0.45);
                 bob += dt * (sprinting ? 13 : 8.5);
+                moving = true;
             }
+        }
+        // running is loud: every few strides the unit may hear it
+        sprinting &= moving;
+        noiseT -= dt;
+        if (sprinting && noiseT <= 0) {
+            noiseT = 0.35;
+            noise(px, pz, 7.5, "It heard you running.", false);
         }
         double turn = 1.9 * dt;
         if (keys.contains(KeyCode.LEFT)) yaw += turn;
@@ -921,22 +1092,52 @@ final class CurfewWorld {
             if (Math.hypot(c.x() - px, c.z() - pz) < 1.15) {
                 world.getChildren().remove(c.node());
                 coins.remove(i);
+                ChiptuneSfx.hit(4);
                 listener.onCoin(c.value(), "Credit chip");
             }
         }
 
+        stepFlights(dt);
         stepSentinel(dt, tt);
         updateHover();
+        emitTick(dt);
+    }
 
-        // HUD tick
-        tickAcc += dt;
-        if (tickAcc > 0.08) {
-            tickAcc = 0;
-            HideSpot hs = hidden ? null : currentHideSpot();
-            String posture = hidden ? "HIDDEN" : sitting != null ? "SEATED" : crouch ? "CROUCHED" : "STANDING";
-            listener.onTick(new Tick(px, pz, sx, sz, aiState, Math.hypot(px - sx, pz - sz), hidden, stamina,
-                posture, hs == null ? null : hs.ready ? hs.label : "Open the almirah first"));
+    private void stepFlights(double dt) {
+        for (int i = flights.size() - 1; i >= 0; i--) {
+            Flight f = flights.get(i);
+            f.t = Math.min(1, f.t + dt / f.dur);
+            double k = f.t;
+            at(f.node, f.x0 + (f.x1 - f.x0) * k, f.y0 + (0.15 - f.y0) * k + Math.sin(k * Math.PI) * 0.6,
+                f.z0 + (f.z1 - f.z0) * k);
+            if (f.t >= 1) {
+                flights.remove(i);   // the book stays where it fell
+                ChiptuneSfx.breach();
+                noise(f.x1, f.z1, 11, "A book slapped the floor — the unit turns toward it.", true);
+            }
         }
+    }
+
+    /** HUD update, about twelve times a second. */
+    private void emitTick(double dt) {
+        tickAcc += dt;
+        if (tickAcc <= 0.08) return;
+        tickAcc = 0;
+        HideSpot hs = hidden ? null : currentHideSpot();
+        String posture = hidden ? "HIDDEN" : sitting != null ? "SEATED" : crouch ? "CROUCHED" : "STANDING";
+        double dist = Math.hypot(px - sx, pz - sz);
+        boolean seen = dist < 22 && !segBlocked(px, pz, sx, sz);
+        listener.onTick(new Tick(px, pz, sx, sz, aiState, dist, hidden, stamina, posture,
+            hs == null ? null : hs.ready ? hs.label : "Open the almirah first", suspicion, seen, books));
+    }
+
+    private int pickNearWaypoint(int exclude) {
+        List<Integer> near = new ArrayList<>();
+        for (int i = 0; i < WAYPOINTS.length; i++) {
+            double d = Math.hypot(WAYPOINTS[i][0] - sx, WAYPOINTS[i][1] - sz);
+            if (d > 1 && d < 11 && i != exclude) near.add(i);
+        }
+        return near.isEmpty() ? rng.nextInt(WAYPOINTS.length) : near.get(rng.nextInt(near.size()));
     }
 
     private void stepSentinel(double dt, double tt) {
@@ -946,8 +1147,22 @@ final class CurfewWorld {
         if (tl > 1e-6) { tx /= tl; tz /= tl; }
         double angle = Math.acos(clamp(fxs * tx + fzs * tz, -1, 1));
         double sightRange = crouch || sitting != null ? 8.5 : 15;
-        boolean visible = !hidden && aiStun <= 0 && dToPlayer < sightRange
+        seesPlayer = !hidden && aiStun <= 0 && dToPlayer < sightRange
             && (angle < 0.62 || dToPlayer < 3.2) && !segBlocked(sx, sz, px, pz);
+
+        // Spotting you takes a moment. Suspicion fills faster up close, while it
+        // is already searching, or when you run; inside 3.2 m it is near instant.
+        // Half-full, it turns and walks toward what it glimpsed.
+        if (seesPlayer && !"CHASE".equals(aiState)) {
+            double rate = (0.9 + 2.6 * (1 - dToPlayer / sightRange))
+                * ("SEARCH".equals(aiState) ? 1.6 : 1) * (sprinting ? 1.5 : 1) * (dToPlayer < 3.2 ? 4 : 1)
+                * awareness;
+            suspicion = Math.min(1, suspicion + rate * dt);
+            if (suspicion > 0.5) investigate(px, pz);
+        } else if (!"CHASE".equals(aiState)) {
+            suspicion = Math.max(0, suspicion - 0.3 * dt);
+        }
+        boolean visible = seesPlayer && ("CHASE".equals(aiState) || suspicion >= 1);
 
         if (aiStun > 0) aiStun -= dt;
 
@@ -955,27 +1170,40 @@ final class CurfewWorld {
             if (!"CHASE".equals(aiState)) listener.onAlert("CHASE");
             aiState = "CHASE";
             aiLost = 0;
+            suspicion = 1;
             lastSeenX = px; lastSeenZ = pz;
         } else if ("CHASE".equals(aiState)) {
             aiLost += dt;
-            if (aiLost > 3.4) { aiState = "SEARCH"; aiLost = 0; listener.onAlert("SEARCH"); }
+            if (aiLost > 3.4) { aiState = "SEARCH"; aiLost = 0; searchIndex = -1; suspicion = 0.6; listener.onAlert("SEARCH"); }
         } else if ("SEARCH".equals(aiState)) {
             aiLost += dt;
-            if (aiLost > 5.5) { aiState = "PATROL"; aiLost = 0; listener.onAlert("PATROL"); }
+            if (aiLost > 5.5) { aiState = "PATROL"; aiLost = 0; searchIndex = -1; listener.onAlert("PATROL"); }
         }
 
         double targetX, targetZ;
-        if ("CHASE".equals(aiState)) { targetX = px; targetZ = pz; }
-        else if ("SEARCH".equals(aiState)) { targetX = lastSeenX; targetZ = lastSeenZ; }
+        if (hidden && seenHiding != null) {
+            // it watched you climb in: walk over and pull you out
+            aiState = "CHASE";
+            aiLost = 0;
+            targetX = seenHiding.x; targetZ = seenHiding.z;
+            huntTime += dt;
+            if (huntTime > 9) seenHiding = null;   // it could not reach the spot
+        }
+        else if ("CHASE".equals(aiState)) { targetX = px; targetZ = pz; }
+        else if ("SEARCH".equals(aiState)) {
+            // First sweep to where the player was last seen, then keep moving
+            // to nearby waypoints so the sentinel never freezes in place.
+            if (searchIndex < 0) { targetX = lastSeenX; targetZ = lastSeenZ; }
+            else { targetX = WAYPOINTS[searchIndex][0]; targetZ = WAYPOINTS[searchIndex][1]; }
+            if (Math.hypot(targetX - sx, targetZ - sz) < 1.0) {
+                searchStall = 0;
+                searchIndex = pickNearWaypoint(searchIndex);
+            }
+        }
         else {
             targetX = WAYPOINTS[aiWp][0]; targetZ = WAYPOINTS[aiWp][1];
             if (Math.hypot(targetX - sx, targetZ - sz) < 1.0) {
-                List<Integer> near = new ArrayList<>();
-                for (int i = 0; i < WAYPOINTS.length; i++) {
-                    double d = Math.hypot(WAYPOINTS[i][0] - sx, WAYPOINTS[i][1] - sz);
-                    if (d > 1 && d < 11 && i != aiWp) near.add(i);
-                }
-                aiWp = near.isEmpty() ? rng.nextInt(WAYPOINTS.length) : near.get(rng.nextInt(near.size()));
+                aiWp = pickNearWaypoint(aiWp);
             }
         }
 
@@ -987,6 +1215,7 @@ final class CurfewWorld {
         vx = vx / vl * spd * dt;
         vz = vz / vl * spd * dt;
         double step = spd * dt;
+        double prevSx = sx, prevSz = sz;
         double sgnZ = vz == 0 ? 1 : Math.signum(vz), sgnX = vx == 0 ? 1 : Math.signum(vx);
         if (!blocked(sx + vx, sz)) sx += vx;
         else if (!blocked(sx, sz + sgnZ * step)) sz += sgnZ * step;
@@ -995,6 +1224,36 @@ final class CurfewWorld {
         double pad = 0.55;
         sx = clamp(sx, -HX + pad, HX - pad);
         sz = clamp(sz, -HZ + pad, HZ - pad);
+
+        if ("SEARCH".equals(aiState)) {
+            // If the sentinel cannot make progress toward the current target
+            // (e.g. the player was last seen inside a room it cannot reach),
+            // sweep the nearest waypoints instead of pressing into the wall.
+            double made = Math.hypot(sx - prevSx, sz - prevSz);
+            if (vl > 1 && made < 0.005) {
+                searchStall += dt;
+                if (searchStall > 0.5) {
+                    searchStall = 0;
+                    searchIndex = pickNearWaypoint(searchIndex);
+                }
+            } else {
+                searchStall = Math.max(0, searchStall - dt);
+            }
+        }
+
+        // servo steps get louder as it closes in (duller behind walls); a pulse while it chases
+        stepDist += Math.hypot(sx - prevSx, sz - prevSz);
+        if (stepDist > 1.1) {
+            stepDist = 0;
+            double vol = Math.pow(clamp(1 - dToPlayer / 20, 0, 1), 1.5) * (segBlocked(sx, sz, px, pz) ? 0.5 : 1);
+            if (vol > 0.04) ChiptuneSfx.servoStep(vol);
+        }
+        if ("CHASE".equals(aiState)) {
+            chaseBeatT -= dt;
+            if (chaseBeatT <= 0) { chaseBeatT = 0.6; ChiptuneSfx.chaseBeat(); }
+        } else {
+            chaseBeatT = 0;
+        }
 
         double wantYaw = Math.atan2(targetX - sx, targetZ - sz);
         double dy = wantYaw - aiYaw;
@@ -1007,10 +1266,12 @@ final class CurfewWorld {
         hem.setMaterial(hemMats[si]);
         sentinelLight.setColor(scale(STATE_COLORS[si], si == 2 ? 0.85 + Math.sin(tt * 9) * 0.15 : 0.6));
 
-        if (dToPlayer < 1.25 && !hidden && aiStun <= 0) {
+        boolean pulledOut = hidden && seenHiding != null && aiStun <= 0
+            && Math.hypot(seenHiding.x - sx, seenHiding.z - sz) < 1.5;
+        if ((dToPlayer < 1.25 && !hidden && aiStun <= 0) || pulledOut) {
             sitting = null;
             crouch = false;
-            listener.onCaught();
+            listener.onCaught(pulledOut ? "It saw you climb in and dragged you out." : "Grabbed.");
             resetPlayer();
         }
     }

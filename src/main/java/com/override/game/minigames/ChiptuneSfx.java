@@ -108,9 +108,14 @@ public final class ChiptuneSfx {
 
     /** Compact metallic step for the hallway sentinel's servo movement. */
     public static void servoStep() {
+        servoStep(1.0);
+    }
+
+    /** {@link #servoStep()} at a fraction of full volume, so distant steps fade out. */
+    public static void servoStep(double volume) {
         play(mix(
                 sweep(Wave.SQUARE, 270, 115, 0.075, 0.12),
-                tone(Wave.NOISE, 1, 0.025, 0.07)));
+                tone(Wave.NOISE, 1, 0.025, 0.07)), volume);
     }
 
     /** Urgent two-pulse cue used while the sentinel is actively chasing. */
@@ -174,8 +179,12 @@ public final class ChiptuneSfx {
     }
 
     private static void play(byte[] pcm) {
+        play(pcm, 1.0);
+    }
+
+    private static void play(byte[] pcm, double gain) {
         if (!enabled) return;
-        double volume = masterVolume;
+        double volume = masterVolume * Math.max(0.0, Math.min(1.0, gain));
         if (volume <= 0.0) return;
 
         POOL.execute(() -> {
