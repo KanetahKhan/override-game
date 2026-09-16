@@ -1,4 +1,4 @@
-extends Node2D
+﻿extends Node2D
 
 
 const PLAYER_SPEED: float = 450.0
@@ -7,7 +7,6 @@ const RED_ZONE_CRAWL_SPEED: float = 70.0
 const CROUCH_BOB_SPEED: float = 15.0
 const CROUCH_BOB_AMOUNT: float = 3.0
 const CROUCH_BOB_RESET_LERP: float = 15.0
-const JUMP_VELOCITY: float = -500.0
 
 
 const AIM_30_LEFT := preload("res://assets/ren/aim_30_left.png")
@@ -23,6 +22,7 @@ const MUZZLE_30_RIGHT := Vector2(61.2, -20.4)
 const MUZZLE_60_RIGHT := Vector2(48.8, -38.0)
 const MUZZLE_30_LEFT := Vector2(-60.9, -20.6)
 const MUZZLE_60_LEFT := Vector2(-49.7, -37.8)
+const AIM_GROUND_LIFT: float = 13.0
 
 
 # The shot sprite is a short trail: the bright round head sits at
@@ -49,9 +49,8 @@ const DESTINATION_X: float = (
 	+
 	TOTAL_RUN_DISTANCE
 )
-const RED_STAND_LIMIT: float = 5.0
 const RED_STAND_WARN: float = 3.0
-const RED_PENALTY_SECONDS: float = 5.0
+const RED_BLEED_RATE: float = 4.0
 const GOOD_DRONE_SCORE_PENALTY: float = 0.5
 
 
@@ -108,6 +107,9 @@ var final_score_percent: float = 0.0
 var countdown_active: bool = true
 var countdown_time: float = 3.0
 var countdown_displayed: int = 0
+var bg_start_requested: bool = false
+var bg_start_revealed: bool = false
+var bg_start_reveal_delay: float = 0.0
 var time_label: Label
 var warning_label: Label
 var distance_bar_control: Control
@@ -182,6 +184,23 @@ var segment_w: float = 1005.0
 
 
 func _ready() -> void:
+
+	bg_start_requested = (
+		OS.get_environment("OVERRIDE_CH2_BG_START") == "1"
+	)
+
+	if bg_start_requested:
+
+		DisplayServer.window_set_mode(
+			DisplayServer.WINDOW_MODE_MINIMIZED
+		)
+
+		var delay_ms: float = float(
+			OS.get_environment("OVERRIDE_CH2_REVEAL_DELAY_MS")
+		)
+		if delay_ms > 0.0:
+			bg_start_reveal_delay = delay_ms / 1000.0
+
 
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
@@ -1465,6 +1484,10 @@ func _physics_process(delta: float) -> void:
 
 	player.move_and_slide()
 
+	# Ren never jumps — pin vertical velocity so he can never leave the
+	# ground, even during physics edge-cases.
+	player.velocity.y = 0.0
+
 
 
 	var movement_direction: float = (
@@ -1603,6 +1626,16 @@ func read_player_input() -> void:
 
 	kk_space_was_pressed = kk_space_down
 
+	# Jumping is REMOVED from Chapter 2 — Ren never jumps, ever.
+
+	if (
+		Input.is_key_pressed(KEY_F)
+		and
+		not is_attacking
+	):
+
+		attack()
+
 
 # Space → activate the KK Assist button (keyboard click), honoring the same
 # gates the on-screen button uses (red alert, game over, remaining uses).
@@ -1616,33 +1649,6 @@ func trigger_kk_from_keyboard() -> void:
 
 	if kk_button.has_method("trigger_from_keyboard"):
 		kk_button.call("trigger_from_keyboard")
-
-	if (
-		Input.is_key_pressed(KEY_Z)
-		and
-		player.is_on_floor()
-	):
-
-		player.velocity.y = JUMP_VELOCITY
-
-		is_crouching = false
-
-
-
-
-
-	if (
-		Input.is_key_pressed(KEY_F)
-		and
-		not is_attacking
-	):
-
-		attack()
-
-
-
-
-
 
 # =====================================================
 # ATTACK TIMER
@@ -1695,25 +1701,8 @@ func update_animation(
 
 		return
 
-	if not player.is_on_floor():
-
-
-		play_animation(
-			"dodge_right"
-		)
-
-
-
-	elif is_attacking:
-
-
-		play_animation(
-			"dodge_right"
-		)
-
-
-
-	elif is_crouching:
+	# Ren never jumps, so there is no airborne state. Always walk or idle.
+	if is_crouching:
 
 
 		play_animation(
@@ -1776,6 +1765,11 @@ func update_crouch_bob(
 	direction: float,
 	delta: float
 ) -> void:
+
+
+	if is_aiming:
+
+		return
 
 
 	if not is_crouching:
@@ -1847,6 +1841,10 @@ func trigger_shoot(
 		randf_range(0.95, 1.05)
 	)
 
+	# Cancel any upward motion so Ren doesn't appear to jump while shooting.
+	if player.velocity.y < 0.0:
+		player.velocity.y = 0.0
+
 
 	var to_target := (
 		target_pos
@@ -1907,6 +1905,14 @@ func trigger_shoot(
 
 
 	player_sprite.texture = pose
+
+	player_sprite.position.y = (
+		player_sprite.position.y
+		+
+		AIM_GROUND_LIFT
+		*
+		player_sprite.scale.y
+	)
 
 	is_aiming = true
 	aim_timer = 0.3
@@ -2310,14 +2316,12 @@ func update_red_standing(delta: float) -> void:
 
 		red_standing_time += delta
 
-		if red_standing_time >= RED_STAND_LIMIT:
-
-			game_time_left = max(
-				0.0,
-				game_time_left - RED_PENALTY_SECONDS
-			)
-
-			red_standing_time = 0.0
+		# Standing upright in a red alert drains the timer fast (1x normal
+		# countdown + 4x bleed = 5x total).
+		game_time_left = max(
+			0.0,
+			game_time_left - RED_BLEED_RATE * delta
+		)
 
 
 	if game_time_left <= 0.0:
@@ -2338,8 +2342,83 @@ func check_destination() -> void:
 		end_game(true)
 
 
+func reveal_from_bg_start() -> void:
+
+
+	if not bg_start_requested or bg_start_revealed:
+
+		return
+
+
+	bg_start_revealed = true
+
+
+	if OS.get_environment("OVERRIDE_CH2_FULLSCREEN") == "1":
+
+		DisplayServer.window_set_mode(
+			DisplayServer.WINDOW_MODE_FULLSCREEN
+		)
+
+	else:
+
+		DisplayServer.window_set_mode(
+			DisplayServer.WINDOW_MODE_MAXIMIZED
+		)
+
+	DisplayServer.window_move_to_foreground()
+
+	get_window().grab_focus()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+
+	if event is InputEventKey and event.pressed and not event.echo:
+
+		match event.physical_keycode:
+
+			KEY_ESCAPE:
+				if is_fullscreen_active():
+					exit_fullscreen()
+
+			KEY_F11:
+				toggle_fullscreen()
+
+
+func is_fullscreen_active() -> bool:
+	return DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+
+
+func exit_fullscreen() -> void:
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+	get_window().grab_focus()
+
+
+func toggle_fullscreen() -> void:
+	if is_fullscreen_active():
+		exit_fullscreen()
+	else:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+		get_window().grab_focus()
+
+
 func update_countdown(delta: float) -> void:
 
+	# Background-start: stay hidden (minimized) under the Java fake loading
+	# bar for the configured delay, then reveal and run the real countdown.
+	if (
+		bg_start_requested
+		and
+		not bg_start_revealed
+		and
+		bg_start_reveal_delay > 0.0
+	):
+
+		bg_start_reveal_delay -= delta
+
+		if bg_start_reveal_delay > 0.0:
+			return
+
+	reveal_from_bg_start()
 
 	countdown_time -= delta
 
@@ -2665,7 +2744,47 @@ FINAL SCORE: "
 		)
 
 
-	end_card_layer.visible = true
+	# Result page CUT per player request: Chapter 2 no longer shows its own
+	# end/result page. The game just ends here. The result info is still stored
+	# to JSON (save_result_to_json above) so the Java project can show it as its
+	# own result screen later.
+	save_result_to_json(win)
+	get_tree().quit()
+
+
+func save_result_to_json(win: bool) -> void:
+	# Chapter 2 stores its end result so the main Java project can show it as
+	# its own result screen. Java passes the file path via
+	# OVERRIDE_CH2_RESULT_FILE (pattern: OS.get_environment), defaulting next to
+	# the game's build folder when not set.
+	var json_path: String = OS.get_environment("OVERRIDE_CH2_RESULT_FILE")
+	if json_path.is_empty():
+		json_path = "res://../build/chapter2_result.json"
+
+	var data := {
+		"win": win,
+		"final_score_percent": final_score_percent,
+		"bad_killed": bad_killed,
+		"bad_spawned": bad_spawned,
+		"good_killed": good_killed,
+		"game_time_left": game_time_left,
+		"progress_percent": clampf(
+			(
+				(player.global_position.x - PLAYER_START_X)
+				/ TOTAL_RUN_DISTANCE
+				* 100.0
+			) if player != null else 0.0,
+			0.0,
+			100.0
+		),
+		"saved_at_unix": Time.get_unix_time_from_system(),
+	}
+	var file := FileAccess.open(json_path, FileAccess.WRITE)
+	if file == null:
+		push_warning("Chapter2: could not store result to " + json_path)
+		return
+	file.store_string(JSON.stringify(data))
+	file.close()
 
 
 func build_hud() -> void:
@@ -3035,16 +3154,7 @@ func update_hud() -> void:
 		):
 
 			warning_label.text = (
-				"GET DOWN!  -%.0fs in %.1fs"
-				% [
-					RED_PENALTY_SECONDS,
-					max(
-						RED_STAND_LIMIT
-						-
-						red_standing_time,
-						0.0
-					),
-				]
+				"GET DOWN!  BLEEDING TIME"
 			)
 
 			warning_label.visible = true
@@ -3096,15 +3206,16 @@ func build_destination() -> void:
 	)
 
 
+	# Neon light column running from the top to the bottom of the screen.
 	var beam := Sprite2D.new()
 
 	beam.name = "Beam"
 
-	beam.texture = make_beam_texture()
+	beam.texture = make_neon_beam_texture()
 
 	beam.position = Vector2(
 		0.0,
-		310.0
+		360.0
 	)
 
 	beam.z_index = 0
@@ -3112,22 +3223,24 @@ func build_destination() -> void:
 	dest.add_child(beam)
 
 
-	var pad := Sprite2D.new()
+	# Pulsing glow so the safe zone reads as "neon lighting".
+	var pulse := create_tween()
 
-	pad.name = "Pad"
+	pulse.set_loops()
 
-	pad.texture = make_checker_texture(
-		Vector2i(360, 220)
+	pulse.tween_method(
+		func(v: float) -> void: beam.modulate = Color(1, 1, 1, v),
+		0.38,
+		1.0,
+		1.1
 	)
 
-	pad.position = Vector2(
-		0.0,
-		450.0
+	pulse.tween_method(
+		func(v: float) -> void: beam.modulate = Color(1, 1, 1, v),
+		1.0,
+		0.6,
+		1.1
 	)
-
-	pad.z_index = 1
-
-	dest.add_child(pad)
 
 
 	var lbl := Label.new()
@@ -3137,8 +3250,8 @@ func build_destination() -> void:
 	lbl.text = "SAFE ZONE"
 
 	lbl.position = Vector2(
-		-140.0,
-		100.0
+		-150.0,
+		72.0
 	)
 
 	lbl.z_index = 3
@@ -3157,66 +3270,14 @@ func build_destination() -> void:
 	add_child(dest)
 
 
-func make_checker_texture(
-	size: Vector2i
-) -> Texture2D:
+func make_neon_beam_texture() -> Texture2D:
 
+	# Height covers the whole 720 tall play area plus a shadow margin, so the
+	# beam reads as one continuous neon column from the top to the bottom of
+	# the screen.
+	var w: int = 360
 
-	var img := Image.create(
-		size.x,
-		size.y,
-		false,
-		Image.FORMAT_RGBA8
-	)
-
-
-	var cell: int = 40
-
-	var a := Color(
-		0.16,
-		0.52,
-		0.30,
-		1.0
-	)
-
-	var b := Color(
-		0.34,
-		0.68,
-		0.42,
-		1.0
-	)
-
-
-	for y in size.y:
-
-		for x in size.x:
-
-			var even: bool = (
-				(
-					int(x / cell)
-					+
-					int(y / cell)
-				)
-				% 2
-				== 0
-			)
-
-			img.set_pixel(
-				x,
-				y,
-				a if even else b
-			)
-
-
-	return ImageTexture.create_from_image(img)
-
-
-func make_beam_texture() -> Texture2D:
-
-
-	var w: int = 260
-
-	var h: int = 520
+	var h: int = 1000
 
 	var img := Image.create(
 		w,
@@ -3228,16 +3289,30 @@ func make_beam_texture() -> Texture2D:
 
 	for y in h:
 
-		var t: float = (
+		var bg_t: float = (
 			float(y)
 			/
 			float(h)
 		)
 
-		var alpha: float = lerpf(
-			0.14,
-			0.5,
-			t
+		# Brightest just below mid-screen (ground/hero level), soft at the top
+		# and bottom, like a neon tube.
+		var v_falloff: float = 1.0 - (
+			0.35
+			*
+			abs(
+				bg_t
+				-
+				0.62
+			)
+			/
+			0.5
+		)
+
+		v_falloff = clampf(
+			v_falloff,
+			0.18,
+			1.0
 		)
 
 		for x in w:
@@ -3253,14 +3328,17 @@ func make_beam_texture() -> Texture2D:
 
 			edge = pow(
 				edge,
-				0.6
+				1.8
 			)
 
+			var alpha: float = v_falloff * edge
+
+			# Cyan-white hot core with blue-ish spill at the edges.
 			var col := Color(
-				0.2,
-				0.9,
-				0.5,
-				alpha * edge
+				0.35 + 0.65 * edge,
+				1.0,
+				0.85 + 0.15 * edge,
+				alpha
 			)
 
 			img.set_pixel(
