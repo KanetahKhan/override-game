@@ -90,7 +90,8 @@ final class CurfewWorld {
      */
     record Tick(double px, double pz, double sx, double sz, String state, double dist,
                 boolean hidden, double stamina, String posture, String hideHint,
-                double suspicion, boolean sentinelSeen, int books, double yaw, double sentinelYaw) {}
+                double suspicion, boolean sentinelSeen, int books, double yaw, double sentinelYaw,
+                boolean twoUnits, double ex, double ez) {}
 
     /** X/Z footprints in the same coordinates as the player, without collision padding. */
     record MapFootprint(double minX, double minZ, double width, double depth, boolean wall) {
@@ -189,6 +190,11 @@ final class CurfewWorld {
     private final Rotate camPitch = new Rotate(0, Rotate.X_AXIS);
     private final PointLight lamp = new PointLight(Color.rgb(150, 172, 190));
     private final PointLight roomLight = new PointLight(Color.WHITE);
+    private final AmbientLight ambient = new AmbientLight(Color.rgb(82, 91, 104));
+    private static final Color AMBIENT_ON = Color.rgb(82, 91, 104);
+    private static final Color AMBIENT_OUT = Color.rgb(9, 11, 14);
+    /** Seconds left of an Astra power cut; the floor runs on your lamp alone. */
+    private double blackoutLeft;
     private final PointLight sentinelLight = new PointLight(Color.web("#35e0d8"));
 
     private final Listener listener;
@@ -255,7 +261,24 @@ final class CurfewWorld {
     private double huntTime;             // time spent walking to that spot
     private double stepDist, chaseBeatT; // sound pacing
     private boolean lockdown;
+    /** Extra sentinel pace once the floor is hunting. */
+    private double lockdownSpeed = 1.0;
     private double awareness = 1;        // difficulty: how fast suspicion fills
+    // The second hunter (Nightmare only): patrols the far half of the floor,
+    // sees a narrower cone, and calls the first unit the moment it spots you.
+    private final Group escort = new Group();
+    private final Rotate escortYaw = new Rotate(0, Rotate.Y_AXIS);
+    private MeshView escortBody;
+    private boolean twoUnits;
+    private double ex = WAYPOINTS[0][0], ez = WAYPOINTS[0][1];
+    private double eYaw, eStun, eCall;
+    private int eWp;
+    private boolean eChasing;
+
+    /** Where this unit has grabbed you, newest first: it patrols your habits. */
+    private final List<double[]> caughtSpots = new ArrayList<>();
+    private static final int MEMORY = 4;
+    private static final double MEMORY_PULL = 0.6;   // chance a patrol leg heads for a remembered spot
 
     // this run's layout: which almirahs hold a stash, which book on each shelf is a ledger (-1: none)
     private final boolean[] almirahLoot = new boolean[3];
@@ -335,9 +358,11 @@ final class CurfewWorld {
         HideSpot hs = hidden ? null : currentHideSpot();
         String posture = hidden ? "HIDDEN" : sitting != null ? "SEATED" : crouch ? "CROUCHED" : "STANDING";
         double dist = Math.hypot(px - sx, pz - sz);
+        if (twoUnits) dist = Math.min(dist, Math.hypot(px - ex, pz - ez));
         boolean seen = dist < 22 && !segBlocked(px, pz, sx, sz);
         return new Tick(px, pz, sx, sz, aiState, dist, hidden, stamina, posture,
-            hs == null ? null : hs.ready ? hs.label : "Open the almirah first", suspicion, seen, books, yaw, aiYaw);
+            hs == null ? null : hs.ready ? hs.label : "Open the almirah first", suspicion, seen, books, yaw, aiYaw,
+            twoUnits, ex, ez);
     }
 
     void start() { timer.start(); }
@@ -357,6 +382,42 @@ final class CurfewWorld {
     void setDifficulty(double d) { difficulty = d; }
 
     void setAwareness(double a) { awareness = a; }
+
+    /** Nightmare: put a second unit on the floor, starting far from the player. */
+    void setSecondUnit(boolean on) {
+        twoUnits = on;
+        if (!on) {
+            escort.setVisible(false);
+            return;
+        }
+        if (escort.getChildren().isEmpty()) buildEscort();
+        escort.setVisible(true);
+        eWp = WAYPOINTS.length - 1;               // the east end, opposite the spawn
+        ex = WAYPOINTS[eWp][0];
+        ez = WAYPOINTS[eWp][1];
+    }
+
+    private void buildEscort() {
+        escort.getTransforms().add(escortYaw);
+        if (jaeger != null && jaeger.getMesh() != null) {
+            escortBody = new MeshView(jaeger.getMesh());
+            escortBody.setMaterial(jaegerMats[0]);
+            escortBody.setCullFace(CullFace.BACK);
+            escort.getChildren().add(escortBody);
+        } else {
+            // hooded fallback, same silhouette as the first unit
+            MeshView robe = new MeshView(cone(0.68, 2.0, 14));
+            robe.setMaterial(mat(0x10141b));
+            robe.setCullFace(CullFace.NONE);
+            at(robe, 0, 1.0, 0);
+            Sphere hood = new Sphere(0.36, 14);
+            hood.setMaterial(mat(0x0b0e13));
+            at(hood, 0, 2.16, 0);
+            escort.getChildren().addAll(robe, hood,
+                at(box(0.3, 0.07, 0.05, visorMats[0]), 0, 2.12, 0.33));
+        }
+        add(escort);
+    }
 
     void setLook(double sensitivity, boolean invert) {
         lookSens = sensitivity;
@@ -403,6 +464,7 @@ final class CurfewWorld {
         if (lockdown) return;
         lockdown = true;
         difficulty *= 1.2;
+        lockdownSpeed = 1.15;
         Color red = Color.web("#ff3d3d");
         for (Panel p : panels) {
             p.color = red;
@@ -433,6 +495,15 @@ final class CurfewWorld {
             restored ? "Manual access enabled" : "Restore the kernel node"},
             restored ? "#4dff9e" : "#7ef3e8"), 0.65);
     }
+
+    /** Astra cuts the power: panels dead, ambient gone, only the lamp and the visor left. */
+    void blackout(double seconds) {
+        blackoutLeft = Math.max(blackoutLeft, seconds);
+        ambient.setColor(AMBIENT_OUT);
+        for (Panel p : panels) p.mesh.setMaterial(p.off);
+    }
+
+    boolean isBlackout() { return blackoutLeft > 0; }
 
     void stunSentinel(double seconds) { aiStun = seconds; }
 
@@ -495,7 +566,7 @@ final class CurfewWorld {
     }
 
     private void buildLighting() {
-        world.getChildren().add(new AmbientLight(Color.rgb(82, 91, 104)));
+        world.getChildren().add(ambient);
 
         lamp.setMaxRange(15);
         lamp.setLinearAttenuation(0.06);
@@ -1200,9 +1271,19 @@ final class CurfewWorld {
         clock += dt;
         double tt = clock;
 
+        if (blackoutLeft > 0) {
+            blackoutLeft -= dt;
+            if (blackoutLeft <= 0) {
+                blackoutLeft = 0;
+                ambient.setColor(AMBIENT_ON);
+                for (Panel p : panels) p.mesh.setMaterial(p.on);
+                listener.onNoise("The panels stutter back on.");
+            }
+        }
+
         // flicker + emissive life
         for (Panel p : panels) {
-            if (!p.flick) continue;
+            if (!p.flick || blackoutLeft > 0) continue;
             double n = (Math.sin(tt * 13.7 + 15) * Math.sin(tt * 4.1) + 1) / 2;
             p.level = n > 0.35 ? 1 : 0.14 + rng.nextDouble() * 0.2;
             p.mesh.setMaterial(p.level > 0.5 ? p.on : p.off);
@@ -1227,7 +1308,7 @@ final class CurfewWorld {
         }
 
         if (!paused) step(dt, tt);
-        else if (hacking) { stepSentinel(dt, tt); emitTick(dt); }
+        else if (hacking) { stepSentinel(dt, tt); stepEscort(dt); emitTick(dt); }
 
         placeCamera(dt);
         placeLights(tt);
@@ -1300,6 +1381,7 @@ final class CurfewWorld {
 
         stepFlights(dt);
         stepSentinel(dt, tt);
+        stepEscort(dt);
         updateHover();
         emitTick(dt);
     }
@@ -1327,7 +1409,31 @@ final class CurfewWorld {
         listener.onTick(snapshot());
     }
 
+    /** Adds a capture point to the unit's short memory (newest first, capped). */
+    private void remember(double x, double z) {
+        caughtSpots.add(0, new double[] {x, z});
+        while (caughtSpots.size() > MEMORY) caughtSpots.remove(caughtSpots.size() - 1);
+    }
+
+    /** The waypoint closest to one of the places it has taken you before. */
+    private int rememberedWaypoint(int exclude) {
+        double[] spot = caughtSpots.get(rng.nextInt(caughtSpots.size()));
+        int best = -1;
+        double bestDist = Double.MAX_VALUE;
+        for (int i = 0; i < WAYPOINTS.length; i++) {
+            if (i == exclude) continue;
+            double d = Math.hypot(WAYPOINTS[i][0] - spot[0], WAYPOINTS[i][1] - spot[1]);
+            if (d < bestDist) { bestDist = d; best = i; }
+        }
+        return best;
+    }
+
     private int pickNearWaypoint(int exclude) {
+        // It learns: once it has caught you somewhere, it keeps coming back.
+        if (!caughtSpots.isEmpty() && rng.nextDouble() < MEMORY_PULL) {
+            int learned = rememberedWaypoint(exclude);
+            if (learned >= 0) return learned;
+        }
         List<Integer> near = new ArrayList<>();
         for (int i = 0; i < WAYPOINTS.length; i++) {
             double d = Math.hypot(WAYPOINTS[i][0] - sx, WAYPOINTS[i][1] - sz);
@@ -1373,7 +1479,18 @@ final class CurfewWorld {
             if (aiLost > 3.4) { aiState = "SEARCH"; aiLost = 0; searchIndex = -1; suspicion = 0.6; listener.onAlert("SEARCH"); }
         } else if ("SEARCH".equals(aiState)) {
             aiLost += dt;
-            if (aiLost > 5.5) { aiState = "PATROL"; aiLost = 0; searchIndex = -1; listener.onAlert("PATROL"); }
+            if (aiLost > 5.5) {
+                if (lockdown) {
+                    // The floor is hunting: it never settles back into a patrol,
+                    // it just gets told roughly where you are and starts again.
+                    aiLost = 0;
+                    searchIndex = -1;
+                    investigate(px, pz);
+                    listener.onNoise("The grid just told it where you are.");
+                } else {
+                    aiState = "PATROL"; aiLost = 0; searchIndex = -1; listener.onAlert("PATROL");
+                }
+            }
         }
 
         double targetX, targetZ;
@@ -1404,7 +1521,7 @@ final class CurfewWorld {
         }
 
         double spd = ("CHASE".equals(aiState) ? 3.45 : "SEARCH".equals(aiState) ? 2.5 : 1.95)
-            * difficulty * (aiStun > 0 ? 0.25 : 1);
+            * difficulty * lockdownSpeed * (aiStun > 0 ? 0.25 : 1);
         double vx = targetX - sx, vz = targetZ - sz;
         double vl = Math.hypot(vx, vz);
         if (vl == 0) vl = 1;
@@ -1471,9 +1588,98 @@ final class CurfewWorld {
         if ((dToPlayer < 1.25 && !hidden && aiStun <= 0) || pulledOut) {
             sitting = null;
             crouch = false;
+            remember(px, pz);
             listener.onCaught(pulledOut ? "It saw you climb in and dragged you out." : "Grabbed.");
             resetPlayer();
         }
+    }
+
+    /**
+     * The second unit. Simpler senses than the first: a narrow cone, no interest
+     * in hiding spots — but the moment it sees you it calls the hunter onto your
+     * position, which is what makes Nightmare feel like the floor is closing.
+     */
+    private void stepEscort(double dt) {
+        if (!twoUnits) return;
+        if (eStun > 0) eStun -= dt;
+        if (eCall > 0) eCall -= dt;
+
+        double dxp = px - ex, dzp = pz - ez;
+        double dist = Math.hypot(dxp, dzp);
+        double len = dist == 0 ? 1 : dist;
+        double facingDot = (Math.sin(eYaw) * dxp + Math.cos(eYaw) * dzp) / len;
+        double angle = Math.acos(clamp(facingDot, -1, 1));
+        boolean sees = !hidden && eStun <= 0 && dist < 11
+            && (angle < 0.5 || dist < 2.6) && !segBlocked(ex, ez, px, pz);
+
+        if (sees) {
+            eChasing = true;
+            if (eCall <= 0) {
+                eCall = 6;                       // it radios your position, not constantly
+                investigate(px, pz);             // the hunter drops everything and comes
+                listener.onNoise("The second unit called your position in.");
+            }
+        } else if (eChasing && dist > 16) {
+            eChasing = false;
+        }
+
+        double targetX, targetZ;
+        if (eChasing) {
+            targetX = px;
+            targetZ = pz;
+        } else {
+            targetX = WAYPOINTS[eWp][0];
+            targetZ = WAYPOINTS[eWp][1];
+            if (Math.hypot(targetX - ex, targetZ - ez) < 1.0) eWp = pickEscortWaypoint();
+        }
+
+        double spd = (eChasing ? 3.1 : 1.9) * difficulty * lockdownSpeed * (eStun > 0 ? 0.25 : 1);
+        double vx = targetX - ex, vz = targetZ - ez;
+        double vl = Math.hypot(vx, vz);
+        if (vl == 0) vl = 1;
+        vx = vx / vl * spd * dt;
+        vz = vz / vl * spd * dt;
+        double step = spd * dt;
+        if (!blocked(ex + vx, ez)) ex += vx;
+        else if (!blocked(ex, ez + Math.signum(vz == 0 ? 1 : vz) * step)) ez += Math.signum(vz == 0 ? 1 : vz) * step;
+        if (!blocked(ex, ez + vz)) ez += vz;
+        else if (!blocked(ex + Math.signum(vx == 0 ? 1 : vx) * step, ez)) ex += Math.signum(vx == 0 ? 1 : vx) * step;
+        ex = clamp(ex, -HX + 0.55, HX - 0.55);
+        ez = clamp(ez, -HZ + 0.55, HZ - 0.55);
+
+        double wantYaw = Math.atan2(targetX - ex, targetZ - ez);
+        double dy = wantYaw - eYaw;
+        while (dy > Math.PI) dy -= Math.PI * 2;
+        while (dy < -Math.PI) dy += Math.PI * 2;
+        eYaw += dy * Math.min(1, dt * 4.0);
+
+        int si = eChasing ? 2 : 0;
+        if (escortBody != null) escortBody.setMaterial(jaegerMats[si]);
+
+        if (dist < 1.25 && !hidden && eStun <= 0) {
+            sitting = null;
+            crouch = false;
+            remember(px, pz);
+            listener.onCaught("The second unit walked into you.");
+            resetPlayer();
+            eStun = 2.5;                         // it loses you again after the grab
+            eChasing = false;
+        }
+    }
+
+    /** Keeps the escort roughly on the opposite side of the floor from the hunter. */
+    private int pickEscortWaypoint() {
+        int best = eWp;
+        double bestScore = -1;
+        for (int i = 0; i < WAYPOINTS.length; i++) {
+            if (i == eWp) continue;
+            double toHere = Math.hypot(WAYPOINTS[i][0] - ex, WAYPOINTS[i][1] - ez);
+            if (toHere < 1 || toHere > 13) continue;
+            double fromHunter = Math.hypot(WAYPOINTS[i][0] - sx, WAYPOINTS[i][1] - sz);
+            double score = fromHunter + rng.nextDouble() * 6;
+            if (score > bestScore) { bestScore = score; best = i; }
+        }
+        return best;
     }
 
     private void updateHover() {
@@ -1519,8 +1725,12 @@ final class CurfewWorld {
             if (d < nd) { nd = d; nearest = p; }
         }
         at(roomLight, nearest.x, H - 0.45, nearest.z);
-        roomLight.setColor(scale(nearest.color, 0.9 * nearest.level));
+        roomLight.setColor(blackoutLeft > 0 ? Color.BLACK : scale(nearest.color, 0.9 * nearest.level));
 
+        if (twoUnits) {
+            at(escort, ex, Math.sin(tt * 2.6 + 1.7) * 0.045, ez);
+            escortYaw.setAngle(Math.toDegrees(eYaw));
+        }
         at(sentinel, sx, Math.sin(tt * 2.6) * 0.045, sz);
         sentinelYaw.setAngle(Math.toDegrees(aiYaw));
         at(sentinelLight, sx, 2.1, sz);
