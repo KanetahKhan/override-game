@@ -85,7 +85,7 @@ public class CurfewProtocolScreen {
     /** Independent XP for clearing the floor without Astra's help. */
     private static final int WIN_INDEPENDENT_XP = 20;
 
-    /** Astra scan (Q): the unit shows on the minimap for a few seconds, for a dependency cost. */
+    /** Astra scan (Q): adds robot heading, distance and state; basic map tracking is always free. */
     private static final int ASTRA_SCAN_DEPENDENCY = 5;
     private static final long ASTRA_SCAN_MS = 6000, ASTRA_SCAN_COOLDOWN_MS = 25000;
     private static final String ASTRA_COLOR = "#b388ff";
@@ -143,13 +143,12 @@ public class CurfewProtocolScreen {
     private StackPane pauseShade, noteView, settingsView;
     private Region integrityFill, staminaFill, suspicionFill, chaseFlash;
     private Label integrityLabel, alertLabel, dependencyLabel, clockLabel, creditsLabel, objectiveLabel,
-        postureLabel, booksLabel, promptLabel, hideLabel, toastTag, toastText, mmLabel, hackAlert;
+        postureLabel, booksLabel, promptLabel, hideLabel, toastTag, toastText, hackAlert;
     private HBox promptBox, hideBox;
     private VBox toastBox, footer;
     private StackPane suspicionBar;
     private final Label[] nodeSlots = new Label[3];
-    private Pane minimap;
-    private Circle mmPlayer, mmSentinel;
+    private CurfewMinimap minimap;
     private StackPane crosshair;
 
     // timers
@@ -208,7 +207,13 @@ public class CurfewProtocolScreen {
             + " -fx-border-color: rgba(53,224,216,0.35);");
         hackAlert.setMouseTransparent(true);
 
-        root.getChildren().addAll(world.view(), vignette, scan, chaseFlash, hud, overlayLayer);
+        // Keep the map above the hacking overlay: the robot still moves while a node is open.
+        minimap = new CurfewMinimap(world);
+        AnchorPane mapLayer = new AnchorPane(minimap);
+        mapLayer.setMouseTransparent(true);
+        AnchorPane.setBottomAnchor(minimap, 22.0);
+        AnchorPane.setRightAnchor(minimap, 22.0);
+        root.getChildren().addAll(world.view(), vignette, scan, chaseFlash, hud, overlayLayer, mapLayer);
         wireInput();
 
         clockTimer.setCycleCount(Animation.INDEFINITE);
@@ -283,32 +288,6 @@ public class CurfewProtocolScreen {
         AnchorPane.setTopAnchor(objective, 128.0);
         AnchorPane.setLeftAnchor(objective, 22.0);
 
-        // minimap: the unit only shows while you can see it, or during an Astra scan
-        minimap = new Pane();
-        minimap.setPrefSize(210, 132);
-        minimap.setStyle("-fx-background-color: rgba(4,12,14,0.8); -fx-border-color: rgba(53,224,216,0.4);");
-        Region corridor = new Region();
-        corridor.setLayoutY(132 * 0.41);
-        corridor.setPrefSize(210, 132 * 0.18);
-        corridor.setStyle("-fx-background-color: rgba(53,224,216,0.07); -fx-border-color: rgba(53,224,216,0.2) transparent;");
-        minimap.getChildren().add(corridor);
-        for (double f : new double[] {0.33, 0.67}) {
-            Region div = new Region();
-            div.setLayoutX(210 * f);
-            div.setPrefSize(1, 132);
-            div.setStyle("-fx-background-color: rgba(53,224,216,0.2);");
-            minimap.getChildren().add(div);
-        }
-        mmPlayer = new Circle(3.5, Color.web("#7ef3e8"));
-        mmPlayer.setStyle("-fx-effect: dropshadow(gaussian, #7ef3e8, 9, 0, 0, 0);");
-        mmSentinel = new Circle(4.5, Color.web("#ff3d5a"));
-        mmLabel = text("FLOOR 2 — NO CONTACT", MONO, 9, "rgba(126,243,232,0.5)");
-        mmLabel.setLayoutX(6);
-        mmLabel.setLayoutY(116);
-        minimap.getChildren().addAll(mmPlayer, mmSentinel, mmLabel);
-        AnchorPane.setBottomAnchor(minimap, 22.0);
-        AnchorPane.setRightAnchor(minimap, 22.0);
-
         // controls footer
         postureLabel = text("STANDING", MONO, 14, "rgba(126,243,232,0.55)");
         booksLabel = text("0", MONO, 14, "rgba(126,243,232,0.55)");
@@ -327,7 +306,7 @@ public class CurfewProtocolScreen {
         AnchorPane.setBottomAnchor(footer, 22.0);
         AnchorPane.setLeftAnchor(footer, 22.0);
 
-        hud.getChildren().addAll(topLeft, topRight, objective, minimap, footer);
+        hud.getChildren().addAll(topLeft, topRight, objective, footer);
 
         // centred: crosshair, suspicion bar, prompts, toast
         crosshair = new StackPane(new Circle(1.5, Color.web("#7ef3e8")));
@@ -424,8 +403,7 @@ public class CurfewProtocolScreen {
         boolean playing = phase == Phase.PLAY && nodeGame == null && noteView == null;
         crosshair.setVisible(playing);
         footer.setVisible(playing);
-        minimap.setVisible(phase != Phase.INTRO && nodeGame == null && noteView == null);
-        mmSentinel.setVisible(sentinelSeen || scanning());
+        minimap.setScanning(scanning());
         promptBox.setVisible(playing && prompt != null);
         String hide = hiddenNow ? "Step out" : hideHint;
         hideBox.setVisible(playing && hide != null);
@@ -527,15 +505,8 @@ public class CurfewProtocolScreen {
             alertLabel.setText(hiddenNow ? "CONCEALED" : "CHASE".equals(alert) ? "PURSUIT"
                 : "SEARCH".equals(alert) ? "SWEEPING" : noticing ? "NOTICING" : "PATROLLING");
             recolor(alertLabel, noticing ? "#ffb347" : alertColor);
-            mmPlayer.setCenterX((t.px() + CurfewWorld.HX) / (CurfewWorld.HX * 2) * 210);
-            mmPlayer.setCenterY((t.pz() + CurfewWorld.HZ) / (CurfewWorld.HZ * 2) * 132);
-            mmSentinel.setCenterX((t.sx() + CurfewWorld.HX) / (CurfewWorld.HX * 2) * 210);
-            mmSentinel.setCenterY((t.sz() + CurfewWorld.HZ) / (CurfewWorld.HZ * 2) * 132);
-            mmSentinel.setFill(Color.web("#ff3d5a"));
-            mmSentinel.setStyle("-fx-effect: dropshadow(gaussian, #ff3d5a, 12, 0, 0, 0);");
+            minimap.update(t);
             long dist = Math.round(t.dist());
-            mmLabel.setText("FLOOR 2 — " + (scanning() ? "ASTRA FEED · " + dist + "M TO UNIT"
-                : sentinelSeen ? dist + "M TO UNIT" : "NO CONTACT"));
             if (nodeGame != null) updateHackAlert(dist);
             refreshHud();
         }
@@ -626,7 +597,7 @@ public class CurfewProtocolScreen {
         useAstra(ASTRA_SCAN_DEPENDENCY);
         scanEndsAt = now + ASTRA_SCAN_MS;
         scanReadyAt = now + ASTRA_SCAN_COOLDOWN_MS;
-        toast("\"I found it for you.\" The unit is on your minimap for " + ASTRA_SCAN_MS / 1000
+        toast("Astra reveals the robot's heading, distance and state for " + ASTRA_SCAN_MS / 1000
             + " seconds. +" + ASTRA_SCAN_DEPENDENCY + " dependency.", "ASTRA SCAN", ASTRA_COLOR);
         refreshHud();
     }
@@ -954,9 +925,11 @@ public class CurfewProtocolScreen {
             + " / ARROWS LOOK   E INTERACT   F HIDE   G THROW   Q ASTRA", MONO, 12, "rgba(126,243,232,0.7)");
         Label hint = para("Hide at an open almirah or the front of a desk with F — but not while it's watching you. "
             + "The amber bar over your crosshair is the unit noticing you: break line of sight before it fills. "
-            + "Running and landing jumps are loud; a thrown book pulls it away.",
+            + "Running and landing jumps are loud; a thrown book pulls it away. "
+            + "The corner map always tracks you in blue and the robot in red.",
             15, "rgba(255,179,71,0.85)", 700);
-        Label astra = para("Astra is always one key away: Q scans for the unit, and every node has an ASK ASTRA button. "
+        Label astra = para("Astra is always one key away: Q adds the robot's heading and distance to the map, "
+            + "and every node has an ASK ASTRA button. "
             + "It never refuses. Every use raises your Dependency Meter.",
             15, ASTRA_COLOR, 700);
 

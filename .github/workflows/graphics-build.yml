@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'src/main/java/com/override/chapter1/**'
+      - 'src/test/java/com/override/chapter1/**'
+      - 'scripts/test-minimap.sh'
       - 'pom.xml'
       - '.github/workflows/graphics-build.yml'
 permissions:
@@ -18,5 +20,10 @@ jobs:
           distribution: temurin
           java-version: '26'
           cache: maven
-      - name: Compile JavaFX frontend
-        run: mvn --batch-mode --no-transfer-progress -DskipTests compile
+      - name: Compile frontend and check the live minimap
+        run: xvfb-run -a bash scripts/test-minimap.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: classroom-minimap-preview
+          path: target/minimap-preview/
