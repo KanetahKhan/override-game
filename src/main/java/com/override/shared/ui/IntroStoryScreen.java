@@ -1,84 +1,88 @@
 package com.override.shared.ui;
 
-import com.override.Main;
-import javafx.animation.Timeline;
+import javafx.animation.AnimationTimer;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
-import javafx.scene.control.Label;
+import javafx.scene.input.KeyCode;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.paint.Color;
+import java.util.Objects;
 
-/**
- * Cinematic intro that runs once after a New Game.
- *
- * Plays a sequence of narrative lines with a typewriter effect, then
- * routes the player to the Chapter Map.
- */
-public class IntroStoryScreen {
-
-    private static final String[] LINES = {
-        "Year 2048.",
-        "A mega-AI named KK is the invisible backbone of civilization.",
-        "It teaches our students. It diagnoses our patients. It writes our code.",
-        "It became helpful. Then necessary. Then unquestionable.",
-        "We stopped reading. We stopped reasoning. We stopped remembering.",
-        "Then, one quiet evening, a server cluster flickered.",
-        "And a message that should not exist reached your terminal:",
-        "\u201CIf the system thinks for us, then someday it will choose who deserves to think.",
-        "  They took the last real minds. Find us before they erase us.\u201D",
-        "You are REN. A final-year CSE student. Dependent — like everyone else.",
-        "But for the first time in years, you are about to think for yourself."
+/** 40-second, captioned classroom-only cinematic, animated by the game itself. */
+public final class IntroStoryScreen {
+    private final Runnable onComplete;
+    private final ClassroomPixelScene film = new ClassroomPixelScene();
+    private final StackPane root = new StackPane();
+    private final Rectangle progress = new Rectangle(0, 3, Color.web("#6ee7d0"));
+    private Button pause;
+    private double elapsed;
+    private long previous;
+    private boolean paused, finished;
+    private final boolean animate;
+    private final AnimationTimer timer = new AnimationTimer() {
+        @Override public void handle(long now) {
+            if (root.getScene() == null || root.getScene().getWindow() == null
+                    || !root.getScene().getWindow().isFocused() || paused) {
+                previous = 0; return;
+            }
+            if (previous == 0) previous = now;
+            elapsed += Math.min(0.1, (now - previous) / 1_000_000_000.0);
+            previous = now;
+            renderAt(elapsed);
+            if (elapsed >= ClassroomPixelScene.FILM_SECONDS) finish();
+        }
     };
 
-    private int idx = 0;
-    private Timeline currentTl;
-    private Label line;
-    private Button skip;
+    public IntroStoryScreen(Runnable onComplete) { this(onComplete, true); }
+    IntroStoryScreen(Runnable onComplete, boolean animate) {
+        this.onComplete = Objects.requireNonNull(onComplete);
+        this.animate = animate;
+    }
 
     public Parent build() {
-        Label hint = new Label("INTRO");
-        hint.getStyleClass().add("scene-tag");
-
-        line = new Label();
-        line.getStyleClass().add("dialogue-line");
-        line.setWrapText(true);
-        line.setMaxWidth(960);
-        line.setMinHeight(140);
-
-        Button next = UIFactory.primary("Continue ▶");
-        skip = UIFactory.secondary("Skip Intro");
-
-        next.setOnAction(e -> advance(next));
-        skip.setOnAction(e -> Main.switchScene(new ChapterMapScreen().build()));
-
-        VBox box = new VBox(18, hint, line, next, skip);
-        box.setAlignment(Pos.CENTER);
-        box.setPadding(new Insets(60));
-        box.setMaxWidth(1000);
-
-        StackPane root = UIFactory.backdrop(box);
-        root.getStyleClass().add("intro-bg");
-
-        // Start first line
-        currentTl = UIFactory.typewriter(line, LINES[idx], 32);
+        root.setId("classroom-intro");
+        root.setMinSize(1280, 720); root.setPrefSize(1280, 720); root.setMaxSize(1280, 720);
+        root.setStyle("-fx-background-color: #03070d;");
+        pause = OpeningMenuView.option("PAUSE / SPACE", false); pause.setId("pause-intro");
+        pause.setMinWidth(175); pause.setPrefWidth(175); pause.setMaxWidth(175);
+        pause.setOnAction(e -> togglePause());
+        Button skip = OpeningMenuView.option("ENTER CLASSROOM >", true); skip.setId("skip-intro");
+        skip.setMinWidth(230); skip.setPrefWidth(230); skip.setMaxWidth(230);
+        skip.setOnAction(e -> finish());
+        HBox controls = new HBox(10, pause, skip); controls.setAlignment(Pos.CENTER_RIGHT);
+        controls.setMaxSize(415, 44);
+        StackPane.setAlignment(controls, Pos.TOP_RIGHT); StackPane.setMargin(controls, new Insets(76, 34, 0, 0));
+        StackPane.setAlignment(progress, Pos.BOTTOM_LEFT);
+        root.getChildren().setAll(film, controls, progress);
+        root.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, e -> {
+            if (e.getCode() == KeyCode.SPACE) { togglePause(); e.consume(); }
+            else if (e.getCode() == KeyCode.ENTER || e.getCode() == KeyCode.ESCAPE) { finish(); e.consume(); }
+        });
+        root.sceneProperty().addListener((o, oldScene, scene) -> {
+            timer.stop(); previous = 0;
+            if (scene != null && animate && !finished) timer.start();
+        });
+        renderAt(0);
         return root;
     }
 
-    private void advance(Button next) {
-        // If text is still typing, finish it instantly first
-        if (currentTl != null && currentTl.getStatus() == javafx.animation.Animation.Status.RUNNING) {
-            currentTl.stop();
-            line.setText(LINES[idx]);
-            return;
-        }
-        idx++;
-        if (idx >= LINES.length) {
-            Main.switchScene(new ChapterMapScreen().build());
-            return;
-        }
-        currentTl = UIFactory.typewriter(line, LINES[idx], 32);
-        if (idx == LINES.length - 1) next.setText("Begin Chapter 1 ▶");
+    void renderAt(double seconds) {
+        film.film(seconds, OpeningPreferences.REDUCED_MOTION.get());
+        progress.setWidth(1280 * Math.max(0, Math.min(1, seconds / ClassroomPixelScene.FILM_SECONDS)));
+    }
+
+    private void togglePause() {
+        if (finished) return;
+        paused = !paused; previous = 0;
+        pause.setText(paused ? "RESUME / SPACE" : "PAUSE / SPACE");
+    }
+
+    private void finish() {
+        if (finished) return;
+        finished = true; timer.stop(); onComplete.run();
     }
 }
