@@ -39,6 +39,9 @@ public final class OpeningVisualSmoke {
                 check(button(menu, "continue-game").isDisabled(), "Continue must require a save");
                 button(menu, "new-game").fire(); button(menu, "shop").fire(); button(menu, "quit").fire();
                 check(calls[0] == 1 && calls[2] == 1 && calls[3] == 1, "Menu callbacks");
+                button(menu, "new-game").requestFocus();
+                Event.fireEvent(button(menu, "new-game"), new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.ENTER, false, false, false, false));
+                check(calls[0] == 2, "Enter must activate the focused menu option exactly once");
                 snapshot(menu, output.resolve("menu.png"));
                 button(menu, "display-options").fire(); menu.applyCss(); menu.layout();
                 CheckBox reduced = (CheckBox) menu.lookup("#reduced-motion");
