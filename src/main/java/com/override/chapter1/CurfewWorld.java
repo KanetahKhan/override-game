@@ -104,7 +104,8 @@ final class CurfewWorld {
         Group shelf;           // books
         double sitX, sitZ;     // chairs
         boolean looted;        // drawers
-        MeshView screen;       // terminals
+        MeshView screen;       // terminals and lab workstations
+        boolean powered = true;
 
         Interactable(Node node, String id, String label, String verb, String kind) {
             this.node = node; this.id = id; this.label = label; this.verb = verb; this.kind = kind;
@@ -157,6 +158,7 @@ final class CurfewWorld {
 
     private final List<Aabb> colliders = new ArrayList<>();
     private final List<Aabb> sightBlockers = new ArrayList<>();
+    private final List<Node> interactionWalls = new ArrayList<>();
     private final List<Interactable> interactables = new ArrayList<>();
     private final Map<String, Interactable> named = new HashMap<>();
     private final List<Anim> animators = new ArrayList<>();
@@ -169,7 +171,7 @@ final class CurfewWorld {
     private final PhongMaterial wallMat;
     private final PhongMaterial darkMat = mat(0x161b20);
     private final PhongMaterial metalMat = metal(0x39434b);
-    private final PhongMaterial deskTopMat = mat(0x51402f);
+    private final PhongMaterial deskTopMat = woodMaterial();
     private final PhongMaterial legMat = metal(0x8b969e);
     private final PhongMaterial seatMat = mat(0x243b45);
     private final PhongMaterial handleMat = metal(0xa9b4bd);
@@ -304,6 +306,18 @@ final class CurfewWorld {
         t.kind = "done";
         t.screen.setMaterial(emissiveTexture(screenTexture(
             new String[] {"> NODE CLEARED", "> token extracted", "> credits banked", "> move."}, "#4dff9e"), 1.0));
+        if ("node1".equals(id)) {
+            PhongMaterial restored = workstationScreen(true);
+            for (Interactable station : interactables)
+                if ("workstation".equals(station.kind) && station.powered) station.screen.setMaterial(restored);
+        }
+    }
+
+    private PhongMaterial workstationScreen(boolean restored) {
+        return emissiveTexture(screenTexture(new String[] {"IUT // LAB NETWORK",
+            restored ? "KERNEL RESTORED" : "STATION OFFLINE",
+            restored ? "Manual access enabled" : "Restore the kernel node"},
+            restored ? "#4dff9e" : "#7ef3e8"), 0.65);
     }
 
     void stunSentinel(double seconds) { aiStun = seconds; }
@@ -356,10 +370,16 @@ final class CurfewWorld {
         Aabb b = new Aabb(worldBounds(m), 0.18);
         colliders.add(b);
         sightBlockers.add(b);
+        interactionWalls.add(m);
+        // Real skirting and a painted lower wall give the architecture scale.
+        add(at(box(horiz ? len : 0.34, 0.14, horiz ? 0.34 : len, metalMat),
+            (x1 + x2) / 2, 0.07, (z1 + z2) / 2));
+        add(at(box(horiz ? len : 0.32, 0.035, horiz ? 0.32 : len, handleMat),
+            (x1 + x2) / 2, 1.12, (z1 + z2) / 2));
     }
 
     private void buildLighting() {
-        world.getChildren().add(new AmbientLight(Color.rgb(58, 74, 90)));
+        world.getChildren().add(new AmbientLight(Color.rgb(82, 91, 104)));
 
         lamp.setMaxRange(15);
         lamp.setLinearAttenuation(0.06);
@@ -414,7 +434,7 @@ final class CurfewWorld {
 
     /* -------------------------------------------------------- furniture */
 
-    private int chairN, almirahN;
+    private int chairN, almirahN, workstationN;
 
     private Group deskProto() {
         Group g = new Group();
@@ -422,7 +442,15 @@ final class CurfewWorld {
         for (double[] p : new double[][] {{-0.48, -0.26}, {0.48, -0.26}, {-0.48, 0.26}, {0.48, 0.26}}) {
             g.getChildren().add(at(cyl(0.03, 0.72, legMat), p[0], 0.36, p[1]));
         }
-        g.getChildren().add(at(box(0.5, 0.42, 0.06, seatMat), 0, 0.68, 0.92));
+        g.getChildren().add(at(box(0.5, 0.42, 0.06, seatMat), 0, 0.72, 0.92));
+        for (double x : new double[] {-0.21, 0.21}) {
+            g.getChildren().add(at(cyl(0.022, 0.88, legMat), x, 0.44, 0.9));
+            g.getChildren().add(at(cyl(0.022, 0.45, legMat), x, 0.225, 0.5));
+        }
+        // Notebook, pages and binding: physical props, not flat painted silhouettes.
+        g.getChildren().addAll(at(box(0.3, 0.035, 0.36, mat(0x365f6e)), -0.2, 0.772, 0),
+            at(box(0.265, 0.018, 0.33, mat(0xd7d0b3)), -0.19, 0.797, 0),
+            at(box(0.025, 0.043, 0.36, darkMat), -0.34, 0.776, 0));
         return g;
     }
 
@@ -531,14 +559,23 @@ final class CurfewWorld {
     /** Desk with a sliding drawer (which always holds a credit wedge). */
     private void deskWithDrawer(double x, double z, double ry, String id, String label) {
         Group g = new Group();
-        g.getChildren().add(at(box(2.4, 0.1, 1.15, mat(0x4a3a2c)), 0, 0.78, 0));
-        g.getChildren().add(at(box(2.2, 0.72, 1.0, mat(0x2f2620)), 0, 0.39, 0));
+        g.getChildren().add(at(box(2.4, 0.1, 1.15, deskTopMat), 0, 0.78, 0));
+        // Hollow pedestal lets the drawer tray slide out visibly.
+        g.getChildren().addAll(
+            at(box(0.08, 0.72, 1.0, deskTopMat), -1.06, 0.39, 0),
+            at(box(0.08, 0.72, 1.0, deskTopMat), 1.06, 0.39, 0),
+            at(box(2.12, 0.64, 0.06, deskTopMat), 0, 0.42, -0.47),
+            at(box(0.08, 0.72, 1.0, deskTopMat), 0.03, 0.39, 0));
         Group drawer = new Group();
         Cylinder coinInside = cyl(0.11, 0.02, glow(Color.web("#ffb347"), 0.9));
         at(coinInside, 0, -0.06, -0.2).getTransforms().add(new Rotate(90, Rotate.X_AXIS));
         drawer.getChildren().addAll(
             box(0.95, 0.34, 0.08, mat(0x5b4838)),
             at(box(0.5, 0.05, 0.05, handleMat), 0, 0, 0.06),
+            at(box(0.88, 0.04, 0.55, deskTopMat), 0, -0.15, -0.25),
+            at(box(0.04, 0.25, 0.55, deskTopMat), -0.44, -0.025, -0.25),
+            at(box(0.04, 0.25, 0.55, deskTopMat), 0.44, -0.025, -0.25),
+            at(box(0.88, 0.25, 0.04, deskTopMat), 0, -0.025, -0.51),
             coinInside);
         at(drawer, -0.5, 0.5, 0.52);
         g.getChildren().add(drawer);
@@ -546,6 +583,7 @@ final class CurfewWorld {
         add(g);
         addCollider(g, 0.0, false);
         Interactable it = reg(drawer, id, label, "Pull open", "drawer");
+        it.stash = coinInside;
         it.anim = anim(2.6, v -> drawer.setTranslateZ(0.52 + v * 0.44));
         hideSpots.add(new HideSpot(x + Math.sin(ry) * 1.25, z + Math.cos(ry) * 1.25, "Hide under desk", null));
     }
@@ -568,11 +606,36 @@ final class CurfewWorld {
         MeshView scr = quad(1.34, 0.96, emissiveTexture(screenTexture(lines, accent), 1.0));
         at(scr, 0, 1.58, 0.03);
         g.getChildren().add(scr);
+        // A separate stand, input deck, raised keys and cooling vents ground the terminal.
+        g.getChildren().addAll(at(box(0.22, 0.32, 0.16, legMat), 0, 1.12, -0.04),
+            at(box(1.28, 0.05, 0.36, darkMat), 0, 1.04, 0.16));
+        for (int row = 0; row < 3; row++) for (int col = 0; col < 12; col++)
+            g.getChildren().add(at(box(0.075, 0.023, 0.065, handleMat),
+                -0.51 + col * 0.092, 1.077, 0.08 + row * 0.085));
+        for (int i = 0; i < 7; i++)
+            g.getChildren().add(at(box(0.7, 0.018, 0.014, darkMat), 0, 0.22 + i * 0.07, 0.382));
+        g.getChildren().add(at(cyl(0.035, 0.018, glow(Color.web(accent), 0.9)), 0.62, 1.03, 0.22));
         rotY(at(g, x, 0, z), ry);
         add(g);
         addCollider(g, 0.12, false);
         Interactable it = reg(g, id, title, "Jack in", "terminal");
         it.screen = scr;
+    }
+
+    private void workstation(double x, double z) {
+        Group pc = new Group();
+        MeshView display = quad(0.82, 0.46, emissiveTexture(screenTexture(
+            new String[] {"IUT // LAB NETWORK", "STATION OFFLINE", "Restore the kernel node"}, "#7ef3e8"), 0.65));
+        at(display, 0, 1.37, -0.062);
+        pc.getChildren().addAll(at(box(0.48, 0.035, 0.28, metalMat), 0, 0.925, 0),
+            at(box(0.08, 0.2, 0.08, legMat), 0, 1.03, -0.1),
+            at(box(0.9, 0.55, 0.065, darkMat), 0, 1.37, -0.1),
+            display,
+            at(box(0.6, 0.03, 0.2, metalMat), 0, 0.925, 0.27));
+        at(pc, x, 0, z);
+        add(pc);
+        Interactable station = reg(pc, "workstation" + (++workstationN), "Lab workstation", "Power off", "workstation");
+        station.screen = display;
     }
 
     private void coin(double x, double z, int value, double y) {
@@ -595,6 +658,7 @@ final class CurfewWorld {
             add(bench);
             addCollider(bench, 0.05, false);
             add(at(cyl(0.12, 0.32, beakerMat), -18.2 + i * 0.6, 1.06, -10 + i * 2.4));
+            workstation(-19.5, -10 + i * 2.4);
         }
         almirah(-23.6, -6.2, Math.PI / 2, true);
         deskWithDrawer(-13.4, -13.0, 0, "drawer1", "Lab drawer");
@@ -639,8 +703,14 @@ final class CurfewWorld {
             addCollider(rack, 0.1, true);
             Color c = Color.web(i % 2 == 1 ? "#35e0d8" : "#ff3d7f");
             PhongMaterial on = glow(c, 0.55), off = glow(c, 0.12);
-            MeshView led = quad(0.85, 2.0, on);
-            rotY(at(led, -6 + i * 2.8, 1.25, 8.14), Math.PI);
+            for (int slot = 0; slot < 7; slot++) {
+                add(at(box(0.96, 0.23, 0.055, metalMat), -6 + i * 2.8, 0.35 + slot * 0.29, 8.125));
+                for (int vent = 0; vent < 5; vent++)
+                    add(at(box(0.42, 0.014, 0.015, darkMat), -6.12 + i * 2.8,
+                        0.29 + slot * 0.29 + vent * 0.027, 8.09));
+            }
+            MeshView led = quad(0.035, 1.92, on);
+            rotY(at(led, -5.63 + i * 2.8, 1.25, 8.09), Math.PI);
             add(led);
             leds.add(new Led(led, on, off));
         }
@@ -758,6 +828,14 @@ final class CurfewWorld {
         if (obj == null) return;
 
         switch (obj.kind) {
+            case "workstation" -> {
+                obj.powered = !obj.powered;
+                obj.verb = obj.powered ? "Power off" : "Power on";
+                boolean restored = "done".equals(named.get("node1").kind);
+                obj.screen.setMaterial(obj.powered ? workstationScreen(restored) : mat(0x070b10));
+                listener.onUse(obj.id, obj.kind, obj.powered);
+                listener.onHover(obj.id, obj.label, obj.verb);
+            }
             case "chair" -> sit(obj);
             case "almirah" -> {
                 Anim d = obj.anim;
@@ -779,6 +857,7 @@ final class CurfewWorld {
                 obj.verb = open ? "Push shut" : "Pull open";
                 if (open && !obj.looted) {
                     obj.looted = true;
+                    if (obj.stash != null) obj.stash.setVisible(false);
                     listener.onCoin(10, "Drawer");
                 }
                 listener.onUse(obj.id, "drawer", open);
@@ -1020,7 +1099,13 @@ final class CurfewWorld {
         double cp = Math.cos(pitch);
         double dx = -Math.sin(yaw) * cp, dy = Math.sin(pitch), dz = -Math.cos(yaw) * cp;
         String id = null;
-        double best = Double.MAX_VALUE;
+        double best = RAY_FAR;
+        // Reject targets behind walls before testing furniture. Collision and picking
+        // use the same world coordinate system, including rotated room dividers.
+        for (Node wall : interactionWalls) {
+            double t = rayHit(px, camY, pz, dx, dy, dz, worldBounds(wall), RAY_FAR);
+            if (t >= 0) best = Math.min(best, t);
+        }
         for (Interactable it : interactables) {
             double t = rayHit(px, camY, pz, dx, dy, dz, worldBounds(it.node), RAY_FAR);
             if (t >= 0 && t < best) { best = t; id = it.id; }
@@ -1202,18 +1287,42 @@ final class CurfewWorld {
         return c.snapshot(sp, null);
     }
 
+    private static PhongMaterial woodMaterial() {
+        PhongMaterial material = new PhongMaterial(Color.WHITE);
+        material.setDiffuseMap(canvasTexture(256, 256, g -> {
+            g.setFill(Color.web("#795c42"));
+            g.fillRect(0, 0, 256, 256);
+            Random grain = new Random(42);
+            for (int i = 0; i < 180; i++) {
+                g.setStroke(Color.color(0.18, 0.09, 0.04, 0.08 + grain.nextDouble() * 0.18));
+                double y = grain.nextDouble() * 256;
+                g.strokeLine(0, y, 256, y + grain.nextDouble() * 7);
+            }
+        }));
+        material.setSpecularColor(Color.gray(0.18));
+        material.setSpecularPower(24);
+        return material;
+    }
+
     private static Font mono(double size) { return Font.font("Consolas", FontWeight.BOLD, size); }
 
-    /** The floor tiles are baked into one image (14 × 9 repeats of the original tile). */
+    /** The metre-scale floor tiles are baked once into one shared image. */
     private Image floorTexture() {
-        int cellsX = 56, cellsY = 36, cell = 20;
+        int cellsX = 50, cellsY = 30, cell = 24;
         return canvasTexture(cellsX * cell, cellsY * cell, g -> {
             double w = cellsX * cell, h = cellsY * cell;
             g.setFill(Color.web("#1c2128"));
             g.fillRect(0, 0, w, h);
+            Random grain = new Random(2048);
+            for (int y = 0; y < cellsY; y++) for (int x = 0; x < cellsX; x++) {
+                g.setFill(Color.web((x + y) % 2 == 0 ? "#4a565d" : "#434f57"));
+                g.fillRect(x * cell + 1, y * cell + 1, cell - 2, cell - 2);
+                g.setStroke(Color.color(0.7, 0.8, 0.85, 0.15));
+                g.strokeLine(x * cell + 2, y * cell + 2, (x + 1) * cell - 2, y * cell + 2);
+            }
             for (int i = 0; i < 9000; i++) {
-                g.setFill(Color.color(1, 1, 1, rng.nextDouble() * 0.04));
-                g.fillRect(rng.nextDouble() * w, rng.nextDouble() * h, 2, 2);
+                g.setFill(Color.color(1, 1, 1, grain.nextDouble() * 0.04));
+                g.fillRect(grain.nextDouble() * w, grain.nextDouble() * h, 2, 2);
             }
             g.setStroke(Color.color(0, 0, 0, 0.55));
             g.setLineWidth(2);
@@ -1224,8 +1333,12 @@ final class CurfewWorld {
 
     private Image wallTexture() {
         return canvasTexture(256, 256, g -> {
-            g.setFill(Color.web("#2a323a"));
+            g.setFill(Color.web("#64757b"));
             g.fillRect(0, 0, 256, 256);
+            g.setFill(Color.web("#354c55"));
+            g.fillRect(0, 176, 256, 80);
+            g.setFill(Color.web("#93a6a5"));
+            g.fillRect(0, 173, 256, 3);
             for (int i = 0; i < 900; i++) {
                 g.setFill(Color.color(0, 0, 0, rng.nextDouble() * 0.12));
                 g.fillRect(rng.nextDouble() * 256, rng.nextDouble() * 256, 3, 3);
