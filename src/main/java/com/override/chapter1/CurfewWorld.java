@@ -16,7 +16,11 @@ import javafx.scene.SubScene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
+import javafx.scene.image.PixelFormat;
+import javafx.scene.image.PixelReader;
+import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
+import javafx.scene.image.WritablePixelFormat;
 import javafx.scene.input.KeyCode;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
@@ -31,6 +35,9 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
 import javafx.scene.transform.Rotate;
+
+import java.io.IOException;
+import java.io.InputStream;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -133,7 +140,7 @@ final class CurfewWorld {
         }
     }
 
-    private record Coin(Node node, Rotate spin, int value, double x, double z, double baseY) {}
+    private record Coin(MeshView node, Rotate face, int value, double x, double z, double baseY) {}
 
     private static final class Panel {
         final double x, z;
@@ -214,9 +221,11 @@ final class CurfewWorld {
 
     private final Group sentinel = new Group();
     private final Rotate sentinelYaw = new Rotate(0, Rotate.Y_AXIS);
-    private Shape3D visor, hem;
+    private Shape3D visor, hem;                       // hooded fallback only
+    private MeshView jaeger;                          // the Striker Eureka body
     private final PhongMaterial[] visorMats = new PhongMaterial[3];
     private final PhongMaterial[] hemMats = new PhongMaterial[3];
+    private final PhongMaterial[] jaegerMats = new PhongMaterial[3];
     private static final Color[] STATE_COLORS = {
         Color.web("#35e0d8"), Color.web("#ffb347"), Color.web("#ff3d5a")
     };
@@ -647,7 +656,9 @@ final class CurfewWorld {
             at(box(2.12, 0.64, 0.06, deskTopMat), 0, 0.42, -0.47),
             at(box(0.08, 0.72, 1.0, deskTopMat), 0.03, 0.39, 0));
         Group drawer = new Group();
-        Cylinder coinInside = cyl(0.11, 0.02, glow(Color.web("#ffb347"), 0.9));
+        // Lies flat and face-up in the tray: a drawer coin is seen from above,
+        // so it keeps the face-on frame rather than billboarding edge-on.
+        MeshView coinInside = quad(0.24, 0.24, coinFace());
         at(coinInside, 0, -0.06, -0.2).getTransforms().add(new Rotate(90, Rotate.X_AXIS));
         drawer.getChildren().addAll(
             box(0.95, 0.34, 0.08, mat(0x5b4838)),
@@ -719,11 +730,13 @@ final class CurfewWorld {
     }
 
     private void coin(double x, double z, int value, double y) {
-        Cylinder m = cyl(0.17, 0.035, glow(Color.web("#ffb347"), 1.0));
-        Rotate spin = new Rotate(0, Rotate.Z_AXIS);
-        at(m, x, y, z).getTransforms().addAll(new Rotate(90, Rotate.X_AXIS), spin);
+        // A sprite, not a disc: the sheet already carries the spin, so the quad
+        // only has to keep its face turned to the player.
+        MeshView m = quad(COIN_SIZE, COIN_SIZE, coinFrames()[0]);
+        Rotate face = new Rotate(0, Rotate.Y_AXIS);
+        at(m, x, y, z).getTransforms().add(face);
         add(m);
-        coins.add(new Coin(m, spin, value, x, z, y));
+        coins.add(new Coin(m, face, value, x, z, y));
     }
 
     private void buildRooms() {
@@ -772,9 +785,9 @@ final class CurfewWorld {
         bookshelf(-11.0, 13.0, Math.PI, ledgerAt[2]);
         coin(-20.4, 12.6, 5, 0.75);
 
-        // SERVER ROOM (south-middle): silent code node + racks
-        terminal(-4.2, 13.6, Math.PI, "node3", "SILENT CODE NODE", "#4dff9e",
-            new String[] {"> NODE 03 / SEQUENCE", "> order lost", "> minigame: SILENT CODE", "> reward: 35 CR + token"});
+        // SERVER ROOM (south-middle): syntax snake node + racks
+        terminal(-4.2, 13.6, Math.PI, "node3", "SYNTAX SNAKE NODE", "#4dff9e",
+            new String[] {"> NODE 03 / CURSOR", "> cursor loose", "> minigame: SYNTAX SNAKE", "> reward: 35 CR + token"});
         PhongMaterial rackMat = metal(0x141a20);
         for (int i = 0; i < 5; i++) {
             Box rack = box(1.1, 2.4, 0.9, rackMat);
@@ -857,6 +870,85 @@ final class CurfewWorld {
             visorMats[i] = glow(STATE_COLORS[i], 1.0);
             hemMats[i] = glow(STATE_COLORS[i], 0.7);
         }
+        sentinel.getTransforms().add(sentinelYaw);
+        if (buildJaeger()) { add(sentinel); return; }
+        buildHoodedSentinel();
+        add(sentinel);
+    }
+
+    /**
+     * SENTINEL-01 as the Striker Eureka model: one merged mesh, already scaled
+     * and stood on its feet facing +Z by {@code tools/convert.py}, so it needs
+     * no transform of its own beyond the shared yaw.
+     *
+     * <p>The three AI states are still readable at a glance: the body keeps one
+     * material per state, each differing only in the glow mask's tint, so the
+     * unit's lights go teal, amber then red exactly as the hooded figure's visor
+     * did.</p>
+     *
+     * @return false if the model or its textures are missing, leaving the caller
+     *         to build the original hooded figure instead
+     */
+    private boolean buildJaeger() {
+        try {
+            TriangleMesh mesh = MeshAsset.load("/assets/striker/striker-eureka.mesh");
+            Image color = texture("/assets/striker/color.png");
+            Image normal = texture("/assets/striker/normal.png");
+            Image glowMask = texture("/assets/striker/glowmask.png");
+            for (int i = 0; i < 3; i++) {
+                PhongMaterial m = new PhongMaterial(Color.WHITE);
+                m.setDiffuseMap(color);
+                m.setBumpMap(normal);
+                m.setSelfIlluminationMap(tint(glowMask, STATE_COLORS[i]));
+                m.setSpecularColor(Color.gray(0.22));
+                m.setSpecularPower(28);
+                jaegerMats[i] = m;
+            }
+            jaeger = new MeshView(mesh);
+            jaeger.setMaterial(jaegerMats[0]);
+            jaeger.setCullFace(CullFace.BACK);
+            sentinel.getChildren().add(jaeger);
+            return true;
+        } catch (IOException | RuntimeException e) {
+            System.err.println("[CurfewWorld] Striker Eureka unavailable (" + e.getMessage()
+                + "); falling back to the hooded sentinel.");
+            jaeger = null;
+            return false;
+        }
+    }
+
+    private static Image texture(String resource) throws IOException {
+        try (InputStream in = CurfewWorld.class.getResourceAsStream(resource)) {
+            if (in == null) throw new IOException("not on the classpath: " + resource);
+            Image img = new Image(in);
+            if (img.isError()) throw new IOException("unreadable: " + resource);
+            return img;
+        }
+    }
+
+    /** Multiply an unlit mask by a colour, for a per-state self-illumination map. */
+    private static Image tint(Image src, Color c) {
+        int w = (int) src.getWidth(), h = (int) src.getHeight();
+        int[] px = new int[w * h];
+        WritablePixelFormat<java.nio.IntBuffer> fmt = PixelFormat.getIntArgbInstance();
+        src.getPixelReader().getPixels(0, 0, w, h, fmt, px, 0, w);
+        int cr = (int) Math.round(c.getRed() * 255);
+        int cg = (int) Math.round(c.getGreen() * 255);
+        int cb = (int) Math.round(c.getBlue() * 255);
+        for (int i = 0; i < px.length; i++) {
+            int p = px[i];
+            px[i] = 0xff000000
+                | ((((p >> 16) & 0xff) * cr / 255) << 16)
+                | ((((p >> 8) & 0xff) * cg / 255) << 8)
+                | (((p & 0xff) * cb / 255));
+        }
+        WritableImage out = new WritableImage(w, h);
+        out.getPixelWriter().setPixels(0, 0, w, h, fmt, px, 0, w);
+        return out;
+    }
+
+    /** The original robed figure, kept as the no-asset fallback. */
+    private void buildHoodedSentinel() {
         MeshView robe = new MeshView(cone(0.68, 2.0, 14));
         robe.setMaterial(mat(0x10141b));
         robe.setCullFace(CullFace.NONE);
@@ -874,8 +966,6 @@ final class CurfewWorld {
         // reliable transparency, so it rendered as a solid wall of colour.
 
         sentinel.getChildren().addAll(robe, shoulders, hood, visor, hem);
-        sentinel.getTransforms().add(sentinelYaw);
-        add(sentinel);
     }
 
     /* ======================================================== interaction */
@@ -1091,8 +1181,12 @@ final class CurfewWorld {
         }
         double ledN = (Math.sin(tt * 13.7) * Math.sin(tt * 4.1) + 1) / 2;
         for (Led l : leds) l.mesh().setMaterial(ledN > 0.35 ? l.on() : l.off());
+        PhongMaterial[] coinSpin = coinFrames();
         for (Coin c : coins) {
-            c.spin().setAngle(c.spin().getAngle() + Math.toDegrees(dt * 2.4));
+            // Billboard: same convention the sentinel uses to face a target.
+            c.face().setAngle(Math.toDegrees(Math.atan2(px - c.x(), pz - c.z())));
+            c.node().setMaterial(coinSpin[Math.floorMod(
+                (int) (tt * COIN_FPS + c.x()), coinSpin.length)]);
             c.node().setTranslateY(c.baseY() + Math.sin(tt * 2 + c.x()) * 0.04);
         }
         for (Anim a : animators) {
@@ -1341,8 +1435,12 @@ final class CurfewWorld {
         aiYaw += dy * Math.min(1, dt * 4.5);
 
         int si = "CHASE".equals(aiState) ? 2 : "SEARCH".equals(aiState) ? 1 : 0;
-        visor.setMaterial(visorMats[si]);
-        hem.setMaterial(hemMats[si]);
+        if (jaeger != null) {
+            jaeger.setMaterial(jaegerMats[si]);
+        } else {
+            visor.setMaterial(visorMats[si]);
+            hem.setMaterial(hemMats[si]);
+        }
         sentinelLight.setColor(scale(STATE_COLORS[si], si == 2 ? 0.85 + Math.sin(tt * 9) * 0.15 : 0.6));
 
         boolean pulledOut = hidden && seenHiding != null && aiStun <= 0
@@ -1536,6 +1634,102 @@ final class CurfewWorld {
             mesh.getFaces().addAll(0, 0, a, 1, b, 2);
         }
         return mesh;
+    }
+
+    /* ------------------------------------------------------------ coin sprite */
+
+    private static final String COIN_SHEET =
+        "/assets/WhatsApp_Image_2026-09-16_at_5.36.12_PM-removebg-preview.png";
+    private static final double COIN_SIZE = 0.38;   // world units, edge to edge
+    private static final double COIN_FPS = 10;      // sheet frames per second
+
+    private static PhongMaterial[] coinSheet;
+    private static int coinFaceIndex;        // widest frame: the coin seen face-on
+
+    /** The spinning-coin sheet, sliced to one material per frame (loaded once). */
+    private static PhongMaterial[] coinFrames() {
+        if (coinSheet == null) coinSheet = loadCoinFrames();
+        return coinSheet;
+    }
+
+    /** The face-on frame, for a coin that lies still instead of spinning. */
+    private static PhongMaterial coinFace() {
+        PhongMaterial[] frames = coinFrames();
+        return frames[Math.min(coinFaceIndex, frames.length - 1)];
+    }
+
+    /**
+     * Cut the sprite sheet into frames.
+     *
+     * <p>Frames are the runs of columns holding a visible pixel, so a replacement
+     * sheet with different padding, a different frame count or a different frame
+     * order still works without touching this code. Each frame is centred in a
+     * square cell sized to the widest one, which keeps the coin spinning in place
+     * instead of shrinking sideways as the edge-on frames narrow.</p>
+     *
+     * <p>If the sheet is missing or unreadable the coins fall back to a single
+     * flat amber frame: still collectable, just not animated.</p>
+     */
+    private static PhongMaterial[] loadCoinFrames() {
+        try (InputStream in = CurfewWorld.class.getResourceAsStream(COIN_SHEET)) {
+            if (in == null) throw new IOException("not on the classpath: " + COIN_SHEET);
+            Image sheet = new Image(in);
+            if (sheet.isError()) throw new IOException("unreadable: " + COIN_SHEET);
+            PixelReader src = sheet.getPixelReader();
+            int w = (int) sheet.getWidth(), h = (int) sheet.getHeight();
+
+            boolean[] inked = new boolean[w];
+            int top = h, bottom = -1;
+            for (int x = 0; x < w; x++) {
+                for (int y = 0; y < h; y++) {
+                    if ((src.getArgb(x, y) >>> 24) <= 16) continue;   // transparent
+                    inked[x] = true;
+                    if (y < top) top = y;
+                    if (y > bottom) bottom = y;
+                }
+            }
+            if (bottom < 0) throw new IOException("blank sheet: " + COIN_SHEET);
+
+            List<int[]> runs = new ArrayList<>();
+            for (int x = 0; x < w; x++) {
+                if (!inked[x]) continue;
+                int start = x;
+                while (x + 1 < w && inked[x + 1]) x++;
+                runs.add(new int[] {start, x});
+            }
+
+            int cell = bottom - top + 1, widest = 0;
+            for (int i = 0; i < runs.size(); i++) {
+                int[] r = runs.get(i);
+                cell = Math.max(cell, r[1] - r[0] + 1);
+                if (r[1] - r[0] > runs.get(widest)[1] - runs.get(widest)[0]) widest = i;
+            }
+            coinFaceIndex = widest;
+
+            PhongMaterial[] out = new PhongMaterial[runs.size()];
+            for (int i = 0; i < out.length; i++) {
+                int[] r = runs.get(i);
+                int ox = (r[0] + r[1] - cell) / 2, oy = (top + bottom - cell) / 2;
+                WritableImage frame = new WritableImage(cell, cell);
+                PixelWriter dst = frame.getPixelWriter();
+                for (int y = 0; y < cell; y++) {
+                    for (int x = 0; x < cell; x++) {
+                        int sx = ox + x, sy = oy + y;
+                        // Clamped to this frame's own run: the narrow edge-on
+                        // frames sit closer together than the cell is wide, so
+                        // an unclamped copy would drag in the neighbours.
+                        boolean mine = sx >= r[0] && sx <= r[1] && sy >= top && sy <= bottom;
+                        dst.setArgb(x, y, mine ? src.getArgb(sx, sy) : 0);
+                    }
+                }
+                out[i] = emissiveTexture(frame, 0.85);
+            }
+            return out;
+        } catch (IOException | RuntimeException e) {
+            System.err.println("[CurfewWorld] coin sheet unavailable (" + e.getMessage()
+                + "); falling back to a flat coin.");
+            return new PhongMaterial[] { emissiveTexture(solid(Color.web("#ffb347")), 1.0) };
+        }
     }
 
     /* --------------------------------------------------- procedural textures */

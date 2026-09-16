@@ -14,7 +14,7 @@ enum CurfewDifficulty {
     final double speed;         // sentinel speed multiplier
     final double awareness;     // how fast its suspicion fills
     final double kernelSpeed;   // Kernel Panic token fall speed
-    final double hackTime;      // Circuit Breaker / Silent Code time-limit multiplier
+    final double hackTime;      // Circuit Breaker time-limit multiplier
     final String blurb;
 
     CurfewDifficulty(String label, int seconds, double speed, double awareness,

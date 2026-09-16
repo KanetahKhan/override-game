@@ -1,6 +1,7 @@
 package com.override.chapter1;
 
 import com.override.game.minigames.ChiptuneSfx;
+import com.override.game.minigames.SnakeGame;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
@@ -37,8 +38,9 @@ import java.util.function.Consumer;
 
 /**
  * The three hacking-node mini-games of Curfew Protocol (Kernel Panic,
- * Circuit Breaker, Silent Code), ported from the original page. Each one is
- * a self-contained panel that reports a single {@link Outcome}.
+ * Circuit Breaker, Syntax Snake). Each one is a self-contained panel that
+ * reports a single {@link Outcome}. {@link #silentCode} is the retired node 03
+ * puzzle, kept because it is still a working node.
  */
 final class CurfewNodeGames {
 
@@ -633,4 +635,68 @@ boolean on = sel == i, at = cur == i && !solved;
     }
 
     static String clock(int s) { return s / 60 + ":" + String.format("%02d", s % 60); }
+
+    /* ======================================================= SYNTAX SNAKE */
+
+    /**
+     * Node 03: Syntax Snake, the Chapter 1 arcade mini-game, run in mission mode
+     * inside the shared node frame. Clearing the beat (300) takes the node;
+     * crashing the cursor resets it.
+     *
+     * <p>The game's own SPACE autopilot is deliberately not forwarded: a node has
+     * exactly one assist route, the frame's ASK ASTRA / [H], so the dependency
+     * cost is always the node's advertised price.</p>
+     */
+    static NodeGame syntaxSnake(Consumer<Outcome> done) {
+        return new NodeGame() {
+            final SnakeGame snake = SnakeGame.mission();
+            final Label status = text("BEAT TARGET 300", MONO, 13, "#ffb347");
+            final Parent view;
+            boolean over;
+
+            {
+                StackPane board = new StackPane(snake.getView());
+                board.setPadding(new Insets(14, 20, 4, 20));
+                view = frame("NODE 03 // SYNTAX SNAKE", "#4dff9e",
+                    "linear-gradient(to bottom, rgba(5,22,16,0.98), rgba(3,10,8,0.98))",
+                    status, "The lockdown routine ran away with the terminal cursor. Steer it with WASD "
+                        + "or the arrow keys, swallow the knowledge bits, and clear the beat before you "
+                        + "run into yourself.",
+                    board, 700, () -> finish(Outcome.QUIT), () -> finish(Outcome.ASSISTED));
+                snake.setResultListener(r -> finish(!r.won() ? Outcome.FAILED
+                    : r.dependencyUsed() > 0 ? Outcome.ASSISTED : Outcome.WON));
+                snake.start();
+            }
+
+            void finish(Outcome o) {
+                if (over) return;
+                over = true;
+                snake.setResultListener(null);
+                snake.cancel();
+                done.accept(o);
+            }
+
+            @Override public Parent view() { return view; }
+
+            @Override public void onKey(KeyCode k) {
+                if (over) return;
+                switch (k) {
+                    // Scene-level filtering means the canvas never sees keys itself.
+                    case UP, DOWN, LEFT, RIGHT, W, A, S, D -> snake.dispatchKey(k);
+                    case H -> finish(Outcome.ASSISTED);
+                    default -> { }
+                }
+            }
+
+            @Override public void stop() {
+                over = true;
+                snake.setResultListener(null);
+                snake.cancel();
+            }
+
+            @Override public void setPaused(boolean p) {
+                if (!over) snake.setPaused(p);
+            }
+        };
+    }
 }

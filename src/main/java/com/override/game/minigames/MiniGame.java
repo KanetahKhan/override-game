@@ -54,6 +54,7 @@ public abstract class MiniGame {
     private AnimationTimer timer;
     private long lastNanos = 0;
     private boolean finished = false;
+    private boolean paused = false;
     private ResultListener listener;
 
     protected MiniGame(int cols, int rows, int cell, MiniGameTheme theme) {
@@ -101,6 +102,9 @@ public abstract class MiniGame {
         timer = new AnimationTimer() {
             @Override public void handle(long now) {
                 if (lastNanos == 0) { lastNanos = now; }
+                // A paused game keeps its last frame on screen and swallows the
+                // elapsed time, so resuming does not jump the simulation.
+                if (paused) { lastNanos = now; return; }
                 double dt = (now - lastNanos) / 1_000_000_000.0;
                 lastNanos = now;
                 if (dt > 0.05) dt = 0.05; // clamp huge frames (window drags, GC)
@@ -140,6 +144,15 @@ public abstract class MiniGame {
      */
     public final void cancel() {
         finish(false, 0, 0, 0);
+    }
+
+    /**
+     * Freeze the loop without ending the run. A paused game keeps its state and
+     * its view; unpausing resumes from where it stopped, with no elapsed-time
+     * spike. Owners that host a game inside a pausable screen use this.
+     */
+    public final void setPaused(boolean paused) {
+        this.paused = paused;
     }
 
     /** The Canvas-backed view to drop into a Scene. */
