@@ -32,7 +32,8 @@ artist-authored models or introduce a physics engine.
 
 ## Run
 
-Requires the project's existing JDK 26 / Maven setup:
+Requires the project's existing JDK 26 / Maven setup. The three missing Chapter 2
+classes listed below must also be restored before the full game can compile:
 
 ```sh
 git fetch origin
@@ -51,7 +52,18 @@ solvability, a powered receiver, and no power from a disconnected source;
 `git diff --check` passed. These checks are not a full frontend compilation.
 
 The editing environment does not have Maven/JavaFX/JDK 26, and dependency
-endpoints timed out. The PR workflow compiles against JDK 26. In-game visual QA
+endpoints timed out. The JDK 26 PR build ran on GitHub and failed on existing
+missing classes referenced by the unchanged `ChapterMapScreen`:
+
+- `com.override.game.minigames.GodotGameLauncher`
+- `com.override.chapter2.ChapterTwoResultScreen`
+- `com.override.chapter2.ChapterTwoTutorialScreen`
+
+Build log: https://github.com/KanetahKhan/override-game/actions/runs/35069924951
+
+These files are absent from the base commit, too. The compiler reported six
+errors, all in the unchanged chapter map. This is not a successful full build.
+Restore the actual Chapter 2 sources, then rerun the build. In-game visual QA
 and gameplay checks still need a machine with JavaFX 3D rendering support:
 
 1. Inspect all six rooms and the three node panels at 1280 × 720.
