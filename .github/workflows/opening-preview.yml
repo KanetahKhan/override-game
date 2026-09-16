@@ -20,6 +20,10 @@ jobs:
           distribution: temurin
           java-version: '26'
           cache: maven
+      - name: Install video encoder
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
       - name: Compile, test and record actual presentation components
         run: xvfb-run -a bash scripts/test-opening.sh --video
       - uses: actions/upload-artifact@v4
