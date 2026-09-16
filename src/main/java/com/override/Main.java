@@ -7,6 +7,9 @@ import javafx.application.Application;
 import javafx.scene.Group;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
 import javafx.scene.transform.Scale;
 import javafx.stage.Stage;
@@ -59,6 +62,16 @@ public class Main extends Application {
             Main.class.getResource("/styles/main.css").toExternalForm()
         );
         stage.setScene(scene);
+
+        // ESC must always leave full-screen, no matter which screen is up.
+        // JavaFX's built-in full-screen exit needs focus; a scene-level key
+        // handler makes it work regardless of screen or playing state.
+        scene.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+            if (e.getCode() == KeyCode.ESCAPE && stage.isFullScreen()) {
+                stage.setFullScreen(false);
+                e.consume();
+            }
+        });
 
         // Keep the design space scaled to the current window size.
         viewport.widthProperty().addListener((o, a, b) -> applyScale(viewport));
