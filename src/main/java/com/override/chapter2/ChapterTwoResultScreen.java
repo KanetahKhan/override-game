@@ -1,6 +1,7 @@
 package com.override.chapter2;
 
 import com.override.Main;
+import com.override.chapter1.CurfewRecords;
 import com.override.game.minigames.GodotGameLauncher;
 import com.override.shared.ui.ChapterMapScreen;
 import javafx.animation.KeyFrame;
@@ -78,10 +79,54 @@ public class ChapterTwoResultScreen {
             + " -fx-font-family: 'Monospaced';"
             + " -fx-letter-spacing: 3px;");
 
+        // ── Continue button ────────────────────────────────────────
+        Button btn = new Button("CONTINUE");
+        btn.getStyleClass().add("asset-button");
+        btn.setOnAction(e -> {
+            GodotGameLauncher.clearResult();
+            Main.switchScene(new ChapterMapScreen().build());
+        });
+
+        // ── Chapter 1 latest run (for the combined campaign verdict) ─
+        CurfewRecords.Run ch1 = CurfewRecords.latestRun();
+        Label ch1Row = ch1 == null
+            ? statRow("CHAPTER 1 · CURFEW PROTOCOL — NOT PLAYED", NEON_AMBER)
+            : statRow(String.format(
+                    "CHAPTER 1 · CURFEW PROTOCOL — ESCAPED · GRADE %s · %d PTS",
+                    ch1.grade(), ch1.score()),
+                NEON_CYAN);
+
+        // ── Combined campaign verdict: RESISTANCE or OVERRIDDEN ─────
+        boolean bothHold = ch1 != null && resistancePossible;
+        Label mainResult = new Label(bothHold ? "RESISTANCE" : "OVERRIDDEN");
+        mainResult.setStyle("-fx-text-fill: " + (bothHold ? NEON_GREEN : NEON_RED) + ";"
+            + " -fx-font-size: 46px; -fx-font-weight: 900;"
+            + " -fx-font-family: 'Monospaced';"
+            + " -fx-letter-spacing: 6px;");
+        mainResult.setEffect(new DropShadow(
+            javafx.scene.effect.BlurType.GAUSSIAN,
+            Color.web(bothHold ? NEON_GREEN : NEON_RED, 0.6), 26, 0.25, 0, 0));
+
+        Label mainSub = new Label(bothHold
+            ? "BOTH CHAPTERS HELD — THE HUMAN PATH STAYS OPEN"
+            : (ch1 == null
+                ? "COMPLETE CHAPTER 1 TO EARN FULL RESISTANCE"
+                : "THE OVERRIDE WINS THIS ROUND — TRY AGAIN IN CHAPTER 2"));
+        mainSub.setStyle("-fx-text-fill: " + (bothHold ? NEON_GREEN : NEON_AMBER) + ";"
+            + " -fx-font-size: 13px; -fx-font-weight: bold;"
+            + " -fx-font-family: 'Monospaced';"
+            + " -fx-letter-spacing: 1px;");
+
         // ── Stat list (Godot's exact lines) ────────────────────────
         VBox stats = new VBox(10);
         stats.setAlignment(Pos.CENTER);
         stats.setPadding(new Insets(16, 0, 4, 0));
+
+        stats.getChildren().add(ch1Row);
+        stats.getChildren().add(statRow(
+            String.format("CHAPTER 2 · HARVEST PROTOCOL — %s",
+                resistancePossible ? "RESISTANCE POSSIBLE" : "MISSION FAILED"),
+            resistancePossible ? NEON_GREEN : NEON_RED));
 
         if (win) {
             stats.getChildren().add(
@@ -111,16 +156,8 @@ public class ChapterTwoResultScreen {
             javafx.scene.effect.BlurType.GAUSSIAN,
             Color.web(NEON_CYAN, 0.6), 18, 0.25, 0, 0));
 
-        // ── Continue button ────────────────────────────────────────
-        Button btn = new Button("CONTINUE");
-        btn.getStyleClass().add("asset-button");
-        btn.setOnAction(e -> {
-            GodotGameLauncher.clearResult();
-            Main.switchScene(new ChapterMapScreen().build());
-        });
-
         // ── Assemble card ──────────────────────────────────────────
-        VBox card = new VBox(18, header, verdict, stats, finalScore, btn);
+        VBox card = new VBox(14, header, verdict, mainResult, mainSub, stats, finalScore, btn);
         card.setAlignment(Pos.CENTER);
         card.setPadding(new Insets(36, 60, 36, 60));
         card.setMaxWidth(760);
