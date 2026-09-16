@@ -6,6 +6,7 @@ import javafx.stage.Stage;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -13,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Launches Chapter 2 — Harvest Protocol, the Godot endless runner in
+ * Launches Chapter 2 – Harvest Protocol, the Godot endless runner in
  * {@code chapter2-godot/}.
  *
  * <p>Prefers the exported build ({@code chapter2-godot/build/Chapter2.exe}, the
@@ -27,7 +28,73 @@ public final class GodotGameLauncher {
     private static final Path PROJECT =
         Path.of(System.getProperty("override.chapter2Dir", "chapter2-godot"));
 
+    private static final Path RESULT =
+        PROJECT.resolve("build").resolve("chapter2_result.json");
+
+    private static Process godotProcess;
+    private static Runnable processExitHook;
+
     private GodotGameLauncher() {}
+
+    public static boolean hasResult() {
+        return Files.isRegularFile(RESULT);
+    }
+
+    public static String readResult() {
+        try {
+            return Files.readString(RESULT, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    public static void clearResult() {
+        try {
+            Files.deleteIfExists(RESULT);
+        } catch (IOException ignored) {
+        }
+    }
+
+    public static boolean launchGodotBackgroundStart() {
+        if (hasResult()) {
+            clearResult();
+        }
+        Path exported = PROJECT.resolve("build").resolve("Chapter2.exe");
+        if (Files.isRegularFile(exported)) {
+            godotProcess = spawn(exported.toAbsolutePath().toString());
+        } else {
+            String godot = findGodot();
+            if (godot == null) {
+                show("Chapter 2 isn't built yet.\n\n"
+                    + "Export chapter2-godot (Project > Export > Windows Desktop) to "
+                    + "chapter2-godot/build/Chapter2.exe, or set the GODOT environment "
+                    + "variable to your Godot editor executable.");
+                return false;
+            }
+            godotProcess = spawn(godot, "--path", PROJECT.toAbsolutePath().toString());
+        }
+        if (godotProcess != null) {
+            new Thread(() -> {
+                try {
+                    int code = godotProcess.waitFor();
+                    if (processExitHook != null) {
+                        processExitHook.run();
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }, "chapter2-process-watcher").setDaemon(true);
+            new Thread(() -> {
+                try {
+                    godotProcess.waitFor();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }, "chapter2-exit-watcher").setDaemon(true);
+            return true;
+        }
+        return false;
+    }
 
     public static void launchGodotAtWindowSize() {
         List<String> cmd = new ArrayList<>();
@@ -63,6 +130,37 @@ public final class GodotGameLauncher {
         }
     }
 
+    public static void onProcessExit(Runnable action) {
+        if (godotProcess != null && godotProcess.isAlive()) {
+            processExitHook = action;
+        } else if (action != null) {
+            action.run();
+        }
+    }
+
+    public static Path gameSource() {
+        return PROJECT;
+    }
+
+    public static void exportGame() {
+        show("Export Chapter 2 once:\n\n"
+            + "Open chapter2-godot/project.godot, pick Project > Export > Windows "
+            + "Desktop, and export to chapter2-godot/build/Chapter2.exe.\n\n"
+            + "No Godot install is needed to play after that."
+        );
+    }
+
+    private static Process spawn(String... cmd) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder(cmd);
+            pb.redirectErrorStream(true);
+            return pb.start();
+        } catch (IOException e) {
+            show("Could not start Chapter 2: " + e.getMessage());
+            return null;
+        }
+    }
+
     private static String findGodot() {
         String env = System.getenv("GODOT");
         if (env != null && isFile(env)) return env;
@@ -81,7 +179,7 @@ public final class GodotGameLauncher {
         try {
             return Files.isRegularFile(Path.of(p));
         } catch (InvalidPathException e) {
-            return false;   // odd PATH entries (quotes, stray characters)
+            return false;
         }
     }
 
