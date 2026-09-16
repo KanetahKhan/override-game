@@ -33,7 +33,7 @@ public final class GodotGameLauncher {
         PROJECT.resolve("build").resolve("chapter2_result.json");
 
     private static Process godotProcess;
-    private static Runnable processExitHook;
+    private static volatile Runnable processExitHook;
 
     private GodotGameLauncher() {}
 
