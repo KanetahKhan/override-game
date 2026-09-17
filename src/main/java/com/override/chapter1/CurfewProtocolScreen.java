@@ -3,6 +3,7 @@ package com.override.chapter1;
 import com.override.Main;
 import com.override.chapter1.CurfewNodeGames.NodeGame;
 import com.override.chapter1.CurfewNodeGames.Outcome;
+import com.override.game.minigames.ChiptuneMusic;
 import com.override.game.minigames.ChiptuneSfx;
 import com.override.game.minigames.HighScoreClient;
 import com.override.shared.model.GameState;
@@ -251,6 +252,7 @@ public class CurfewProtocolScreen {
         showIntro();
         refreshHud();
         world.start();
+        ChiptuneMusic.setDucked(true);
         return root;
     }
 
@@ -1374,6 +1376,7 @@ public class CurfewProtocolScreen {
 
     private void leaveTo(Parent next) {
         dispose();
+        ChiptuneMusic.setDucked(false);
         Main.switchScene(next);
     }
 

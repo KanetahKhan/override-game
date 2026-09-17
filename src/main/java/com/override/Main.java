@@ -1,5 +1,6 @@
 package com.override;
 
+import com.override.game.minigames.ChiptuneMusic;
 import com.override.shared.model.GameState;
 import com.override.shared.ui.MainMenuScreen;
 import javafx.animation.FadeTransition;
@@ -82,12 +83,20 @@ public class Main extends Application {
         applyScale(viewport);
 
         GameState.init();
+        ChiptuneMusic.start();
+        stage.setOnCloseRequest(e -> ChiptuneMusic.stop());
         switchScene(new MainMenuScreen().build());
 
         System.out.println("[Main] Stage bounds: " + stage.getX() + "," + stage.getY()
             + " " + stage.getWidth() + "x" + stage.getHeight()
             + " | Scene: " + stage.getScene().getWidth() + "x" + stage.getScene().getHeight()
             + " | Fullscreen: " + stage.isFullScreen());
+    }
+
+    /** The window is gone: release the audio line rather than leaving it open. */
+    @Override
+    public void stop() {
+        ChiptuneMusic.stop();
     }
 
     /** Uniformly scale the 1280x720 design space to fit the viewport. */
