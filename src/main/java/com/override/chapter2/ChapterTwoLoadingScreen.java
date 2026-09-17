@@ -1,6 +1,7 @@
 package com.override.chapter2;
 
 import com.override.Main;
+import com.override.game.minigames.ChiptuneMusic;
 import com.override.game.minigames.GodotGameLauncher;
 import com.override.shared.ui.ChapterMapScreen;
 import javafx.beans.value.ChangeListener;
@@ -172,6 +173,8 @@ public class ChapterTwoLoadingScreen {
         // the bar finishes the game is ready and the swap has nothing to wait for.
         keepJavaWindowOnTop();
         boolean launched = GodotGameLauncher.launchGodotBackgroundStart();
+        // The harvest run is a main game: drop the bed to its faint tone.
+        if (launched) ChiptuneMusic.setDucked(true);
 
         double trackW = 560;
         Timeline tl = new Timeline();
@@ -288,6 +291,8 @@ public class ChapterTwoLoadingScreen {
     }
 
     private void restoreJavaWindow() {
+        // Every path out of the Godot run comes through here; bring the music back.
+        ChiptuneMusic.setDucked(false);
         Stage s = Main.getStage();
         if (s == null) {
             return;
