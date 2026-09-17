@@ -3,7 +3,7 @@ package com.override.shared.ui;
 import com.override.Main;
 import com.override.shared.model.GameState;
 import com.override.shared.service.SaveService;
-import com.override.chapter1.CurfewProtocolScreen;
+import com.override.chapter1.ChapterOneBriefingController;
 import com.override.chapter2.ChapterTwoResultScreen;
 import com.override.chapter2.ChapterTwoTutorialScreen;
 import com.override.game.minigames.GodotGameLauncher;
@@ -93,7 +93,7 @@ public class ChapterMapScreen {
             switch (chNum) {
                 // Only Chapter 1 gets this film; Harvest Protocol keeps its existing opening.
                 case 1 -> Main.switchScene(new IntroStoryScreen(
-                    () -> Main.switchScene(new CurfewProtocolScreen().build())
+                    () -> Main.switchScene(ChapterOneBriefingController.build())
                 ).build());
                 case 2 -> {
                     if (GodotGameLauncher.hasResult()) {

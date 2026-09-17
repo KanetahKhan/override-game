@@ -124,6 +124,8 @@ public class CurfewProtocolScreen {
 
     // run state
     private Phase phase = Phase.INTRO;
+    /** True when a briefing screen already explained the floor. */
+    private final boolean skipIntro;
     private int hp = 3, credits, secs;
     /** Seconds to reach the exit once the floor goes into lockdown. */
     private static final int LOCKDOWN_SECONDS = 60;
@@ -199,6 +201,15 @@ public class CurfewProtocolScreen {
         if (!focused && phase == Phase.PLAY) pause();
     };
 
+    public CurfewProtocolScreen() {
+        this(false);
+    }
+
+    /** @param skipIntro drop straight onto the floor, no title card */
+    public CurfewProtocolScreen(boolean skipIntro) {
+        this.skipIntro = skipIntro;
+    }
+
     public Parent build() {
         settings = CurfewSettings.load();
         records = CurfewRecords.load();
@@ -254,7 +265,8 @@ public class CurfewProtocolScreen {
             if (t != null) showToast(t[0], t[1], t[2]);
         });
 
-        showIntro();
+        if (skipIntro) startRun();   // the field briefing already covered this
+        else showIntro();
         refreshHud();
         world.start();
         return root;
