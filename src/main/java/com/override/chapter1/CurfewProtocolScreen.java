@@ -1646,6 +1646,7 @@ public class CurfewProtocolScreen {
     private void attach(Scene scene) {
         keyPressHandler = this::keyPressed;
         keyReleaseHandler = e -> {
+            if (e.getTarget() instanceof javafx.scene.control.TextField) return;
             held.remove(e.getCode());
             world.keyReleased(e.getCode());
             if (phase == Phase.PLAY) e.consume();
@@ -1667,6 +1668,13 @@ public class CurfewProtocolScreen {
     }
 
     private void keyPressed(KeyEvent e) {
+        // A focused text field owns the keyboard. This filter runs on the Scene,
+        // ahead of the field, and the paused branch below consumes everything —
+        // which silently ate every letter and the ENTER of the pause-screen reply
+        // box. Letting the field have its keys also keeps them out of `held`, so
+        // typing can never leave a movement key stuck down.
+        if (e.getTarget() instanceof javafx.scene.control.TextField) return;
+
         KeyCode k = e.getCode();
         boolean fresh = held.add(k);
         if (empOffered) {
