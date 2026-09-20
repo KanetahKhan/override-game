@@ -148,8 +148,12 @@ public class KKConsoleScreen {
             + " -fx-border-color: #4b3d7a;");
 
         Runnable speak = () -> {
-            String message = KKProtocol.chat(say.getText());
-            if (message == null || power < 5) return;
+String message = KKProtocol.chat(say.getText());
+            if (message == null) return;
+            // Say why nothing happened. Returning in silence here reads exactly
+            // like a broken Enter key.
+            if (power < 5) { log("Not enough power to speak - wait for it to regenerate."); return; }
+            if (link == null || !link.isConnected()) { log("Not connected - nothing was sent."); return; }
             power -= 5;
             send(KKProtocol.CMD_TAUNT + " " + message);
             log("You said: " + message);
