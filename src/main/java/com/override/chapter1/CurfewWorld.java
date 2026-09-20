@@ -262,6 +262,18 @@ final class CurfewWorld {
     private double huntTime;             // time spent walking to that spot
     private double stepDist, chaseBeatT; // sound pacing
     private double playerStepDist;       // the player's own footfalls, paced the same way
+
+    /**
+     * Astra's steering, as a unit vector; both zero means she is not driving and
+     * the unit is thinking for itself.
+     */
+    private double driveX, driveZ;
+    /**
+     * How far ahead of the unit a driven target is planted. Far enough that the
+     * unit commits to the direction rather than creeping toward a point under its
+     * own feet, short enough that letting go stops it almost at once.
+     */
+    private static final double DRIVE_LOOKAHEAD = 3.0;
     private boolean lockdown;
     /** Extra sentinel pace once the floor is hunting. */
     private double lockdownSpeed = 1.0;
@@ -568,6 +580,23 @@ final class CurfewWorld {
 
     /** Astra (or a co-op partner playing her) points the unit at a spot. */
     void sweepTo(double x, double z) { investigate(x, z); }
+
+    /**
+     * Astra steering the unit by hand. Pass a direction to drive it, or zeroes to
+     * let go, at which point the AI picks up from wherever the unit now stands.
+     *
+     * <p>The vector is normalised here rather than trusted, so a peer sending a
+     * long one cannot make the unit outrun its own speed cap.</p>
+     */
+    void drive(double dx, double dz) {
+        double len = Math.hypot(dx, dz);
+        if (!Double.isFinite(len) || len < 0.05) { driveX = 0; driveZ = 0; return; }
+        driveX = dx / len;
+        driveZ = dz / len;
+    }
+
+    /** True while Astra has hold of the unit; the HUD says so on both sides. */
+    boolean isDriven() { return driveX != 0 || driveZ != 0; }
 
     /** Read-only view for the co-op feed. */
     double playerX() { return px; }
@@ -1790,9 +1819,22 @@ final class CurfewWorld {
             if (Math.hypot(targetX - sx, targetZ - sz) < ARRIVE) detourTime = 0;
         }
 
+        // Astra steering overrides whatever the AI just aimed at, by dragging the
+        // target ahead of the unit instead of moving it directly. Everything below
+        // — collision, wall-sliding, the stuck check, the servo footsteps — then
+        // works unchanged, and a driven unit cannot be steered through a wall.
+        boolean driven = driveX != 0 || driveZ != 0;
+        if (driven) {
+            targetX = sx + driveX * DRIVE_LOOKAHEAD;
+            targetZ = sz + driveZ * DRIVE_LOOKAHEAD;
+        }
+
         // A walking player does 2.9 and a sprint does 5.0, so a patrol still loses
         // ground to you and only a CHASE can close — but nothing here idles.
-        double spd = ("CHASE".equals(aiState) ? 3.45 : "SEARCH".equals(aiState) ? 2.7 : 2.2)
+        // Driving is deliberately pinned to the patrol pace: manual control is
+        // already a big edge, and letting Astra hand-steer at chase speed would
+        // leave Ayan nothing to outrun.
+        double spd = (driven ? 2.2 : "CHASE".equals(aiState) ? 3.45 : "SEARCH".equals(aiState) ? 2.7 : 2.2)
             * difficulty * lockdownSpeed * (aiStun > 0 ? 0.25 : 1);
         double vx = targetX - sx, vz = targetZ - sz;
         double vl = Math.hypot(vx, vz);

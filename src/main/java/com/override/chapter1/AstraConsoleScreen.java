@@ -59,6 +59,8 @@ public class AstraConsoleScreen {
         Label title = text("ASTRA CONSOLE", BODY, 40, "#e8fbf8");
         title.setStyle(title.getStyle() + " -fx-font-weight: bold;");
         Label sub = text("You are the floor. She is on it.", MONO, 13, ASTRA);
+        Label steer = text("WASD steers the unit by hand  ·  release to let it hunt on its own",
+            MONO, 11, "rgba(126,243,232,0.55)");
 
         status = text("Not connected.", MONO, 13, "#ffb347");
         vitals = text("--", MONO, 14, "#e8fbf8");
@@ -92,7 +94,7 @@ public class AstraConsoleScreen {
             + " -fx-border-color: rgba(169,123,255,0.4);");
         powerLabel = text("100", MONO, 14, ASTRA);
 
-        VBox left = new VBox(14, title, sub, connectPanel, status,
+        VBox left = new VBox(14, title, sub, steer, connectPanel, status,
             text("INTEGRITY / CREDITS / NODES / CLOCK", MONO, 11, "rgba(126,243,232,0.55)"), vitals,
             row(text("UNIT", MONO, 11, "rgba(126,243,232,0.55)"), alertLabel),
             row(text("POWER", MONO, 11, "rgba(169,123,255,0.7)"), powerTrack, powerLabel),
@@ -111,6 +113,7 @@ public class AstraConsoleScreen {
 
         regen.setCycleCount(Animation.INDEFINITE);
         regen.play();
+        wireDriving();
         refresh();
         return root;
     }
@@ -182,6 +185,61 @@ public class AstraConsoleScreen {
 
     private void send(String command) {
         if (link != null && link.isConnected()) link.send(AstraProtocol.CMD + " " + command);
+    }
+
+    /* ========================================================== steering */
+
+    private static final java.util.Set<javafx.scene.input.KeyCode> DRIVE_KEYS = java.util.Set.of(
+        javafx.scene.input.KeyCode.W, javafx.scene.input.KeyCode.A,
+        javafx.scene.input.KeyCode.S, javafx.scene.input.KeyCode.D,
+        javafx.scene.input.KeyCode.UP, javafx.scene.input.KeyCode.LEFT,
+        javafx.scene.input.KeyCode.DOWN, javafx.scene.input.KeyCode.RIGHT);
+
+    private final java.util.Set<javafx.scene.input.KeyCode> held =
+        java.util.EnumSet.noneOf(javafx.scene.input.KeyCode.class);
+    private double sentDx, sentDz;
+
+    /** Hooks WASD up to the unit once this screen has a scene to listen on. */
+    private void wireDriving() {
+        root.sceneProperty().addListener((o, old, scene) -> {
+            if (scene == null) {
+                // Leaving the console must not leave the unit walking.
+                held.clear();
+                pushDrive();
+                return;
+            }
+            scene.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, e -> track(e, scene, true));
+            scene.addEventFilter(javafx.scene.input.KeyEvent.KEY_RELEASED, e -> track(e, scene, false));
+        });
+    }
+
+    private void track(javafx.scene.input.KeyEvent e, javafx.scene.Scene scene, boolean down) {
+        // Typing "was" into the chat box must not send the unit across the floor.
+        if (scene.getFocusOwner() instanceof TextField) return;
+        if (!DRIVE_KEYS.contains(e.getCode())) return;
+        if (down) held.add(e.getCode()); else held.remove(e.getCode());
+        pushDrive();
+        e.consume();
+    }
+
+    /**
+     * Sends the current steering direction, but only when it has actually changed.
+     *
+     * <p>Key-repeat fires KEY_PRESSED many times a second while a key is held;
+     * forwarding each one would flood a link that is already carrying twelve ticks
+     * a second in the other direction, for no new information.</p>
+     */
+    private void pushDrive() {
+        double dx = 0, dz = 0;
+        if (held.contains(javafx.scene.input.KeyCode.A) || held.contains(javafx.scene.input.KeyCode.LEFT)) dx -= 1;
+        if (held.contains(javafx.scene.input.KeyCode.D) || held.contains(javafx.scene.input.KeyCode.RIGHT)) dx += 1;
+        // Up the map is -z: AstraFloorMap paints +z downward.
+        if (held.contains(javafx.scene.input.KeyCode.W) || held.contains(javafx.scene.input.KeyCode.UP)) dz -= 1;
+        if (held.contains(javafx.scene.input.KeyCode.S) || held.contains(javafx.scene.input.KeyCode.DOWN)) dz += 1;
+        if (dx == sentDx && dz == sentDz) return;
+        sentDx = dx;
+        sentDz = dz;
+        send(AstraProtocol.CMD_DRIVE + " " + fixed(dx) + " " + fixed(dz));
     }
 
     private void connect() {

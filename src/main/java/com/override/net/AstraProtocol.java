@@ -31,6 +31,7 @@ public final class AstraProtocol {
     public static final String CMD_WAKE = "WAKE";        // put the second unit on the floor
     public static final String CMD_LOCKDOWN = "LOCKDOWN";
     public static final String CMD_TAUNT = "TAUNT";      // + text : Astra speaks to the player
+    public static final String CMD_DRIVE = "DRIVE";      // + dx dz : steer the unit; 0 0 lets go
 
     private AstraProtocol() { }
 

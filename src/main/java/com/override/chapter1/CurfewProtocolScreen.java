@@ -309,6 +309,9 @@ public class CurfewProtocolScreen {
             return;
         }
         if ("PEERGONE".equals(line)) {
+            // Releasing matters: a link that drops mid-steer would otherwise leave
+            // the unit walking one direction for the rest of the run.
+            if (world != null) world.drive(0, 0);
             toast("Astra dropped the link. The unit is on its own again.", "LINK LOST", "#ffb347");
             return;
         }
@@ -326,6 +329,18 @@ public class CurfewProtocolScreen {
                 try {
                     world.sweepTo(Double.parseDouble(p[2]), Double.parseDouble(p[3]));
                     toast("Astra just told it where to look.", "SWEEP", ASTRA_COLOR);
+                } catch (NumberFormatException ignored) {
+                    // a malformed command from the other side is not worth crashing over
+                }
+            }
+            case AstraProtocol.CMD_DRIVE -> {
+                if (p.length < 4) return;
+                try {
+                    boolean was = world.isDriven();
+                    world.drive(Double.parseDouble(p[2]), Double.parseDouble(p[3]));
+                    // Announced on the edges only: this arrives many times a second.
+                    if (world.isDriven() && !was) toast("It is being steered by hand.", "ASTRA AT THE WHEEL", ASTRA_COLOR);
+                    else if (!world.isDriven() && was) toast("Astra let go of the unit.", "RELEASED", ASTRA_COLOR);
                 } catch (NumberFormatException ignored) {
                     // a malformed command from the other side is not worth crashing over
                 }
