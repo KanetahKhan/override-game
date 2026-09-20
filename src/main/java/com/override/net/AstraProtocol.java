@@ -19,6 +19,11 @@ public final class AstraProtocol {
     public static final String EVENT = "EVENT";
     /** console to game: an intent Astra is spending power on. */
     public static final String CMD = "CMD";
+    /** game to console: Ayan answering back. */
+    public static final String SAY = "SAY";
+
+    /** Longest chat line either side will send; the rest is dropped. */
+    public static final int CHAT_LIMIT = 120;
 
     // commands
     public static final String CMD_BLACKOUT = "BLACKOUT";
@@ -28,6 +33,27 @@ public final class AstraProtocol {
     public static final String CMD_TAUNT = "TAUNT";      // + text : Astra speaks to the player
 
     private AstraProtocol() { }
+
+    /**
+     * Flattens a typed message into something safe to put on the wire.
+     *
+     * <p>Every message here is one line, and the reader splits on newlines, so a
+     * pasted line break would arrive as two messages and the second would be
+     * parsed as a command. Control characters are folded to spaces and the
+     * result is capped, which also stops one player flooding the other's log.</p>
+     *
+     * @return the cleaned text, or {@code null} if nothing printable was left
+     */
+    public static String chat(String text) {
+        if (text == null) return null;
+        StringBuilder out = new StringBuilder(Math.min(text.length(), CHAT_LIMIT));
+        for (int i = 0; i < text.length() && out.length() < CHAT_LIMIT; i++) {
+            char c = text.charAt(i);
+            out.append(c < ' ' || c == '\u007f' ? ' ' : c);
+        }
+        String cleaned = out.toString().strip();
+        return cleaned.isEmpty() ? null : cleaned;
+    }
 
     /** One frame of the floor: positions, alert state and the run's vitals. */
     public static String tick(double px, double pz, double sx, double sz, double ex, double ez,
