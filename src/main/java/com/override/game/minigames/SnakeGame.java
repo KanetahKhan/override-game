@@ -497,7 +497,10 @@ public final class SnakeGame extends MiniGame {
                 SnakeAssets.drawHead(g, seg[0], seg[1], cell, blinkOn);
             } else {
                 double t = (double) i / Math.max(1, n);
-                double alpha = 1.0 - 0.55 * Math.min(1, 0.15 + 0.4 * t);
+                // A slight taper still reads as a tail, but the old 0.55 fade took
+                // the far segments down to ~0.45 alpha and lost them against the
+                // playfield. The whole snake has to stay legible while you steer it.
+                double alpha = 1.0 - 0.22 * Math.min(1, 0.15 + 0.4 * t);
                 SnakeAssets.drawBody(g, seg[0], seg[1], cell, alpha);
             }
             i++;
