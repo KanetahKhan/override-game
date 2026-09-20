@@ -1,7 +1,7 @@
 package com.override.shared.ui;
 
 import com.override.Main;
-import com.override.chapter1.AstraConsoleScreen;
+import com.override.chapter1.KKConsoleScreen;
 import com.override.chapter1.CurfewProtocolScreen;
 import com.override.game.minigames.ChiptuneSfx;
 import com.override.net.CoopConfig;
@@ -91,8 +91,8 @@ final class OpeningMenuView extends StackPane {
         board.setId("scoreboard-menu"); board.setOnAction(e -> actions.scoreboard().run());
         Button settings = option("05   DISPLAY OPTIONS", false);
         settings.setId("display-options"); settings.setOnAction(e -> showSettings(settings));
-        Button coop = option("06   ASTRA CO-OP", false);
-        coop.setId("astra-coop");
+        Button coop = option("06   KK CO-OP", false);
+        coop.setId("kk-coop");
         coop.setOnAction(e -> showCoop(coop));
         Button quit = option("07   QUIT", false);
         quit.setId("quit"); quit.setOnAction(e -> actions.quit().run());
@@ -135,7 +135,7 @@ final class OpeningMenuView extends StackPane {
 
     /**
      * Two seats, one floor: one player runs the chapter while the other plays
-     * Astra from anywhere that can reach the relay.
+     * KK from anywhere that can reach the relay.
      */
     private void showCoop(Button source) {
         TextField host = coopField(CoopConfig.host(), 210);
@@ -160,18 +160,18 @@ final class OpeningMenuView extends StackPane {
             remember.run();
             relayNote.setText(CoopRelayHost.start(CoopConfig.port()));
         });
-        Button asAyan = option("PLAY AS AYAN  (CHAPTER 1)", true);
-        asAyan.setId("coop-ayan");
-        asAyan.setOnAction(e -> {
+        Button asREN = option("PLAY AS REN  (CHAPTER 1)", true);
+        asREN.setId("coop-ren");
+        asREN.setOnAction(e -> {
             remember.run();
             CoopConfig.setLinked(true);
             Main.switchScene(new CurfewProtocolScreen().build());
         });
-        Button asAstra = option("PLAY AS ASTRA  (CONSOLE)", false);
-        asAstra.setId("coop-astra");
-        asAstra.setOnAction(e -> {
+        Button asKK = option("PLAY AS KK  (CONSOLE)", false);
+        asKK.setId("coop-kk");
+        asKK.setOnAction(e -> {
             remember.run();
-            Main.switchScene(new AstraConsoleScreen().build());
+            Main.switchScene(new KKConsoleScreen().build());
         });
         Button close = option("BACK", false);
         close.setId("close-coop");
@@ -191,8 +191,8 @@ final class OpeningMenuView extends StackPane {
             text("Different cities: run the relay on a cloud box, or join a Tailscale", 13, "#9bb1bd"),
             text("network and use that address. Both sides dial out - no router setup.", 13, "#9bb1bd"));
 
-        VBox panel = new VBox(16, text("ASTRA CO-OP", 25, "#e6f5ee"), fields, help,
-            relay, relayNote, asAyan, asAstra, close);
+        VBox panel = new VBox(16, text("KK CO-OP", 25, "#e6f5ee"), fields, help,
+            relay, relayNote, asREN, asKK, close);
         panel.setMaxSize(660, VBox.USE_PREF_SIZE);
         panel.setPadding(new Insets(30));
         panel.setStyle("-fx-background-color: #0d1a27; -fx-border-color: #416b75; -fx-border-width: 1;");

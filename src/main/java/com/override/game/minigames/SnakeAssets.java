@@ -234,7 +234,7 @@ public final class SnakeAssets {
         g.setGlobalAlpha(1);
     }
 
-    /** Draw the Astra Assist badge at (x, y) with given size. */
+    /** Draw the KK Assist badge at (x, y) with given size. */
     public static void drawAssistBadge(GraphicsContext g, double x, double y, double size) {
         g.drawImage(get("badge"), x, y, size, size);
     }

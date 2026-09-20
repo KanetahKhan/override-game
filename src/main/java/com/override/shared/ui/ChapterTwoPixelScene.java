@@ -30,14 +30,14 @@ final class ChapterTwoPixelScene extends Canvas {
     static final int WIDTH = 1280, HEIGHT = 720;
     static final double FILM_SECONDS = 10;
     private static final double SHOT_SECONDS = FILM_SECONDS / 5;
-    private static final String ROOT = "/Assets_Characters/Ayan/";
+    private static final String ROOT = "/Assets_Characters/REN/";
     private static final String ART = "/assets/chapter2/";
 
     private final Image rider = load(ROOT + "Full_body_portrait_of_a/rotations/south.png");
     private final Image field = load(ART + "field_bg.jpg");
     private final Image crops = load(ART + "crops.png");
     private final Image drone = load(ART + "drone.png");
-    // The Ayan PNGs carry wide transparent margins; these are the drawn bounds of
+    // The REN PNGs carry wide transparent margins; these are the drawn bounds of
     // the idle south sprite, used to frame the upper body without guessing.
     private static final double RX0 = 84, RX1 = 165, RY0 = 39, RY1 = 238;
     private static final double RX_MID = (RX0 + RX1) / 2, RY_TALL = RY1 - RY0;

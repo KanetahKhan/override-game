@@ -1,4 +1,4 @@
-# Checks whether Astra co-op can reach a partner over Tailscale.
+# Checks whether KK co-op can reach a partner over Tailscale.
 #
 # Run it with no arguments:   .\scripts\coop-check.ps1
 #
@@ -84,5 +84,5 @@ Write-Output "Pinging $($live[0].HostName) at $target ..."
 
 Write-Output ''
 Write-Output 'If those replies came back, co-op will work:'
-Write-Output '  - You   : main menu -> ASTRA CO-OP -> RUN THE RELAY HERE, then pick a role'
+Write-Output '  - You   : main menu -> KK CO-OP -> RUN THE RELAY HERE, then pick a role'
 Write-Output "  - Them  : RELAY = $me, PORT = 5001, same ROOM code, pick the other role"

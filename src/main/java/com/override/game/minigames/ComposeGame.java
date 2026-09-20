@@ -111,7 +111,7 @@ public final class ComposeGame extends MiniGame {
             case DOWN, S -> moveCursor(1);
             case SPACE -> grabbed = !grabbed;
             case ENTER -> submitOrder();
-            case A -> useAstraAssist();
+            case A -> useKKAssist();
             case ESCAPE -> finish(false, rawScore(), 0, 0);
             default -> { }
         }
@@ -145,7 +145,7 @@ public final class ComposeGame extends MiniGame {
         loadPuzzle();
     }
 
-    private void useAstraAssist() {
+    private void useKKAssist() {
         List<Block> answer = currentPuzzle().answer();
         for (int i = 0; i < answer.size(); i++) {
             if (order.get(i).equals(answer.get(i))) continue;
@@ -284,13 +284,13 @@ public final class ComposeGame extends MiniGame {
         g.fillText("UP/DOWN: SELECT   SPACE: PICK/DROP   ENTER: SUBMIT",
                 width / 2.0, height - 39);
         g.setFill(dependencyUsed > 0 ? theme.warning() : theme.dim());
-        g.fillText("A: ASTRA ASSIST (PLACES ONE BLOCK)   ESC: EXIT",
+        g.fillText("A: KK ASSIST (PLACES ONE BLOCK)   ESC: EXIT",
                 width / 2.0, height - 17);
     }
 
     private void drawFeedback() {
         if (errorFlash > 0) drawOverlay(theme.danger(), "ORDER DOES NOT FOLLOW THE ARGUMENT YET");
-        else if (assistFlash > 0) drawOverlay(theme.warning(), "ASTRA PLACED ONE BLOCK // ASSIST RECORDED");
+        else if (assistFlash > 0) drawOverlay(theme.warning(), "KK PLACED ONE BLOCK // ASSIST RECORDED");
         else if (successFlash > 0) drawOverlay(theme.accent(), "ARGUMENT VERIFIED");
     }
 

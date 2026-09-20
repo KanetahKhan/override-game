@@ -26,17 +26,17 @@ public final class CurfewRecords {
 
     static final List<Achievement> ACHIEVEMENTS = List.of(
         new Achievement("GHOST", "Ghost", "Escape without being detected once."),
-        new Achievement("LAST_REAL_MIND", "The Last Real Mind", "Escape without any help from Astra."),
+        new Achievement("LAST_REAL_MIND", "The Last Real Mind", "Escape without any help from KK."),
         new Achievement("BEFORE_THE_BELL", "Before the Bell", "Escape in under 4 minutes."),
         new Achievement("UNTOUCHED", "Untouched", "Escape with full integrity."),
         new Achievement("BOOKWORM", "Bookworm", "Find both hollow ledgers in one run."),
         new Achievement("NIGHT_SHIFT", "Night Shift", "Escape on Hard."),
         new Achievement("ARCHIVIST", "Archivist", "Read all six notes on the floor."));
 
-    /** One escape: its score, how long it took, the grade and how often Astra helped. */
-    public record Run(int score, int escapeSecs, String grade, int astra, long when) {
+    /** One escape: its score, how long it took, the grade and how often KK helped. */
+    public record Run(int score, int escapeSecs, String grade, int kk, long when) {
         String encode() {
-            return score + "|" + escapeSecs + "|" + grade + "|" + astra + "|" + when;
+            return score + "|" + escapeSecs + "|" + grade + "|" + kk + "|" + when;
         }
 
         static Run decode(String s) {

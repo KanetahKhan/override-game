@@ -1,25 +1,25 @@
 package com.override.net;
 
 /**
- * The line format the game and the Astra console speak over {@link RelayLink}.
+ * The line format the game and the KK console speak over {@link RelayLink}.
  *
  * <p>The game machine simulates everything and is the authority; the console
  * only receives positions and sends intents. Nothing waits for a round trip,
  * so a player in another city on a 200 ms link still plays fine — her blackout
  * simply lands a moment after she clicks it.
  */
-public final class AstraProtocol {
+public final class KKProtocol {
 
     public static final String ROLE_GAME = "GAME";
-    public static final String ROLE_ASTRA = "ASTRA";
+    public static final String ROLE_KK = "KK";
 
     /** game to console, ~12x a second. */
     public static final String TICK = "TICK";
     /** game to console, one-off moments worth reacting to. */
     public static final String EVENT = "EVENT";
-    /** console to game: an intent Astra is spending power on. */
+    /** console to game: an intent KK is spending power on. */
     public static final String CMD = "CMD";
-    /** game to console: Ayan answering back. */
+    /** game to console: REN answering back. */
     public static final String SAY = "SAY";
 
     /** Longest chat line either side will send; the rest is dropped. */
@@ -30,10 +30,10 @@ public final class AstraProtocol {
     public static final String CMD_SWEEP = "SWEEP";      // + x z : send the unit to a spot
     public static final String CMD_WAKE = "WAKE";        // put the second unit on the floor
     public static final String CMD_LOCKDOWN = "LOCKDOWN";
-    public static final String CMD_TAUNT = "TAUNT";      // + text : Astra speaks to the player
+    public static final String CMD_TAUNT = "TAUNT";      // + text : KK speaks to the player
     public static final String CMD_DRIVE = "DRIVE";      // + dx dz : steer the unit; 0 0 lets go
 
-    private AstraProtocol() { }
+    private KKProtocol() { }
 
     /**
      * Flattens a typed message into something safe to put on the wire.

@@ -61,7 +61,7 @@ public class ChapterOneBriefingController {
         lastRunTag.setText("BEST ON " + difficulty.label);
         lastRunDetail.setText("GRADE " + best.grade() + "   ·   " + best.score() + " PTS   ·   out in "
             + (best.escapeSecs() / 60) + ":" + String.format("%02d", best.escapeSecs() % 60)
-            + (best.astra() > 0 ? "   ·   Astra ×" + best.astra() : "   ·   no Astra"));
+            + (best.kk() > 0 ? "   ·   KK ×" + best.kk() : "   ·   no KK"));
         lastRunBox.setVisible(true);
         lastRunBox.setManaged(true);
     }

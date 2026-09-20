@@ -58,7 +58,7 @@ public final class MinimapSmoke {
                 check(spawnX < map.getWidth() / 2 && spawnY > 100, "Real west-hall spawn must appear immediately");
                 button(root, "ENTER THE FLOOR").fire();
 
-                // Hidden player, unseen robot, no Astra: dots must still move into opposite rooms.
+                // Hidden player, unseen robot, no KK: dots must still move into opposite rooms.
                 events.onTick(tick(17, -10, -17, 10, 0));
                 visible(robot); visible(player);
                 check(player.getCenterX() > robot.getCenterX() && player.getCenterY() < robot.getCenterY(),
@@ -92,9 +92,9 @@ public final class MinimapSmoke {
                 near(player.getCenterX(), spawnX, "Respawn X must update immediately");
                 near(player.getCenterY(), spawnY, "Respawn Z must update immediately");
                 int dependency = GameState.get().getDependency();
-                invoke(screen, "astraScan", new Class<?>[0]);
+                invoke(screen, "kkScan", new Class<?>[0]);
                 visible(map.lookup("#minimap-scan"));
-                check(GameState.get().getDependency() == dependency + 5, "Optional Astra scan retains its existing cost");
+                check(GameState.get().getDependency() == dependency + 5, "Optional KK scan retains its existing cost");
                 map.setScanning(false);
                 check(!map.lookup("#minimap-scan").isVisible(), "Expired scan must remove only its heading overlay");
                 visible(robot);

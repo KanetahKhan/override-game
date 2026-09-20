@@ -11,7 +11,7 @@ import java.net.Socket;
 import java.util.function.Consumer;
 
 /**
- * One end of a relay conversation, used by both the game and the Astra console.
+ * One end of a relay conversation, used by both the game and the KK console.
  *
  * <p>Connecting and reading both block, so they happen on a background thread;
  * every line that arrives is handed back to the JavaFX Application Thread with

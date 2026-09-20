@@ -61,7 +61,7 @@ public final class KernelPanicAssets {
         Map.entry("life heart icon states",         new SheetLayout(3, 1, 16, 16)),
         Map.entry("wavealert banner",               new SheetLayout(1, 1, 128, 32)),
         Map.entry("boot sequence title card",       new SheetLayout(1, 1, 128, 32)),
-        Map.entry("astra interference overlay",     new SheetLayout(1, 1, 256, 256)),
+        Map.entry("kk interference overlay",     new SheetLayout(1, 1, 256, 256)),
         Map.entry("quantum particle effect",        new SheetLayout(4, 1, 8, 8)),
         Map.entry("miss feedback",                  new SheetLayout(1, 1, 512, 512))
     );
@@ -269,10 +269,10 @@ public final class KernelPanicAssets {
         g.setGlobalAlpha(1);
     }
 
-    /** Astra EMP interference overlay at given alpha. */
-    public static void drawAstraInterference(GraphicsContext g, double w, double h, double alpha) {
+    /** KK EMP interference overlay at given alpha. */
+    public static void drawKKInterference(GraphicsContext g, double w, double h, double alpha) {
         g.setGlobalAlpha(alpha);
-        g.drawImage(get("astra interference overlay"), 0, 0, w, h);
+        g.drawImage(get("kk interference overlay"), 0, 0, w, h);
         g.setGlobalAlpha(1);
     }
 

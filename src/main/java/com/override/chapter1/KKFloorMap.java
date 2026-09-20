@@ -1,6 +1,6 @@
 package com.override.chapter1;
 
-import com.override.net.AstraProtocol;
+import com.override.net.KKProtocol;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
@@ -10,13 +10,13 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 
 /**
- * The floor as Astra sees it: six rooms, a corridor, and live dots.
+ * The floor as KK sees it: six rooms, a corridor, and live dots.
  *
  * <p>Deliberately not {@link CurfewMinimap} — that one reads its geometry from
  * a built 3D world, and this end of the link has no world to build. The layout
  * numbers mirror {@link CurfewWorld}: 50m by 30m, corridor between z = -3 and 3.
  */
-final class AstraFloorMap extends Pane {
+final class KKFloorMap extends Pane {
 
     private static final double W = 520, H = 312;
     private static final double HX = CurfewWorld.HX, HZ = CurfewWorld.HZ;
@@ -24,9 +24,9 @@ final class AstraFloorMap extends Pane {
     private final Circle player = dot(6, Color.web("#7ef3e8"));
     private final Circle unit = dot(7, Color.web("#ff3d5a"));
     private final Circle escort = dot(7, Color.web("#ffb347"));
-    private AstraProtocol.Tick last;
+    private KKProtocol.Tick last;
 
-    AstraFloorMap() {
+    KKFloorMap() {
         setMinSize(W, H);
         setPrefSize(W, H);
         setMaxSize(W, H);
@@ -53,7 +53,7 @@ final class AstraFloorMap extends Pane {
     }
 
     /** Draws one frame from the game; returns nothing, keeps the last tick for commands. */
-    void update(AstraProtocol.Tick t) {
+    void update(KKProtocol.Tick t) {
         last = t;
         player.setCenterX(mapX(t.px()));
         player.setCenterY(mapZ(t.pz()));
@@ -70,7 +70,7 @@ final class AstraFloorMap extends Pane {
     }
 
     /** The last frame received, or null before the game connects. */
-    AstraProtocol.Tick lastTick() {
+    KKProtocol.Tick lastTick() {
         return last;
     }
 

@@ -20,7 +20,7 @@ not use the rejected generated background image.
 
 The set is authored in JavaFX Canvas on a crisp pixel grid: tiled floor,
 wood-grain desks, monitors, books, chairs, rainy windows, a surveillance camera,
-and restrained screen lighting. It uses the existing, unchanged Ayan idle and
+and restrained screen lighting. It uses the existing, unchanged REN idle and
 walking PNGs; it does not generate or redraw the player character.
 
 Five captioned story beats cover KK's promise, the crash, enforced silence,

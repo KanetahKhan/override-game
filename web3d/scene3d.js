@@ -47,7 +47,7 @@ const posterTex = () => canvasTex((g, w, h) => {
   g.fillStyle = '#12303a'; g.fillRect(0, 0, w, h);
   g.strokeStyle = '#7ef3e8'; g.lineWidth = 6; g.strokeRect(14, 14, w - 28, h - 28);
   g.fillStyle = '#e8fbf8'; g.font = 'bold 52px monospace';
-  g.fillText('ASTRA', 40, 100); g.fillText('ALWAYS', 40, 165); g.fillText('KNOWS', 40, 230);
+  g.fillText('KK', 40, 100); g.fillText('ALWAYS', 40, 165); g.fillText('KNOWS', 40, 230);
   g.fillStyle = '#ffb347'; g.font = 'bold 34px monospace';
   g.fillText('ask, and be answered', 40, 310);
 }, 384, 512);
@@ -214,12 +214,12 @@ export function createWorld(container, opts) {
   const poster = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.5), M({ map: posterTex(), roughness: 0.9, emissive: 0x0a1c22, emissiveIntensity: 0.5 }));
   poster.position.set(-W / 2 + 0.05, 2.0, -3.2); poster.rotation.y = Math.PI / 2; scene.add(poster);
 
-  // ---- ASTRA terminal / core
+  // ---- KK terminal / core
   const term = new THREE.Group();
   const stand = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.0, 0.7), M({ color: 0x1d242a, roughness: 0.6, metalness: 0.4 }));
   stand.position.y = 0.5; stand.castShadow = true;
   const scr = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 0.9), M({
-    map: screenTex(['> ASTRA CORE v9.2', '> classroom node: LOCKED', '> ask me for the key.', '> you always do.']),
+    map: screenTex(['> KK CORE v9.2', '> classroom node: LOCKED', '> ask me for the key.', '> you always do.']),
     emissive: 0x2fbfae, emissiveIntensity: 1.1, roughness: 0.3
   }));
   scr.position.set(0, 1.5, 0.02);
@@ -227,7 +227,7 @@ export function createWorld(container, opts) {
   bez.position.set(0, 1.5, -0.04);
   term.add(stand, bez, scr);
   term.position.set(4.6, 0, -D / 2 + 0.6);
-  scene.add(term); reg(term, 'terminal', 'ASTRA terminal', true);
+  scene.add(term); reg(term, 'terminal', 'KK terminal', true);
   named.termScreen = scr;
   const termLight = new THREE.PointLight(0x35e0d8, 7, 7); termLight.position.set(4.6, 1.7, -4.2); scene.add(termLight);
   named.termLight = termLight;
@@ -422,7 +422,7 @@ export function createWorld(container, opts) {
       named.termScreen.material.map = screenTex(lines, accent);
       named.termScreen.material.needsUpdate = true;
     },
-    setAstraMood(hex) { named.termLight.color.setHex(hex); },
+    setKKMood(hex) { named.termLight.color.setHex(hex); },
     dispose() {
       running = false; ro.disconnect();
       window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey);

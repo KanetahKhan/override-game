@@ -27,7 +27,7 @@ import java.util.Set;
  * {@link #STORY_GATE_TARGET}, but the run continues so the player keeps chasing
  * a high score. Game over is instant-retry on ENTER, exit on ESC.
  *
- * <p>SPACE toggles the <b>Astra Assist</b> autopilot — the cursor greedily,
+ * <p>SPACE toggles the <b>KK Assist</b> autopilot — the cursor greedily,
  * smoothly auto-steers toward the nearest knowledge bit. It feels relaxing to
  * switch on (no jerk, no takeover sensation: it reuses the same one-direction-
  * per-step input pipeline the player uses). The cost is the
@@ -184,7 +184,7 @@ public final class SnakeGame extends MiniGame {
 
         if (state == State.GAME_OVER) return;
 
-        // Astra Assist re-aims the cursor *once per step*, exactly where the
+        // KK Assist re-aims the cursor *once per step*, exactly where the
         // player's input would go — so it feels smooth, never a takeover.
         if (assistOn) assistChooseDir();
 
@@ -282,7 +282,7 @@ public final class SnakeGame extends MiniGame {
         }
     }
 
-    // ----- Astra Assist (autopilot) ------------------------------------------
+    // ----- KK Assist (autopilot) ------------------------------------------
 
     /**
      * Greedy, single-step direction picker. Picks the axis with the bigger gap
@@ -362,7 +362,7 @@ public final class SnakeGame extends MiniGame {
         assistOn = !assistOn;
         if (assistOn) {
             assistedThisRun = true;
-            dependencyUsed++;          // every activation is one Astra Assist
+            dependencyUsed++;          // every activation is one KK Assist
             onSfxAssist();
         }
     }
@@ -561,11 +561,11 @@ public final class SnakeGame extends MiniGame {
             double pulse = reducedFlashing ? 1.0 : 0.6 + 0.4 * Math.sin(time * 6);
             g.setGlobalAlpha(pulse);
             g.setFill(theme.warning());
-            g.fillText("[ ASTRA ASSIST ]", 8, height - 11);
+            g.fillText("[ KK ASSIST ]", 8, height - 11);
             g.setGlobalAlpha(1);
         } else {
             g.setFill(assistedThisRun ? theme.warning() : theme.dim());
-            g.fillText("SPACE: ASTRA ASSIST", 8, height - 11);
+            g.fillText("SPACE: KK ASSIST", 8, height - 11);
         }
 
         g.setTextAlign(TextAlignment.RIGHT);

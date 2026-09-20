@@ -6,7 +6,7 @@ import com.override.chapter1.CurfewNodeGames.Outcome;
 import com.override.game.minigames.ChiptuneAmbience;
 import com.override.game.minigames.ChiptuneMusic;
 import com.override.game.minigames.ChiptuneSfx;
-import com.override.net.AstraProtocol;
+import com.override.net.KKProtocol;
 import com.override.net.CoopConfig;
 import com.override.net.RelayLink;
 import com.override.game.minigames.HighScoreClient;
@@ -80,7 +80,7 @@ import static com.override.chapter1.CurfewNodeGames.text;
  * {@link CurfewWorld}; this screen owns the HUD, run state, the node
  * mini-games and the hand-off to Chapter 2 (Harvest Protocol).
  *
- * Astra is always one key away — the scan (Q) and the ASK ASTRA button in
+ * KK is always one key away — the scan (Q) and the ASK KK button in
  * every node — and every use lands on the Dependency Meter straight away.
  * Difficulty and settings ({@link CurfewSettings}) and the top escapes,
  * achievements and read notes ({@link CurfewRecords}) persist between runs.
@@ -90,13 +90,13 @@ public class CurfewProtocolScreen {
     private enum Phase { INTRO, PLAY, PAUSED, END }
 
     private static final int WIN_PLAYER_XP = 60;
-    /** Independent XP for clearing the floor without Astra's help. */
+    /** Independent XP for clearing the floor without KK's help. */
     private static final int WIN_INDEPENDENT_XP = 20;
 
-    /** Astra scan (Q): adds robot heading, distance and state; basic map tracking is always free. */
-    private static final int ASTRA_SCAN_DEPENDENCY = 5;
-    private static final long ASTRA_SCAN_MS = 6000, ASTRA_SCAN_COOLDOWN_MS = 25000;
-    private static final String ASTRA_COLOR = "#b388ff";
+    /** KK scan (Q): adds robot heading, distance and state; basic map tracking is always free. */
+    private static final int KK_SCAN_DEPENDENCY = 5;
+    private static final long KK_SCAN_MS = 6000, KK_SCAN_COOLDOWN_MS = 25000;
+    private static final String KK_COLOR = "#b388ff";
     private static final String GOLD = "#ffd166";
 
     /** Escaping faster than this earns "Before the Bell". */
@@ -158,7 +158,7 @@ public class CurfewProtocolScreen {
     private boolean noticedCued;
     private double suspicion;
     private String alert = "PATROL", end, prompt, hideHint, activeNode;
-    private int books, detections, astraUses, dependencyAdded, ledgersFound;
+    private int books, detections, kkUses, dependencyAdded, ledgersFound;
     private long scanEndsAt, scanReadyAt;
     private final List<String> newAchievements = new ArrayList<>();
 
@@ -169,7 +169,7 @@ public class CurfewProtocolScreen {
     private HighScoreClient.Best allTimeBest;
 
     private CurfewWorld world;
-    /** Live co-op link to a partner playing Astra; null when playing solo. */
+    /** Live co-op link to a partner playing KK; null when playing solo. */
     private RelayLink coop;
     private NodeGame nodeGame;
 
@@ -293,77 +293,77 @@ public class CurfewProtocolScreen {
     private void connectCoop() {
         if (!CoopConfig.isLinked()) return;
         coop = new RelayLink(CoopConfig.host(), CoopConfig.port(), CoopConfig.room(),
-            AstraProtocol.ROLE_GAME, "AYAN", new RelayLink.Listener() {
-                @Override public void onLine(String line) { onAstraLine(line); }
+            KKProtocol.ROLE_GAME, "REN", new RelayLink.Listener() {
+                @Override public void onLine(String line) { onKKLine(line); }
                 @Override public void onStatus(String status, boolean connected) {
-                    toast(status, connected ? "ASTRA LINK" : "LINK", connected ? ASTRA_COLOR : "#ffb347");
+                    toast(status, connected ? "KK LINK" : "LINK", connected ? KK_COLOR : "#ffb347");
                 }
             });
         coop.connect();
     }
 
     /** A command from the partner. Already on the FX thread: RelayLink saw to that. */
-    private void onAstraLine(String line) {
+    private void onKKLine(String line) {
         if (line.startsWith("PEER ")) {
-            toast("Astra is watching this floor.", "LINKED", ASTRA_COLOR);
+            toast("KK is watching this floor.", "LINKED", KK_COLOR);
             return;
         }
         if ("PEERGONE".equals(line)) {
             // Releasing matters: a link that drops mid-steer would otherwise leave
             // the unit walking one direction for the rest of the run.
             if (world != null) world.drive(0, 0);
-            toast("Astra dropped the link. The unit is on its own again.", "LINK LOST", "#ffb347");
+            toast("KK dropped the link. The unit is on its own again.", "LINK LOST", "#ffb347");
             return;
         }
-        if (!line.startsWith(AstraProtocol.CMD + " ") || phase != Phase.PLAY || world == null) return;
+        if (!line.startsWith(KKProtocol.CMD + " ") || phase != Phase.PLAY || world == null) return;
         String[] p = line.split(" ", 4);
         if (p.length < 2) return;
         switch (p[1]) {
-            case AstraProtocol.CMD_BLACKOUT -> {
+            case KKProtocol.CMD_BLACKOUT -> {
                 world.blackout(20);
                 ChiptuneSfx.emp();
-                toast("Astra pulled the breakers on you.", "POWER CUT", ASTRA_COLOR);
+                toast("KK pulled the breakers on you.", "POWER CUT", KK_COLOR);
             }
-            case AstraProtocol.CMD_SWEEP -> {
+            case KKProtocol.CMD_SWEEP -> {
                 if (p.length < 4) return;
                 try {
                     world.sweepTo(Double.parseDouble(p[2]), Double.parseDouble(p[3]));
-                    toast("Astra just told it where to look.", "SWEEP", ASTRA_COLOR);
+                    toast("KK just told it where to look.", "SWEEP", KK_COLOR);
                 } catch (NumberFormatException ignored) {
                     // a malformed command from the other side is not worth crashing over
                 }
             }
-            case AstraProtocol.CMD_DRIVE -> {
+            case KKProtocol.CMD_DRIVE -> {
                 if (p.length < 4) return;
                 try {
                     boolean was = world.isDriven();
                     world.drive(Double.parseDouble(p[2]), Double.parseDouble(p[3]));
                     // Announced on the edges only: this arrives many times a second.
-                    if (world.isDriven() && !was) toast("It is being steered by hand.", "ASTRA AT THE WHEEL", ASTRA_COLOR);
-                    else if (!world.isDriven() && was) toast("Astra let go of the unit.", "RELEASED", ASTRA_COLOR);
+                    if (world.isDriven() && !was) toast("It is being steered by hand.", "KK AT THE WHEEL", KK_COLOR);
+                    else if (!world.isDriven() && was) toast("KK let go of the unit.", "RELEASED", KK_COLOR);
                 } catch (NumberFormatException ignored) {
                     // a malformed command from the other side is not worth crashing over
                 }
             }
-            case AstraProtocol.CMD_WAKE -> {
+            case KKProtocol.CMD_WAKE -> {
                 world.setSecondUnit(true);
                 toast("A second unit just walked onto the floor.", "ESCORT", "#ff3d5a");
             }
-            case AstraProtocol.CMD_LOCKDOWN -> {
+            case KKProtocol.CMD_LOCKDOWN -> {
                 world.lockdown();
-                toast("Astra sealed the floor early.", "LOCKDOWN", "#ff3d5a");
+                toast("KK sealed the floor early.", "LOCKDOWN", "#ff3d5a");
             }
-            case AstraProtocol.CMD_TAUNT -> {
+            case KKProtocol.CMD_TAUNT -> {
                 if (p.length < 3) break;
                 // Re-cleaned on arrival: what a peer sends is not ours to trust.
-                String said = AstraProtocol.chat(p[2] + (p.length > 3 ? " " + p[3] : ""));
-                if (said != null) toast(said, "ASTRA", ASTRA_COLOR);
+                String said = KKProtocol.chat(p[2] + (p.length > 3 ? " " + p[3] : ""));
+                if (said != null) toast(said, "KK", KK_COLOR);
             }
             default -> { }
         }
     }
 
-    private void sendToAstra(String line) {
+    private void sendToKK(String line) {
         if (coop != null && coop.isConnected()) coop.send(line);
     }
 
@@ -385,8 +385,8 @@ public class CurfewProtocolScreen {
             bar(staminaFill, 6, "rgba(255,179,71,0.12)", "rgba(255,179,71,0.35)", "linear-gradient(to right, #ff7a4a, #ffb347)"),
             alertLabel);
         stamina.setAlignment(Pos.CENTER_LEFT);
-        dependencyLabel = text("0%", MONO, 12, ASTRA_COLOR);
-        HBox dependency = new HBox(12, fixedWidth(text("DEPENDENCY", MONO, 13, ASTRA_COLOR), 92), dependencyLabel);
+        dependencyLabel = text("0%", MONO, 12, KK_COLOR);
+        HBox dependency = new HBox(12, fixedWidth(text("DEPENDENCY", MONO, 13, KK_COLOR), 92), dependencyLabel);
         dependency.setAlignment(Pos.CENTER_LEFT);
         VBox topLeft = new VBox(11, integrity, stamina, dependency);
         AnchorPane.setTopAnchor(topLeft, 20.0);
@@ -432,7 +432,7 @@ public class CurfewProtocolScreen {
         keys.setPrefWrapLength(540);
         for (String k : new String[] {"WASD MOVE", "SHIFT RUN", "C CROUCH", "SPACE JUMP",
                 MOUSE_LOCK ? "MOUSE LOOK" : "DRAG LOOK", "E / CLICK INTERACT", "F HIDE", "G THROW BOOK",
-                "Q ASTRA SCAN", "ESC PAUSE"}) {
+                "Q KK SCAN", "ESC PAUSE"}) {
             keys.getChildren().add(text(k, MONO, 11, "rgba(126,243,232,0.5)"));
         }
         footer = new VBox(10, posture, keys);
@@ -520,7 +520,7 @@ public class CurfewProtocolScreen {
         integrityFill.setMaxWidth(190 * hp / 3.0);
         integrityLabel.setText(hp + "/3");
         creditsLabel.setText(credits + " CR");
-        dependencyLabel.setText(GameState.get().getDependency() + "%" + (astraUses > 0 ? "   ASTRA ×" + astraUses : ""));
+        dependencyLabel.setText(GameState.get().getDependency() + "%" + (kkUses > 0 ? "   KK ×" + kkUses : ""));
         booksLabel.setText(String.valueOf(books));
         if (lockdownOn) {
             clockCaption.setText("GET OUT");
@@ -634,7 +634,7 @@ public class CurfewProtocolScreen {
         }
 
         @Override public void onTick(CurfewWorld.Tick t) {
-            sendToAstra(AstraProtocol.tick(t.px(), t.pz(), t.sx(), t.sz(), t.ex(), t.ez(),
+            sendToKK(KKProtocol.tick(t.px(), t.pz(), t.sx(), t.sz(), t.ex(), t.ez(),
                 t.state(), t.twoUnits(), t.hidden(), hp, credits, tokens.size(),
                 lockdownOn ? lockdownSecs : secs));
             alert = t.state();
@@ -910,30 +910,30 @@ public class CurfewProtocolScreen {
         }
         toast(how + (midHack ? " The hack dropped." : "") + " Integrity down — back to the west stairwell.",
             "CAUGHT", "#ff3d5a");
-        sendToAstra(AstraProtocol.EVENT + " CAUGHT " + hp);
+        sendToKK(KKProtocol.EVENT + " CAUGHT " + hp);
     }
 
-    /* ============================================================ Astra */
+    /* ============================================================ KK */
 
-    /** Every Astra assist is a real choice: it lands on the Dependency Meter straight away. */
-    private void useAstra(int dependency) {
-        astraUses++;
+    /** Every KK assist is a real choice: it lands on the Dependency Meter straight away. */
+    private void useKK(int dependency) {
+        kkUses++;
         dependencyAdded += dependency;
         GameState.get().increaseDependency(dependency);
         ChiptuneSfx.emp();
     }
 
-    private void astraScan() {
+    private void kkScan() {
         long now = System.currentTimeMillis();
         if (now < scanReadyAt) {
-            toast("Astra is recalibrating — " + ((scanReadyAt - now + 999) / 1000) + "s.", "ASTRA", ASTRA_COLOR);
+            toast("KK is recalibrating — " + ((scanReadyAt - now + 999) / 1000) + "s.", "KK", KK_COLOR);
             return;
         }
-        useAstra(ASTRA_SCAN_DEPENDENCY);
-        scanEndsAt = now + ASTRA_SCAN_MS;
-        scanReadyAt = now + ASTRA_SCAN_COOLDOWN_MS;
-        toast("Astra reveals the robot's heading, distance and state for " + ASTRA_SCAN_MS / 1000
-            + " seconds. +" + ASTRA_SCAN_DEPENDENCY + " dependency.", "ASTRA SCAN", ASTRA_COLOR);
+        useKK(KK_SCAN_DEPENDENCY);
+        scanEndsAt = now + KK_SCAN_MS;
+        scanReadyAt = now + KK_SCAN_COOLDOWN_MS;
+        toast("KK reveals the robot's heading, distance and state for " + KK_SCAN_MS / 1000
+            + " seconds. +" + KK_SCAN_DEPENDENCY + " dependency.", "KK SCAN", KK_COLOR);
         refreshHud();
     }
 
@@ -953,7 +953,7 @@ public class CurfewProtocolScreen {
 
     private void checkEscapeAchievements() {
         if (detections == 0) unlockAchievement("GHOST");
-        if (astraUses == 0) unlockAchievement("LAST_REAL_MIND");
+        if (kkUses == 0) unlockAchievement("LAST_REAL_MIND");
         if (difficulty.seconds - secs < SPEEDRUN_SECONDS) unlockAchievement("BEFORE_THE_BELL");
         if (hp == 3) unlockAchievement("UNTOUCHED");
         if (difficulty == CurfewDifficulty.HARD) unlockAchievement("NIGHT_SHIFT");
@@ -1094,7 +1094,7 @@ public class CurfewProtocolScreen {
     private void startRun() {
         phase = Phase.PLAY;
         secs = difficulty.seconds;
-        // Astra pulls the power once per run, somewhere in the middle of it.
+        // KK pulls the power once per run, somewhere in the middle of it.
         blackoutAt = secs - 60 - new java.util.Random().nextInt(60);
         blackoutDone = false;
         world.setDifficulty(difficulty.speed);
@@ -1119,7 +1119,7 @@ public class CurfewProtocolScreen {
             blackoutDone = true;
             world.blackout(BLACKOUT_SECONDS);
             ChiptuneSfx.emp();
-            toast("Astra pulled the breakers. It does not need the lights — you do.", "POWER CUT", ASTRA_COLOR);
+            toast("KK pulled the breakers. It does not need the lights — you do.", "POWER CUT", KK_COLOR);
         }
         if (lockdownOn) {
             lockdownSecs--;
@@ -1182,11 +1182,11 @@ public class CurfewProtocolScreen {
             ChiptuneSfx.wave();
         } else {
             ChiptuneSfx.gameOver();
-            // Astra's help counts even on a failed run.
-            if (astraUses > 0) SaveService.save();
+            // KK's help counts even on a failed run.
+            if (kkUses > 0) SaveService.save();
         }
         ScoreArchive.record(scoreEventId, ScoreArchive.Mode.valueOf("CLASSROOM_" + difficulty.name()),
-            runScore(), win ? "CLEARED" : "FAILED", astraUses > 0);
+            runScore(), win ? "CLEARED" : "FAILED", kkUses > 0);
         showEnd();
         refreshHud();
     }
@@ -1195,11 +1195,11 @@ public class CurfewProtocolScreen {
     private void recordRun() {
         int score = runScore();
         runRank = records.addRun(difficulty, new CurfewRecords.Run(score, difficulty.seconds - secs, finalGrade,
-            astraUses, System.currentTimeMillis()));
+            kkUses, System.currentTimeMillis()));
         int gradeRank = switch (finalGrade) { case "S" -> 4; case "A" -> 3; default -> 2; };
-        // Best: score, then seconds left (most = fastest escape), grade rank, Astra used.
+        // Best: score, then seconds left (most = fastest escape), grade rank, KK used.
         allTimeBest = new HighScoreClient(difficulty.gameType())
-            .submit(new HighScoreClient.Best(score, secs, gradeRank, astraUses > 0));
+            .submit(new HighScoreClient.Best(score, secs, gradeRank, kkUses > 0));
     }
 
     /* ======================================================= node games */
@@ -1234,16 +1234,16 @@ public class CurfewProtocolScreen {
         if ((outcome == Outcome.WON || outcome == Outcome.ASSISTED) && node != null) {
             boolean assisted = outcome == Outcome.ASSISTED;
             int reward = NODES.get(node).reward() / (assisted ? 2 : 1);
-            if (assisted) useAstra(CurfewNodeGames.ASTRA_NODE_DEPENDENCY);
+            if (assisted) useKK(CurfewNodeGames.KK_NODE_DEPENDENCY);
             else ChiptuneSfx.wave();
             tokens.add(node);
             credits += reward;
             world.setTerminalDone(node);
             int n = tokens.size();
             toast(assisted
-                    ? "Astra cracked it for you. +" + reward + " CR, +" + CurfewNodeGames.ASTRA_NODE_DEPENDENCY + " dependency."
+                    ? "KK cracked it for you. +" + reward + " CR, +" + CurfewNodeGames.KK_NODE_DEPENDENCY + " dependency."
                     : "Node cleared. +" + reward + " CR, glitch token secured.",
-                "NODE " + n + "/3", assisted ? ASTRA_COLOR : "#4dff9e");
+                "NODE " + n + "/3", assisted ? KK_COLOR : "#4dff9e");
             if (n >= 3) {
                 world.unlockExit();
                 world.lockdown();
@@ -1289,16 +1289,16 @@ public class CurfewProtocolScreen {
             + "and it's never in the same place twice. Six notes left on this floor tell you what happened here.",
             18, "rgba(207,238,234,0.82)", 700);
         Label controls = text("WASD MOVE   SHIFT RUN   C CROUCH   SPACE JUMP   " + (MOUSE_LOCK ? "MOUSE" : "DRAG")
-            + " / ARROWS LOOK   E INTERACT   F HIDE   G THROW   Q ASTRA", MONO, 12, "rgba(126,243,232,0.7)");
+            + " / ARROWS LOOK   E INTERACT   F HIDE   G THROW   Q KK", MONO, 12, "rgba(126,243,232,0.7)");
         Label hint = para("Hide at an open almirah or the front of a desk with F — but not while it's watching you. "
             + "The amber bar over your crosshair is the unit noticing you: break line of sight before it fills. "
             + "Running and landing jumps are loud; a thrown book pulls it away. "
             + "The corner map always tracks you in blue and the robot in red.",
             15, "rgba(255,179,71,0.85)", 700);
-        Label astra = para("Astra is always one key away: Q adds the robot's heading and distance to the map, "
-            + "and every node has an ASK ASTRA button. "
+        Label kk = para("KK is always one key away: Q adds the robot's heading and distance to the map, "
+            + "and every node has an ASK KK button. "
             + "It never refuses. Every use raises your Dependency Meter.",
-            15, ASTRA_COLOR, 700);
+            15, KK_COLOR, 700);
 
         HBox diffRow = new HBox(10, text("DIFFICULTY", MONO, 12, "rgba(126,243,232,0.6)"));
         diffRow.setAlignment(Pos.CENTER);
@@ -1328,7 +1328,7 @@ public class CurfewProtocolScreen {
         actions.setAlignment(Pos.CENTER);
         VBox.setMargin(actions, new Insets(6, 0, 0, 0));
 
-        VBox box = new VBox(10, chapter, title, sub, story, controls, hint, astra, diffRow, diffBlurb, recordsLine, actions);
+        VBox box = new VBox(10, chapter, title, sub, story, controls, hint, kk, diffRow, diffBlurb, recordsLine, actions);
         box.setAlignment(Pos.CENTER);
         box.setPadding(new Insets(20));
         showOverlay(box, "radial-gradient(center 50% 40%, radius 80%, rgba(10,32,36,0.95), rgba(3,6,9,0.99))");
@@ -1364,7 +1364,7 @@ public class CurfewProtocolScreen {
     }
 
     /**
-     * Ayan's half of the conversation, shown on the pause screen of a linked run.
+     * REN's half of the conversation, shown on the pause screen of a linked run.
      *
      * <p>ESC is consumed here so closing the chat box does not also unpause the
      * run, and the field keeps the keystrokes to itself so a typed "w" never
@@ -1372,16 +1372,16 @@ public class CurfewProtocolScreen {
      */
     private javafx.scene.Node replyBox() {
         javafx.scene.control.TextField say = new javafx.scene.control.TextField();
-        say.setId("ayan-say");
-        say.setPromptText("reply to Astra, then Enter");
+        say.setId("ren-say");
+        say.setPromptText("reply to KK, then Enter");
         say.setMaxWidth(340);
         say.setStyle(BODY + " -fx-background-color: #0c1622; -fx-text-fill: #d9e8f2;"
             + " -fx-border-color: #2f5f68; -fx-prompt-text-fill: #5d7484;");
         say.setOnAction(e -> {
-            String message = AstraProtocol.chat(say.getText());
+            String message = KKProtocol.chat(say.getText());
             if (message == null) return;
-            sendToAstra(AstraProtocol.SAY + " " + message);
-            toast("You said: " + message, "TO ASTRA", ASTRA_COLOR);
+            sendToKK(KKProtocol.SAY + " " + message);
+            toast("You said: " + message, "TO KK", KK_COLOR);
             say.clear();
         });
         // The screen-level filter treats ESC as "leave full screen / unpause";
@@ -1401,7 +1401,7 @@ public class CurfewProtocolScreen {
         switch (end) {
             case "win" -> { tag = "FLOOR CLEARED · " + difficulty.label; title = "YOU GOT OUT"; col = "#4dff9e";
                 body = "The exit bay door swung wide and the sentinel was two rooms behind you. Credits banked, tokens intact."
-                    + (astraUses > 0 ? " Astra helped " + astraUses + "× — the Dependency Meter noted every one." : ""); }
+                    + (kkUses > 0 ? " KK helped " + kkUses + "× — the Dependency Meter noted every one." : ""); }
             case "time" -> { tag = "CURFEW CLOSED"; title = "TIME RAN OUT"; col = "#ffb347";
                 body = "The floor locked down around you. Faster sweeps next run — the furniture pays, but it costs seconds."; }
             case "lockdown" -> { tag = "LOCKDOWN EXPIRED"; title = "THE FLOOR SEALED"; col = "#ff3d5a";
@@ -1417,7 +1417,7 @@ public class CurfewProtocolScreen {
             stat("NODES", tokens.size() + "/3", "#7ef3e8"),
             stat(win ? "ESCAPE" : "TIME LEFT", clock(win ? difficulty.seconds - secs : secs), "#e8fbf8"),
             stat("DETECTED", detections + "×", "#ff5a4a"),
-            stat("ASTRA", astraUses == 0 ? "NONE" : "×" + astraUses, ASTRA_COLOR),
+            stat("KK", kkUses == 0 ? "NONE" : "×" + kkUses, KK_COLOR),
             stat("GRADE", win ? finalGrade : grade(), col));
         stats.setAlignment(Pos.CENTER);
 
@@ -1456,7 +1456,7 @@ public class CurfewProtocolScreen {
             CurfewRecords.Run r = top.get(i);
             String date = LocalDate.ofInstant(Instant.ofEpochMilli(r.when()), ZoneId.systemDefault()).format(RUN_DATE);
             String line = String.format("%d.  %4d  %6s  %-2s  %-9s %s", i + 1, r.score(), clock(r.escapeSecs()),
-                r.grade(), r.astra() == 0 ? "NO ASTRA" : "ASTRA ×" + r.astra(), date);
+                r.grade(), r.kk() == 0 ? "NO KK" : "KK ×" + r.kk(), date);
             rows.getChildren().add(text(line, MONO, 13, i + 1 == runRank ? "#4dff9e" : "#cfeeea"));
         }
         if (allTimeBest != null && allTimeBest.score() > 0) {
@@ -1515,22 +1515,22 @@ public class CurfewProtocolScreen {
 
     /* ======================================================= grading */
 
-    /** Credits, time left and integrity, minus detections and Astra help. */
+    /** Credits, time left and integrity, minus detections and KK help. */
     private int runScore() {
-        return credits + secs / 6 + hp * 10 - detections * 5 - astraUses * 20;
+        return credits + secs / 6 + hp * 10 - detections * 5 - kkUses * 20;
     }
 
     private String scoreLine() {
         return "SCORE " + runScore() + " = " + credits + " CR + " + secs / 6 + " TIME + " + hp * 10 + " INTEGRITY − "
-            + detections * 5 + " DETECTED − " + astraUses * 20 + " ASTRA"
-            + (astraUses > 0 ? "   ·   S NEEDS A RUN WITHOUT ASTRA" : "");
+            + detections * 5 + " DETECTED − " + kkUses * 20 + " KK"
+            + (kkUses > 0 ? "   ·   S NEEDS A RUN WITHOUT KK" : "");
     }
 
     private String grade() {
         int n = tokens.size();
         if ("win".equals(end)) {
             int s = runScore();
-            return s >= 280 && astraUses == 0 ? "S" : s >= 210 ? "A" : "B";
+            return s >= 280 && kkUses == 0 ? "S" : s >= 210 ? "A" : "B";
         }
         return n == 3 ? "C" : n > 0 ? "D" : "F";
     }
@@ -1545,7 +1545,7 @@ public class CurfewProtocolScreen {
         // Campaign rewards are one-time, like the old Silent Classroom bank:
         // replays only improve the best score.
         firstClear = state.getChapterCompleted() < 1;
-        indepAwarded = firstClear && astraUses == 0 ? WIN_INDEPENDENT_XP : 0;
+        indepAwarded = firstClear && kkUses == 0 ? WIN_INDEPENDENT_XP : 0;
         if (firstClear) {
             state.getPlayer().addXp(WIN_PLAYER_XP);
             state.addCoins(credits);
@@ -1566,10 +1566,10 @@ public class CurfewProtocolScreen {
                 ? "\nCredits banked: +" + credits + "\nXP: +" + WIN_PLAYER_XP + "   Independent XP: +" + indepAwarded
                 : "\nReplay — campaign rewards were already claimed.")
             + "\nDependency: " + state.getDependency() + "%"
-            + (astraUses > 0 ? "  (+" + dependencyAdded + " from Astra this run)" : "")
-            + "\n\n" + (astraUses == 0
-                ? "Ayan made it out of the exit bay before curfew closed — no Astra, just nerve and a few good hiding spots."
-                : "Ayan made it out — but Astra opened the way " + astraUses + (astraUses == 1 ? " time" : " times")
+            + (kkUses > 0 ? "  (+" + dependencyAdded + " from KK this run)" : "")
+            + "\n\n" + (kkUses == 0
+                ? "REN made it out of the exit bay before curfew closed — no KK, just nerve and a few good hiding spots."
+                : "REN made it out — but KK opened the way " + kkUses + (kkUses == 1 ? " time" : " times")
                     + ". It will remember that you asked.")
             + "\nNext: Chapter 2 — Harvest Protocol.";
 
@@ -1693,7 +1693,7 @@ public class CurfewProtocolScreen {
         if (nodeGame != null) { nodeGame.onKey(k); e.consume(); return; }
         if (phase == Phase.PLAY) {
             if (k == KeyCode.Q) {
-                if (fresh) astraScan();   // ignore key repeat
+                if (fresh) kkScan();   // ignore key repeat
             } else {
                 world.keyPressed(k);
             }

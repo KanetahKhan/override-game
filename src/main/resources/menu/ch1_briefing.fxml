@@ -12,7 +12,7 @@
             fx:controller="com.override.chapter1.ChapterOneBriefingController">
 
     <!-- ── TOP HEADER ───────────────────────────────────────────────── -->
-    <Label fx:id="playerHeader" text="AYAN // SYS.WATCHING"
+    <Label fx:id="playerHeader" text="REN // SYS.WATCHING"
            styleClass="header-text"
            AnchorPane.leftAnchor="40" AnchorPane.topAnchor="30"/>
     <Label fx:id="creditLabel" text="CREDITS // 0"
@@ -77,7 +77,7 @@
         <HBox spacing="15" styleClass="entry-row">
             <Label text="Q" styleClass="keybind-box"/>
             <VBox maxWidth="360" prefWidth="360">
-                <Label text="ASTRA SCAN" styleClass="entry-title-score"/>
+                <Label text="KK SCAN" styleClass="entry-title-score"/>
                 <Label text="She shows you the unit. Dependency rises." styleClass="entry-desc" wrapText="true"/>
             </VBox>
         </HBox>

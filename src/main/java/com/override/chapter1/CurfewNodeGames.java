@@ -44,11 +44,11 @@ import java.util.function.Consumer;
  */
 final class CurfewNodeGames {
 
-    /** ASSISTED: Astra finished the node for the player. */
+    /** ASSISTED: KK finished the node for the player. */
     enum Outcome { WON, FAILED, QUIT, ASSISTED }
 
-    /** What letting Astra finish a node costs on the Dependency Meter. */
-    static final int ASTRA_NODE_DEPENDENCY = 10;
+    /** What letting KK finish a node costs on the Dependency Meter. */
+    static final int KK_NODE_DEPENDENCY = 10;
 
     interface NodeGame {
         Parent view();
@@ -94,13 +94,13 @@ final class CurfewNodeGames {
 
         Button disconnect = footButton("DISCONNECT  [ESC]", "rgba(255,90,74,0.55)", "#ffb0a4");
         disconnect.setOnAction(e -> quit.run());
-        // Astra never refuses: the easy way out is always on screen, with its price.
-        Button astra = footButton("ASK ASTRA  [H]", "rgba(179,136,255,0.6)", "#d9c4ff");
-        astra.setOnAction(e -> assist.run());
-        HBox buttons = new HBox(10, astra, disconnect);
-        HBox.setHgrow(astra, Priority.ALWAYS);
+        // KK never refuses: the easy way out is always on screen, with its price.
+        Button kk = footButton("ASK KK  [H]", "rgba(179,136,255,0.6)", "#d9c4ff");
+        kk.setOnAction(e -> assist.run());
+        HBox buttons = new HBox(10, kk, disconnect);
+        HBox.setHgrow(kk, Priority.ALWAYS);
         HBox.setHgrow(disconnect, Priority.ALWAYS);
-        Label price = text("Astra finishes the node for you: half the credits, +" + ASTRA_NODE_DEPENDENCY + " dependency.",
+        Label price = text("KK finishes the node for you: half the credits, +" + KK_NODE_DEPENDENCY + " dependency.",
             MONO, 11, "rgba(217,196,255,0.7)");
         price.setWrapText(true);
         VBox foot = new VBox(8, buttons, price);
@@ -650,7 +650,7 @@ boolean on = sel == i, at = cur == i && !solved;
      * walking the whole time.</p>
      *
      * <p>The game's own SPACE autopilot is deliberately not forwarded: a node has
-     * exactly one assist route, the frame's ASK ASTRA / [H], so the dependency
+     * exactly one assist route, the frame's ASK KK / [H], so the dependency
      * cost is always the node's advertised price.</p>
      */
     static NodeGame syntaxSnake(double timeScale, Consumer<Outcome> done) {

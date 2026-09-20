@@ -1,7 +1,7 @@
 package com.override.chapter1;
 
 import com.override.Main;
-import com.override.net.AstraProtocol;
+import com.override.net.KKProtocol;
 import com.override.net.CoopConfig;
 import com.override.net.OverrideRelay;
 import com.override.net.RelayLink;
@@ -28,16 +28,16 @@ import static com.override.chapter1.CurfewNodeGames.MONO;
 import static com.override.chapter1.CurfewNodeGames.text;
 
 /**
- * The other seat: a second player watches the floor live and spends Astra's
+ * The other seat: a second player watches the floor live and spends KK's
  * power on it, from anywhere with a network path to the relay.
  *
  * <p>This end never simulates anything. It draws what the game sends and sends
  * intents back, which is why a partner in another city plays fine on a link
  * with real latency: nothing here waits for a round trip.
  */
-public class AstraConsoleScreen {
+public class KKConsoleScreen {
 
-    private static final String ASTRA = "#a97bff";
+    private static final String KK = "#a97bff";
     private static final double POWER_MAX = 100;
     private static final double POWER_REGEN = 4;     // per second
 
@@ -46,7 +46,7 @@ public class AstraConsoleScreen {
     private boolean floorLive;
 
     private final StackPane root = new StackPane();
-    private final AstraFloorMap map = new AstraFloorMap();
+    private final KKFloorMap map = new KKFloorMap();
     private Label status, vitals, alertLabel, powerLabel, logLabel;
     private Region powerFill;
     private TextField hostField, portField, roomField;
@@ -56,9 +56,9 @@ public class AstraConsoleScreen {
         root.setPrefSize(Main.WIDTH, Main.HEIGHT);
         root.setStyle("-fx-background-color: #05080b;");
 
-        Label title = text("ASTRA CONSOLE", BODY, 40, "#e8fbf8");
+        Label title = text("KK CONSOLE", BODY, 40, "#e8fbf8");
         title.setStyle(title.getStyle() + " -fx-font-weight: bold;");
-        Label sub = text("You are the floor. She is on it.", MONO, 13, ASTRA);
+        Label sub = text("You are the floor. She is on it.", MONO, 13, KK);
         Label steer = text("WASD steers the unit by hand  ·  release to let it hunt on its own",
             MONO, 11, "rgba(126,243,232,0.55)");
 
@@ -84,7 +84,7 @@ public class AstraConsoleScreen {
         connectPanel.setAlignment(Pos.CENTER_LEFT);
 
         powerFill = new Region();
-        powerFill.setStyle("-fx-background-color: linear-gradient(to right, #6b4dff, " + ASTRA + ");");
+        powerFill.setStyle("-fx-background-color: linear-gradient(to right, #6b4dff, " + KK + ");");
         powerFill.setMaxHeight(Double.MAX_VALUE);
         StackPane powerTrack = new StackPane(powerFill);
         powerTrack.setAlignment(Pos.CENTER_LEFT);
@@ -92,7 +92,7 @@ public class AstraConsoleScreen {
         powerTrack.setPrefSize(260, 10);
         powerTrack.setStyle("-fx-background-color: rgba(169,123,255,0.12);"
             + " -fx-border-color: rgba(169,123,255,0.4);");
-        powerLabel = text("100", MONO, 14, ASTRA);
+        powerLabel = text("100", MONO, 14, KK);
 
         VBox left = new VBox(14, title, sub, steer, connectPanel, status,
             text("INTEGRITY / CREDITS / NODES / CLOCK", MONO, 11, "rgba(126,243,232,0.55)"), vitals,
@@ -120,24 +120,24 @@ public class AstraConsoleScreen {
 
     private VBox commands() {
         VBox box = new VBox(8,
-            command("CUT THE POWER", 35, () -> send(AstraProtocol.CMD_BLACKOUT)),
+            command("CUT THE POWER", 35, () -> send(KKProtocol.CMD_BLACKOUT)),
             command("SWEEP HER ROOM", 20, this::sweepHer),
-            command("WAKE SECOND UNIT", 45, () -> send(AstraProtocol.CMD_WAKE)),
-            command("SEAL THE FLOOR", 60, () -> send(AstraProtocol.CMD_LOCKDOWN)),
+            command("WAKE SECOND UNIT", 45, () -> send(KKProtocol.CMD_WAKE)),
+            command("SEAL THE FLOOR", 60, () -> send(KKProtocol.CMD_LOCKDOWN)),
             speakBox());
         box.setPadding(new Insets(6, 0, 6, 0));
         return box;
     }
 
     /**
-     * Astra's voice: whatever you type lands as a toast on her screen.
+     * KK's voice: whatever you type lands as a toast on her screen.
      *
      * <p>Costs the same 5 power the fixed taunt did, but only when a line is
      * actually sent — an empty box spends nothing.</p>
      */
     private Node speakBox() {
         TextField say = new TextField();
-        say.setId("astra-say");
+        say.setId("kk-say");
         say.setPromptText("say something to her, then Enter");
         say.setStyle(BODY + " -fx-background-color: #101b2b; -fx-text-fill: #d9e8f2;"
             + " -fx-border-color: #4b3d7a; -fx-prompt-text-fill: #6b7f92;");
@@ -148,10 +148,10 @@ public class AstraConsoleScreen {
             + " -fx-border-color: #4b3d7a;");
 
         Runnable speak = () -> {
-            String message = AstraProtocol.chat(say.getText());
+            String message = KKProtocol.chat(say.getText());
             if (message == null || power < 5) return;
             power -= 5;
-            send(AstraProtocol.CMD_TAUNT + " " + message);
+            send(KKProtocol.CMD_TAUNT + " " + message);
             log("You said: " + message);
             say.clear();
             refresh();
@@ -166,9 +166,9 @@ public class AstraConsoleScreen {
 
     /** Sends the unit to wherever the player was standing on the last frame. */
     private void sweepHer() {
-        AstraProtocol.Tick t = map.lastTick();
+        KKProtocol.Tick t = map.lastTick();
         if (t == null) return;
-        send(AstraProtocol.CMD_SWEEP + " " + fixed(t.px()) + " " + fixed(t.pz()));
+        send(KKProtocol.CMD_SWEEP + " " + fixed(t.px()) + " " + fixed(t.pz()));
     }
 
     private Button command(String label, int cost, Runnable action) {
@@ -184,7 +184,7 @@ public class AstraConsoleScreen {
     }
 
     private void send(String command) {
-        if (link != null && link.isConnected()) link.send(AstraProtocol.CMD + " " + command);
+        if (link != null && link.isConnected()) link.send(KKProtocol.CMD + " " + command);
     }
 
     /* ========================================================== steering */
@@ -233,13 +233,13 @@ public class AstraConsoleScreen {
         double dx = 0, dz = 0;
         if (held.contains(javafx.scene.input.KeyCode.A) || held.contains(javafx.scene.input.KeyCode.LEFT)) dx -= 1;
         if (held.contains(javafx.scene.input.KeyCode.D) || held.contains(javafx.scene.input.KeyCode.RIGHT)) dx += 1;
-        // Up the map is -z: AstraFloorMap paints +z downward.
+        // Up the map is -z: KKFloorMap paints +z downward.
         if (held.contains(javafx.scene.input.KeyCode.W) || held.contains(javafx.scene.input.KeyCode.UP)) dz -= 1;
         if (held.contains(javafx.scene.input.KeyCode.S) || held.contains(javafx.scene.input.KeyCode.DOWN)) dz += 1;
         if (dx == sentDx && dz == sentDz) return;
         sentDx = dx;
         sentDz = dz;
-        send(AstraProtocol.CMD_DRIVE + " " + fixed(dx) + " " + fixed(dz));
+        send(KKProtocol.CMD_DRIVE + " " + fixed(dx) + " " + fixed(dz));
     }
 
     private void connect() {
@@ -252,10 +252,10 @@ public class AstraConsoleScreen {
         CoopConfig.set(hostField.getText(), port, roomField.getText());
         if (link != null) link.close();
         link = new RelayLink(CoopConfig.host(), CoopConfig.port(), CoopConfig.room(),
-            AstraProtocol.ROLE_ASTRA, "ASTRA", new RelayLink.Listener() {
+            KKProtocol.ROLE_KK, "KK", new RelayLink.Listener() {
                 @Override public void onLine(String line) {
                     // qualified: an unqualified call here would recurse into this very method
-                    AstraConsoleScreen.this.onLine(line);
+                    KKConsoleScreen.this.onLine(line);
                 }
 
                 @Override public void onStatus(String message, boolean connected) {
@@ -282,17 +282,17 @@ public class AstraConsoleScreen {
             log("The floor went quiet - she closed the game.");
             return;
         }
-        if (line.startsWith(AstraProtocol.EVENT + " ")) {
-            log(line.substring(AstraProtocol.EVENT.length() + 1));
+        if (line.startsWith(KKProtocol.EVENT + " ")) {
+            log(line.substring(KKProtocol.EVENT.length() + 1));
             return;
         }
-        if (line.startsWith(AstraProtocol.SAY + " ")) {
+        if (line.startsWith(KKProtocol.SAY + " ")) {
             // Re-cleaned on arrival: what a peer sends is not ours to trust.
-            String said = AstraProtocol.chat(line.substring(AstraProtocol.SAY.length() + 1));
+            String said = KKProtocol.chat(line.substring(KKProtocol.SAY.length() + 1));
             if (said != null) log("SHE SAYS: " + said);
             return;
         }
-        AstraProtocol.Tick t = AstraProtocol.parseTick(line);
+        KKProtocol.Tick t = KKProtocol.parseTick(line);
         if (t == null) return;
         floorLive = true;
         map.update(t);

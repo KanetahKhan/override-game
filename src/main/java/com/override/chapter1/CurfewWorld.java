@@ -195,7 +195,7 @@ final class CurfewWorld {
     private final AmbientLight ambient = new AmbientLight(Color.rgb(82, 91, 104));
     private static final Color AMBIENT_ON = Color.rgb(82, 91, 104);
     private static final Color AMBIENT_OUT = Color.rgb(9, 11, 14);
-    /** Seconds left of an Astra power cut; the floor runs on your lamp alone. */
+    /** Seconds left of an KK power cut; the floor runs on your lamp alone. */
     private double blackoutLeft;
     private final PointLight sentinelLight = new PointLight(Color.web("#35e0d8"));
 
@@ -264,7 +264,7 @@ final class CurfewWorld {
     private double playerStepDist;       // the player's own footfalls, paced the same way
 
     /**
-     * Astra's steering, as a unit vector; both zero means she is not driving and
+     * KK's steering, as a unit vector; both zero means she is not driving and
      * the unit is thinking for itself.
      */
     private double driveX, driveZ;
@@ -569,7 +569,7 @@ final class CurfewWorld {
             restored ? "#4dff9e" : "#7ef3e8"), 0.65);
     }
 
-    /** Astra cuts the power: panels dead, ambient gone, only the lamp and the visor left. */
+    /** KK cuts the power: panels dead, ambient gone, only the lamp and the visor left. */
     void blackout(double seconds) {
         blackoutLeft = Math.max(blackoutLeft, seconds);
         ambient.setColor(AMBIENT_OUT);
@@ -578,11 +578,11 @@ final class CurfewWorld {
 
     boolean isBlackout() { return blackoutLeft > 0; }
 
-    /** Astra (or a co-op partner playing her) points the unit at a spot. */
+    /** KK (or a co-op partner playing her) points the unit at a spot. */
     void sweepTo(double x, double z) { investigate(x, z); }
 
     /**
-     * Astra steering the unit by hand. Pass a direction to drive it, or zeroes to
+     * KK steering the unit by hand. Pass a direction to drive it, or zeroes to
      * let go, at which point the AI picks up from wherever the unit now stands.
      *
      * <p>The vector is normalised here rather than trusted, so a peer sending a
@@ -595,7 +595,7 @@ final class CurfewWorld {
         driveZ = dz / len;
     }
 
-    /** True while Astra has hold of the unit; the HUD says so on both sides. */
+    /** True while KK has hold of the unit; the HUD says so on both sides. */
     boolean isDriven() { return driveX != 0 || driveZ != 0; }
 
     /** Read-only view for the co-op feed. */
@@ -1819,7 +1819,7 @@ final class CurfewWorld {
             if (Math.hypot(targetX - sx, targetZ - sz) < ARRIVE) detourTime = 0;
         }
 
-        // Astra steering overrides whatever the AI just aimed at, by dragging the
+        // KK steering overrides whatever the AI just aimed at, by dragging the
         // target ahead of the unit instead of moving it directly. Everything below
         // — collision, wall-sliding, the stuck check, the servo footsteps — then
         // works unchanged, and a driven unit cannot be steered through a wall.
@@ -1832,8 +1832,8 @@ final class CurfewWorld {
         // A walking player does 2.9 and a sprint does 5.0, so a patrol still loses
         // ground to you and only a CHASE can close — but nothing here idles.
         // Driving is deliberately pinned to the patrol pace: manual control is
-        // already a big edge, and letting Astra hand-steer at chase speed would
-        // leave Ayan nothing to outrun.
+        // already a big edge, and letting KK hand-steer at chase speed would
+        // leave REN nothing to outrun.
         double spd = (driven ? 2.2 : "CHASE".equals(aiState) ? 3.45 : "SEARCH".equals(aiState) ? 2.7 : 2.2)
             * difficulty * lockdownSpeed * (aiStun > 0 ? 0.25 : 1);
         double vx = targetX - sx, vz = targetZ - sz;

@@ -106,7 +106,7 @@ final class CurfewMinimap extends Pane {
         g.fillText("TOP DOWN", WIDTH - LEFT, 214);
     }
 
-    /** No visibility, hiding, range, or Astra condition may remove either dot. */
+    /** No visibility, hiding, range, or KK condition may remove either dot. */
     void update(CurfewWorld.Tick tick) {
         position = tick;
         double x = mapX(tick.px()), y = mapZ(tick.pz());
@@ -142,7 +142,7 @@ final class CurfewMinimap extends Pane {
                 x + Math.sin(heading - 0.5) * 28, y + Math.cos(heading - 0.5) * 28,
                 x + Math.sin(heading + 0.5) * 28, y + Math.cos(heading + 0.5) * 28);
         }
-        detail.setText(scanning ? "ASTRA · " + Math.round(position.dist()) + "M · " + position.state()
+        detail.setText(scanning ? "KK · " + Math.round(position.dist()) + "M · " + position.state()
             : "YOU · " + roomAt(position.px(), position.pz()));
     }
 

@@ -19,7 +19,7 @@ public final class CoopConfig {
         room = roomCode == null || roomCode.isBlank() ? "IUT" : roomCode.trim();
     }
 
-    /** True when the next Chapter 1 run should stream itself to an Astra console. */
+    /** True when the next Chapter 1 run should stream itself to an KK console. */
     public static boolean isLinked() { return linked; }
 
     public static void setLinked(boolean value) { linked = value; }

@@ -72,7 +72,7 @@ public final class ChiptuneSfx {
         play(sweep(Wave.TRIANGLE, 320, 110, 0.18, 0.28));
     }
 
-    /** Deep bass sweep — the EMP / Astra Assist relief cue. */
+    /** Deep bass sweep — the EMP / KK Assist relief cue. */
     public static void emp() {
         byte[] bass = sweep(Wave.SINE, 130, 38, 0.36, 0.42);
         byte[] shimmer = tone(Wave.SQUARE, 880, 0.06, 0.10);

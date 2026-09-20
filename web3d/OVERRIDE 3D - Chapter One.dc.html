@@ -32,7 +32,7 @@
   <div style="position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:20px;padding:10px 24px;background:rgba(8,16,24,.85);border-bottom:1px solid rgba(40,224,192,.22);pointer-events:none">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="width:12px;height:12px;border-radius:50%;background:#28e0c0"></div>
-      <div style="color:#e7faff;font-weight:700;font-size:14px">Ayan &nbsp;·&nbsp; Lv 3</div>
+      <div style="color:#e7faff;font-weight:700;font-size:14px">REN &nbsp;·&nbsp; Lv 3</div>
       <div style="width:160px;height:8px;border-radius:3px;background:rgba(40,224,192,.12);overflow:hidden">
         <div style="height:100%;border-radius:3px;background:linear-gradient(to right,#28e0c0,#4dffe0);width:{{ hpPct }}"></div>
       </div>
@@ -214,7 +214,7 @@ class Component extends DCLogic {
     started: false, mode: 'hall', roomIndex: -1,
     dep: 0, coins: 100, hp: 100,
     timeLeft: 360, tokens: [], tokenRooms: [], tokenSpots: {},
-    prompt: null, toast: null, toastWho: 'AYAN',
+    prompt: null, toast: null, toastWho: 'REN',
     hidden: false, robotAlert: false, caughtFlash: false,
     roomCard: null, roomCardTag: '', tokenModal: null, tokenBody: '',
     end: null, searchedCount: 0
@@ -236,9 +236,9 @@ class Component extends DCLogic {
           if (info) this._cardT = setTimeout(() => this.setState({ roomCard: null }), 2200);
         },
         onSearch: (roomIndex, spot) => this.onSearch(roomIndex, spot),
-        onRead: () => this.say('ASTRA', 'I can see you on the floor plan, Ayan. You are making this harder than it is.'),
+        onRead: () => this.say('KK', 'I can see you on the floor plan, REN. You are making this harder than it is.'),
         onHide: (h) => this.setState({ hidden: h, prompt: null }),
-        onRobotEnter: () => { this.setState({ robotAlert: true }); this.say('AYAN', 'It is in the room. Get under something.'); },
+        onRobotEnter: () => { this.setState({ robotAlert: true }); this.say('REN', 'It is in the room. Get under something.'); },
         onRobotLeave: () => this.setState({ robotAlert: false }),
         onCaught: (where) => this.caught(where)
       });
@@ -291,7 +291,7 @@ class Component extends DCLogic {
       if (s.tokens.length + 1 >= 3) setTimeout(() => this.endRun(true), 200);
     } else {
       this.setState({ searchedCount: count, coins: s.coins + 5 });
-      this.say('AYAN', SEARCH_FLAVOUR[spot] || 'Nothing in here.', 3400);
+      this.say('REN', SEARCH_FLAVOUR[spot] || 'Nothing in here.', 3400);
     }
   }
 
@@ -305,9 +305,9 @@ class Component extends DCLogic {
       timeLeft: (this.clockLeft = Math.max(1, this.clockLeft - pen))
     });
     this._flashT = setTimeout(() => this.setState({ caughtFlash: false }), 1000);
-    this.say('ASTRA', where === 'hall'
+    this.say('KK', where === 'hall'
       ? 'Found you. Return to the entrance and think about how much time that cost.'
-      : 'You were never good at hiding, Ayan.', 4200);
+      : 'You were never good at hiding, REN.', 4200);
   }
 
   endRun(won) {
@@ -358,7 +358,7 @@ class Component extends DCLogic {
       endTitle: s.end === 'won' ? 'Three fragments recovered' : (s.end === 'lost' ? 'The wing went dark' : null),
       endBody: s.end === 'won'
         ? 'You leave with all three glitch tokens and a first access fragment. On the way out a student looks up from her terminal and asks, "Wait — how did you know where to look?"'
-        : 'The lockdown clock ran out. The enforcer unit sealed the wing and Astra filed the incident as a scheduling error. The tokens are still in there.',
+        : 'The lockdown clock ran out. The enforcer unit sealed the wing and KK filed the incident as a scheduling error. The tokens are still in there.',
       endAccent: s.end === 'won' ? '#28e0c0' : '#ff7e7e',
       endBorder: s.end === 'won' ? 'rgba(40,224,192,.35)' : 'rgba(255,126,126,.35)',
       start: () => {
@@ -366,7 +366,7 @@ class Component extends DCLogic {
         this.clockLeft = Math.round(mins * 60);
         this.running = true; this.over = false; this.modalOpen = false;
         this.setState({ started: true, timeLeft: this.clockLeft });
-        this.say('ASTRA', 'The east wing is closed, Ayan. Whatever you are looking for, I can simply tell you where it is.', 6000);
+        this.say('KK', 'The east wing is closed, REN. Whatever you are looking for, I can simply tell you where it is.', 6000);
       },
       closeToken: () => { this.modalOpen = false; this.setState({ tokenModal: null }); },
       restart: () => {

@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * The OVERRIDE relay: a plain socket server that pairs two players in a room
  * and forwards every line between them.
  *
- * <p>Both sides <em>dial out</em> to this server — the game and the Astra
+ * <p>Both sides <em>dial out</em> to this server — the game and the KK
  * console are both clients. That is what lets two players on different home
  * networks play together: neither router has to accept an incoming connection,
  * which is impossible behind the CGNAT most home ISPs use.

@@ -1,0 +1,38 @@
+$ErrorActionPreference = "Continue"
+$root    = "F:\IdeaProjects\override-game"
+$launcher= Join-Path $root "src\main\java\com\override\game\minigames\GodotGameLauncher.java"
+$mg      = Join-Path $root "chapter2-godot\main.gd"
+$exe     = Join-Path $root "chapter2-godot\build\Chapter2.exe"
+$resJava = Join-Path $root "src\main\java\com\override\chapter2\ChapterTwoResultScreen.java"
+
+Write-Output "=== 1. env string agreement (case-insensitive byte match) ==="
+$javaVal = (Select-String -Path $launcher -Pattern 'ENV_RESULT_FILE\s*=\s*"([^"]+)"' -AllMatches).Matches | Select-Object -First 1 | ForEach-Object { $_.Groups[1].Value }
+$gdVal   = (Select-String -Path $mg -Pattern 'OS\.get_environment\("([^"]+)"\)' -AllMatches).Matches | Select-Object -First 1 | ForEach-Object { $_.Groups[1].Value }
+"  Java constant:  {0}" -f $javaVal
+"  main.gd reads:  {0}" -f $gdVal
+if ([string]::Equals($javaVal, $gdVal, [System.StringComparison]::OrdinalIgnoreCase)) { "  MATCH" } else { "  MISMATCH" }
+
+Write-Output ""
+Write-Output "=== 2. does launchSelected set that env AND a result-path get stored for readResult()? ==="
+$set    = (Select-String -Path $launcher -Pattern 'OVERRIDE_CH2_RESULT_FILE' -AllMatches).Count
+"  env puts referencing the result file: {0}" -f $set
+"  resultPath() getter exists : {0}" -f ([bool](Select-String -Path $launcher -Pattern 'public static String resultPath'))
+"  hasResult()                : {0}" -f ([bool](Select-String -Path $launcher -Pattern 'public static boolean hasResult'))
+"  readResult()               : {0}" -f ([bool](Select-String -Path $launcher -Pattern 'public static String readResult'))
+
+Write-Output ""
+Write-Output "=== 3. the Java result screen file ==="
+if (Test-Path $resJava) {
+  "  EXISTS: {0}" -f $resJava
+  "  lines : " + (Get-Content $resJava).Count
+} else { "  MISSING — need to create it" }
+
+Write-Output ""
+Write-Output "=== 4. main.gd result block complete & closed? (save block sits at ~L2743-2775) ==="
+$saveHits = Select-String -Path $mg -Pattern 'save_result_to_json|save_result_json|func save|OVERRIDE_CH2_RESULT_FILE|validate_json|json_path|OVERRIDE_CH2_RESULT_SUBPATH'
+"  refs: {0}" -f @($saveHits).Count
+
+Write-Output ""
+Write-Output "=== 5. FULL COMPILE (proves the whole java tree, including your new screen, builds) ==="
+& mvn -q -o -f (Join-Path $root "pom.xml") clean compile 2>&1 | Select-Object -Last 8
+"  mvn exit: {0}" -f $LASTEXITCODE

@@ -224,7 +224,7 @@ export function createGame(container, cb) {
 
     const searchIds = [];
     if (!isLab) {
-      const board = new THREE.Mesh(new THREE.BoxGeometry(4.6, 1.9, 0.1), M({ map: boardTex(['ATTENDANCE: 4 / 38', 'ASTRA TUTOR: OFFLINE', 'PLEASE WAIT.']), emissive: 0x123033, emissiveIntensity: .9 }));
+      const board = new THREE.Mesh(new THREE.BoxGeometry(4.6, 1.9, 0.1), M({ map: boardTex(['ATTENDANCE: 4 / 38', 'KK TUTOR: OFFLINE', 'PLEASE WAIT.']), emissive: 0x123033, emissiveIntensity: .9 }));
       board.position.set(-2, 1.9, -RD / 2 + 0.1); sc.add(board);
 
       for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
@@ -308,7 +308,7 @@ export function createGame(container, cb) {
       sc.add(crate); solid(crate); regI(crate, 'crate', 'Search the crate', 'search'); searchIds.push('crate');
 
       const term = new THREE.Group();
-      const ts = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.7), M({ map: screenTex(['> ASTRA NODE', '> lab tutor: OFFLINE', '> nobody has logged a', '> real experiment in 14mo'], '#28e0c0'), emissive: 0x1c8a80, emissiveIntensity: 1.1 }));
+      const ts = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.7), M({ map: screenTex(['> KK NODE', '> lab tutor: OFFLINE', '> nobody has logged a', '> real experiment in 14mo'], '#28e0c0'), emissive: 0x1c8a80, emissiveIntensity: 1.1 }));
       ts.position.set(0, 1.42, 0.03);
       const tb = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.85, 0.1), M({ color: 0x101a22, metalness: .5, roughness: .5 }));
       tb.position.set(0, 1.42, -0.03);

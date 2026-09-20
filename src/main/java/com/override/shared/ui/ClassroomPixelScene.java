@@ -15,13 +15,13 @@ import java.io.InputStream;
 
 /**
  * Deterministic, code-drawn pixel environment. No generated backdrop, video
- * decoder or new character art: the actor is the original Ayan sprite.
+ * decoder or new character art: the actor is the original REN sprite.
  * Rendered at a 640x360 logical pixel grid inside the 1280x720 game space.
  */
 final class ClassroomPixelScene extends Canvas {
     static final int WIDTH = 1280, HEIGHT = 720;
     static final double FILM_SECONDS = 40;
-    private static final String ROOT = "/Assets_Characters/Ayan/";
+    private static final String ROOT = "/Assets_Characters/REN/";
     private static final String[] IDLE_DIRECTIONS = {
         "north", "north-east", "east", "south-east",
         "south", "south-west", "west", "north-west"
@@ -39,7 +39,7 @@ final class ClassroomPixelScene extends Canvas {
                 + IDLE_DIRECTIONS[i] + ".png");
         }
         // Same transition the Chapter 2 Godot walk uses: walk -> bending knee ->
-        // walk -> bent back leg, here driven by the Ayan source rotations.
+        // walk -> bent back leg, here driven by the REN source rotations.
         walkF[0] = load(ROOT + "walking/rotations/south.png");
         walkF[1] = load(ROOT + "benting_knee_to_walk/rotations/south.png");
         walkF[2] = walkF[0];

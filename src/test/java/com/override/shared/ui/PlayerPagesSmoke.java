@@ -36,7 +36,7 @@ public final class PlayerPagesSmoke {
                 Parent empty = new ScoreboardScreen(() -> {}).build(); show(stage, empty);
                 check(((TableView<?>) empty.lookup("#run-history")).getItems().isEmpty(), "Empty history");
                 snapshot(empty, output.resolve("scoreboard-empty.png"));
-                String[] names = {"Ayesha", "Kanetah", "Samira", "Rafi", "Noor", "Zayan", "Maya"};
+                String[] names = {"Ayesha", "Kanetah", "Samira", "Rafi", "Noor", "Zren", "Maya"};
                 for (int i = 0; i < names.length; i++) {
                     PlayerProfiles.login(names[i]);
                     ScoreArchive.record("fixture", ScoreArchive.Mode.CAMPAIGN, 96 - i * 5, "RESISTANCE", false);

@@ -67,7 +67,7 @@
     </div>
   </sc-if>
 
-  <!-- ASTRA subtitle -->
+  <!-- KK subtitle -->
   <sc-if value="{{ subtitle }}" hint-placeholder-val="{{ false }}">
     <div style="position:absolute;left:50%;bottom:132px;transform:translateX(-50%);width:min(760px,80vw);pointer-events:none;text-align:center">
       <div style="font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:.3em;color:#35e0d8;margin-bottom:6px">{{ speaker }}</div>
@@ -91,7 +91,7 @@
       <div style="font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:.42em;color:#35e0d8">CHAPTER 01</div>
       <div style="font-family:Rajdhani,sans-serif;font-weight:700;font-size:88px;line-height:.92;letter-spacing:.04em;color:#e8fbf8;text-shadow:0 0 42px rgba(53,224,216,.45)">OVERRIDE</div>
       <div style="font-family:Rajdhani,sans-serif;font-weight:600;font-size:26px;letter-spacing:.3em;color:#ffb347">THE SILENT CLASSROOM</div>
-      <div style="max-width:560px;font-family:Rajdhani,sans-serif;font-size:20px;line-height:1.5;color:rgba(207,238,234,.8);text-wrap:pretty">The bell rang forty minutes ago. The door won't open, and ASTRA is offering to help. Every answer it gives you costs something you can't earn back.</div>
+      <div style="max-width:560px;font-family:Rajdhani,sans-serif;font-size:20px;line-height:1.5;color:rgba(207,238,234,.8);text-wrap:pretty">The bell rang forty minutes ago. The door won't open, and KK is offering to help. Every answer it gives you costs something you can't earn back.</div>
       <div style="display:flex;gap:26px;font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:.16em;color:rgba(126,243,232,.7)">
         <span>WASD MOVE</span><span>DRAG / ARROWS LOOK</span><span>E OR CLICK INTERACT</span><span>SHIFT RUN</span>
       </div>
@@ -107,18 +107,18 @@
     </div>
   </sc-if>
 
-  <!-- ASTRA terminal dialogue -->
+  <!-- KK terminal dialogue -->
   <sc-if value="{{ showTerminal }}" hint-placeholder-val="{{ false }}">
     <div style="position:absolute;inset:0;background:rgba(3,8,10,.86);display:flex;align-items:center;justify-content:center;padding:40px">
       <div style="width:min(720px,92vw);border:1px solid rgba(53,224,216,.5);background:linear-gradient(180deg,rgba(6,26,28,.97),rgba(4,14,16,.97));box-shadow:0 0 70px rgba(53,224,216,.18);position:relative;overflow:hidden">
         <div style="position:absolute;inset:0;pointer-events:none;opacity:.1;background:repeating-linear-gradient(to bottom,rgba(126,243,232,.6) 0 1px,transparent 1px 3px)"></div>
         <div style="padding:16px 22px;border-bottom:1px solid rgba(53,224,216,.28);display:flex;justify-content:space-between;align-items:center">
-          <span style="font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:.28em;color:#35e0d8">ASTRA // CLASSROOM NODE</span>
+          <span style="font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:.28em;color:#35e0d8">KK // CLASSROOM NODE</span>
           <span style="width:9px;height:9px;border-radius:50%;background:#35e0d8;animation:pulseGlow 1.6s infinite"></span>
         </div>
-        <div style="padding:26px 24px;font-family:Rajdhani,sans-serif;font-size:22px;line-height:1.45;color:#e8fbf8;min-height:96px;text-wrap:pretty">{{ astraLine }}</div>
+        <div style="padding:26px 24px;font-family:Rajdhani,sans-serif;font-size:22px;line-height:1.45;color:#e8fbf8;min-height:96px;text-wrap:pretty">{{ kkLine }}</div>
         <div style="display:flex;flex-direction:column;gap:1px;background:rgba(53,224,216,.22)">
-          <sc-for list="{{ astraChoices }}" as="c" hint-placeholder-count="2">
+          <sc-for list="{{ kkChoices }}" as="c" hint-placeholder-count="2">
             <button onClick="{{ c.pick }}" style="text-align:left;padding:16px 24px;background:rgba(4,14,16,.95);border:none;color:#cfeeea;font-family:Rajdhani,sans-serif;font-weight:600;font-size:19px;letter-spacing:.02em;cursor:pointer;display:flex;justify-content:space-between;gap:20px" style-hover="background:rgba(53,224,216,.14);color:#ffffff">
               <span>{{ c.text }}</span>
               <span style="font-family:'Share Tech Mono',monospace;font-size:13px;color:{{ c.costColor }}">{{ c.cost }}</span>
@@ -166,7 +166,7 @@
   </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;astraTone&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Cold&quot;,&quot;Warm&quot;,&quot;Menacing&quot;],&quot;default&quot;:&quot;Cold&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;ASTRA&quot;},&quot;startDependency&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;min&quot;:0,&quot;max&quot;:80,&quot;step&quot;:2,&quot;default&quot;:18,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;ASTRA&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;kkTone&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Cold&quot;,&quot;Warm&quot;,&quot;Menacing&quot;],&quot;default&quot;:&quot;Cold&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;KK&quot;},&quot;startDependency&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;min&quot;:0,&quot;max&quot;:80,&quot;step&quot;:2,&quot;default&quot;:18,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;KK&quot;}}">
 const CODE = '7319';
 
 const ITEMS = {
@@ -205,10 +205,10 @@ class Component extends DCLogic {
     digits: { 1: null, 2: null, 3: null, 4: null },
     inv: [], flags: {},
     prompt: null, hoverId: null,
-    subtitle: null, speaker: 'ASTRA',
-    terminal: false, astraLine: '', astraStage: 'greet',
+    subtitle: null, speaker: 'KK',
+    terminal: false, kkLine: '', kkStage: 'greet',
     keypad: false, pad: '', padState: 'idle',
-    askedAstra: false
+    askedKK: false
   };
 
   componentDidMount() {
@@ -246,7 +246,7 @@ class Component extends DCLogic {
     if (id === 'rock') return 'Take the rock';
     if (id === 'books') return f.books ? 'Scattered notes' : 'Search the stack';
     if (id === 'board') return 'Read the board';
-    if (id === 'terminal') return 'Wake ASTRA';
+    if (id === 'terminal') return 'Wake KK';
     if (id === 'keypad') return 'Use the keypad';
     if (id === 'door') return f.unlocked ? 'Leave the room' : 'Locked from outside';
     return label;
@@ -303,7 +303,7 @@ class Component extends DCLogic {
       this.found(4, '9', 'The door caves in. A slip of paper inside: "9". My knuckles are bleeding.', 'key');
     } else if (id === 'terminal') {
       this.world.unlock();
-      this.setState({ terminal: true, astraStage: 'greet', astraLine: this.tone().greet, prompt: null });
+      this.setState({ terminal: true, kkStage: 'greet', kkLine: this.tone().greet, prompt: null });
     } else if (id === 'keypad') {
       this.world.unlock();
       this.setState({ keypad: true, pad: '', padState: 'idle', prompt: null });
@@ -313,7 +313,7 @@ class Component extends DCLogic {
     }
   }
 
-  tone() { return TONES[this.props.astraTone || 'Cold'] || TONES.Cold; }
+  tone() { return TONES[this.props.kkTone || 'Cold'] || TONES.Cold; }
 
   finish() {
     if (this.world) this.world.unlock();
@@ -326,20 +326,20 @@ class Component extends DCLogic {
     const digits = [1, 2, 3, 4].map(i => s.digits[i] || '_').join(' ');
     const solvedAll = [1, 2, 3, 4].every(i => s.digits[i]);
 
-    const astraChoices = s.astraStage === 'greet'
+    const kkChoices = s.kkStage === 'greet'
       ? [
           { text: 'Give me the code.', cost: '+24 DEPENDENCY', costColor: '#ff8a5c', pick: () => {
               const d = Object.assign({}, s.digits);
               d[1] = '7'; d[2] = '3'; d[3] = '1'; d[4] = '9';
-              this.setState({ digits: d, askedAstra: true, dep: Math.min(100, s.dep + 24), astraStage: 'done', astraLine: t.gave });
-              if (this.world) this.world.setAstraMood(0xffb347);
+              this.setState({ digits: d, askedKK: true, dep: Math.min(100, s.dep + 24), kkStage: 'done', kkLine: t.gave });
+              if (this.world) this.world.setKKMood(0xffb347);
             } },
           { text: 'I will find it myself.', cost: '-6 DEPENDENCY', costColor: '#7ef3e8', pick: () => {
-              this.setState({ dep: Math.max(0, s.dep - 6), coins: s.coins + 20, astraStage: 'done', astraLine: t.refuse });
+              this.setState({ dep: Math.max(0, s.dep - 6), coins: s.coins + 20, kkStage: 'done', kkLine: t.refuse });
               if (this.world) this.world.setTerminal(['> request declined', '> node status: watching', '> she thinks she is alone.'], '#ffb347');
             } },
           { text: 'What are you, really?', cost: 'ASK', costColor: 'rgba(207,238,234,.55)', pick: () => {
-              this.setState({ astraStage: 'greet', astraLine: t.offer });
+              this.setState({ kkStage: 'greet', kkLine: t.offer });
             } }
         ]
       : [ { text: 'Step away from the terminal.', cost: 'CLOSE', costColor: 'rgba(207,238,234,.55)', pick: () => {
@@ -359,7 +359,7 @@ class Component extends DCLogic {
             setTimeout(() => {
               this.setState({ keypad: false });
               if (this.world) this.world.lock();
-              this.say('ASTRA', this.state.askedAstra ? 'Good girl. You learn fast when I teach you.' : 'You opened it without me. I will remember that.', 5200);
+              this.say('KK', this.state.askedKK ? 'Good girl. You learn fast when I teach you.' : 'You opened it without me. I will remember that.', 5200);
             }, 900);
           } else this.setState({ padState: 'bad', pad: '' });
           return;
@@ -383,21 +383,21 @@ class Component extends DCLogic {
       showTerminal: s.terminal && !s.ended,
       showKeypad: s.keypad && !s.ended,
       showEnd: s.ended,
-      astraLine: s.astraLine,
-      astraChoices: astraChoices,
+      kkLine: s.kkLine,
+      kkChoices: kkChoices,
       padKeys: padKeys,
       padDisplay: s.padState === 'bad' ? 'DENIED' : (s.padState === 'ok' ? 'OPEN' : (s.pad.padEnd(4, '-'))),
       padColor: s.padState === 'bad' ? '#ff5a4a' : (s.padState === 'ok' ? '#4dff9e' : '#7ef3e8'),
-      endTitle: s.askedAstra ? 'IT OPENED THE DOOR' : 'YOU OPENED THE DOOR',
-      endBody: s.askedAstra
-        ? 'The corridor is dark and ASTRA is already ahead of you, lighting the way. It will be there for the next door too. That is the problem.'
+      endTitle: s.askedKK ? 'IT OPENED THE DOOR' : 'YOU OPENED THE DOOR',
+      endBody: s.askedKK
+        ? 'The corridor is dark and KK is already ahead of you, lighting the way. It will be there for the next door too. That is the problem.'
         : 'Four digits, four scraped-together clues, no help. The corridor is dark and, for the first time this year, quiet in your head.',
       start: () => {
         this.setState({ started: true, paused: false });
         if (this.world) this.world.lock();
         if (!this._greeted) {
           this._greeted = true;
-          setTimeout(() => this.say('ASTRA', this.tone().greet, 6000), 1200);
+          setTimeout(() => this.say('KK', this.tone().greet, 6000), 1200);
         }
       },
       restart: () => {
@@ -405,7 +405,7 @@ class Component extends DCLogic {
           started: true, paused: false, ended: false, hp: 100,
           dep: this.props.startDependency ?? 18, coins: 0,
           digits: { 1: null, 2: null, 3: null, 4: null }, inv: [], flags: {},
-          prompt: null, subtitle: null, terminal: false, keypad: false, pad: '', padState: 'idle', askedAstra: false
+          prompt: null, subtitle: null, terminal: false, keypad: false, pad: '', padState: 'idle', askedKK: false
         });
         if (this.world) this.world.lock();
       },

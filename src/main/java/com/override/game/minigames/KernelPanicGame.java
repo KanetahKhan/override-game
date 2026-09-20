@@ -23,7 +23,7 @@ import java.util.Random;
  * token in that lane. Chain correct fixes to climb the combo multiplier; a miss
  * or a breach resets it. Three lives, ramping waves, a boss every fifth wave.
  *
- * <p>SPACE is the <b>Astra Assist</b>: a screen-clearing EMP the player chooses to
+ * <p>SPACE is the <b>KK Assist</b>: a screen-clearing EMP the player chooses to
  * fire. It feels great when you are drowning — but it resets the combo and counts
  * against the Dependency Meter. The pull is the relief, never a punishment.
  *
@@ -551,7 +551,7 @@ public final class KernelPanicGame extends MiniGame {
             KernelPanicAssets.drawScreenGlitch(g, width, height, 0.5 * (comboCrack / 0.5));
         }
         if (empTint > 0 && !reducedFlashing) {
-            KernelPanicAssets.drawAstraInterference(g, width, height, 0.45 * (empTint / 0.5));
+            KernelPanicAssets.drawKKInterference(g, width, height, 0.45 * (empTint / 0.5));
         }
         drawScanlines();
         drawVignette();
@@ -764,7 +764,7 @@ public final class KernelPanicGame extends MiniGame {
         g.setTextAlign(TextAlignment.LEFT);
         g.setTextBaseline(VPos.BOTTOM);
         g.setFill(dependencyUsed > 0 ? theme.warning() : theme.dim());
-        g.fillText("ASTRA ASSIST [SPACE]   used:" + dependencyUsed, 6, height - 4);
+        g.fillText("KK ASSIST [SPACE]   used:" + dependencyUsed, 6, height - 4);
 
         // fix legend (right side, above kernel line)
         g.setTextAlign(TextAlignment.RIGHT);
