@@ -17,6 +17,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
@@ -120,9 +121,44 @@ public class AstraConsoleScreen {
             command("SWEEP HER ROOM", 20, this::sweepHer),
             command("WAKE SECOND UNIT", 45, () -> send(AstraProtocol.CMD_WAKE)),
             command("SEAL THE FLOOR", 60, () -> send(AstraProtocol.CMD_LOCKDOWN)),
-            command("SPEAK TO HER", 5, () -> send(AstraProtocol.CMD_TAUNT + " I can see you.")));
+            speakBox());
         box.setPadding(new Insets(6, 0, 6, 0));
         return box;
+    }
+
+    /**
+     * Astra's voice: whatever you type lands as a toast on her screen.
+     *
+     * <p>Costs the same 5 power the fixed taunt did, but only when a line is
+     * actually sent — an empty box spends nothing.</p>
+     */
+    private Node speakBox() {
+        TextField say = new TextField();
+        say.setId("astra-say");
+        say.setPromptText("say something to her, then Enter");
+        say.setStyle(BODY + " -fx-background-color: #101b2b; -fx-text-fill: #d9e8f2;"
+            + " -fx-border-color: #4b3d7a; -fx-prompt-text-fill: #6b7f92;");
+        HBox.setHgrow(say, Priority.ALWAYS);
+
+        Button send = new Button("SPEAK  5");
+        send.setStyle(MONO + " -fx-background-color: #221a3a; -fx-text-fill: #cbb8ff;"
+            + " -fx-border-color: #4b3d7a;");
+
+        Runnable speak = () -> {
+            String message = AstraProtocol.chat(say.getText());
+            if (message == null || power < 5) return;
+            power -= 5;
+            send(AstraProtocol.CMD_TAUNT + " " + message);
+            log("You said: " + message);
+            say.clear();
+            refresh();
+        };
+        send.setOnAction(e -> speak.run());
+        say.setOnAction(e -> speak.run());
+
+        HBox row = new HBox(8, say, send);
+        row.setAlignment(Pos.CENTER_LEFT);
+        return row;
     }
 
     /** Sends the unit to wherever the player was standing on the last frame. */
@@ -190,6 +226,12 @@ public class AstraConsoleScreen {
         }
         if (line.startsWith(AstraProtocol.EVENT + " ")) {
             log(line.substring(AstraProtocol.EVENT.length() + 1));
+            return;
+        }
+        if (line.startsWith(AstraProtocol.SAY + " ")) {
+            // Re-cleaned on arrival: what a peer sends is not ours to trust.
+            String said = AstraProtocol.chat(line.substring(AstraProtocol.SAY.length() + 1));
+            if (said != null) log("SHE SAYS: " + said);
             return;
         }
         AstraProtocol.Tick t = AstraProtocol.parseTick(line);

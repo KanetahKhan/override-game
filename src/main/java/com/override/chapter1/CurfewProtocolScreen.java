@@ -339,7 +339,10 @@ public class CurfewProtocolScreen {
                 toast("Astra sealed the floor early.", "LOCKDOWN", "#ff3d5a");
             }
             case AstraProtocol.CMD_TAUNT -> {
-                if (p.length >= 3) toast(p[2] + (p.length > 3 ? " " + p[3] : ""), "ASTRA", ASTRA_COLOR);
+                if (p.length < 3) break;
+                // Re-cleaned on arrival: what a peer sends is not ours to trust.
+                String said = AstraProtocol.chat(p[2] + (p.length > 3 ? " " + p[3] : ""));
+                if (said != null) toast(said, "ASTRA", ASTRA_COLOR);
             }
             default -> { }
         }
@@ -1335,11 +1338,46 @@ public class CurfewProtocolScreen {
         Button quit = overlayButton("QUIT TO CHAPTER MAP", false);
         quit.setOnAction(e -> leaveTo(new ChapterMapScreen().build()));
         VBox box = new VBox(18, text("SIMULATION PAUSED", MONO, 13, "#35e0d8"), resume, gear, quit);
+        // Only offered while paused, and only in a linked run. Typing during play
+        // would swallow WASD, which is the last thing you want mid-pursuit.
+        if (coop != null) box.getChildren().add(replyBox());
         box.setAlignment(Pos.CENTER);
         // Stacked on top, so a node game or note underneath survives the pause.
         pauseShade = new StackPane(box);
         pauseShade.setStyle("-fx-background-color: rgba(3,6,9,0.82);");
         overlayLayer.getChildren().add(pauseShade);
+    }
+
+    /**
+     * Ayan's half of the conversation, shown on the pause screen of a linked run.
+     *
+     * <p>ESC is consumed here so closing the chat box does not also unpause the
+     * run, and the field keeps the keystrokes to itself so a typed "w" never
+     * reaches the world.</p>
+     */
+    private javafx.scene.Node replyBox() {
+        javafx.scene.control.TextField say = new javafx.scene.control.TextField();
+        say.setId("ayan-say");
+        say.setPromptText("reply to Astra, then Enter");
+        say.setMaxWidth(340);
+        say.setStyle(BODY + " -fx-background-color: #0c1622; -fx-text-fill: #d9e8f2;"
+            + " -fx-border-color: #2f5f68; -fx-prompt-text-fill: #5d7484;");
+        say.setOnAction(e -> {
+            String message = AstraProtocol.chat(say.getText());
+            if (message == null) return;
+            sendToAstra(AstraProtocol.SAY + " " + message);
+            toast("You said: " + message, "TO ASTRA", ASTRA_COLOR);
+            say.clear();
+        });
+        // The screen-level filter treats ESC as "leave full screen / unpause";
+        // while typing it should only drop focus out of the box.
+        say.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, e -> {
+            if (e.getCode() == KeyCode.ESCAPE) {
+                say.getParent().requestFocus();
+                e.consume();
+            }
+        });
+        return say;
     }
 
     private void showEnd() {

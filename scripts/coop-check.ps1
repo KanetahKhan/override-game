@@ -43,14 +43,24 @@ if ($status.Peer) {
 }
 
 if ($peers.Count -eq 0) {
-    Write-Output 'No peers on this tailnet yet, so there is nobody to play with.'
+    Write-Output 'No peers listed on this tailnet.'
     Write-Output ''
-    Write-Output 'To add your partner:'
+    Write-Output 'IMPORTANT: this does NOT prove your partner cannot reach you.'
+    Write-Output 'Tailscale device sharing is one-directional. If you shared THIS'
+    Write-Output 'machine with them, they see it in their device list but their'
+    Write-Output 'machines never join your tailnet, so nothing shows up here even'
+    Write-Output 'though the connection works perfectly.'
+    Write-Output ''
+    Write-Output 'The only reliable test runs on THEIR machine, in PowerShell:'
+    Write-Output "    Test-NetConnection $me -Port 5001"
+    Write-Output '  TcpTestSucceeded : True  -> network is fine, it is a game-side problem'
+    Write-Output '  TcpTestSucceeded : False -> they are not really on the tailnet yet'
+    Write-Output ''
+    Write-Output 'If they have not been invited at all:'
     Write-Output '  1. Open https://login.tailscale.com/admin/machines'
     Write-Output "  2. Click the ... next to $($status.Self.HostName), choose Share"
-    Write-Output '  3. Send them the link. They install Tailscale, sign in with'
+    Write-Output '  3. Send them the link; they install Tailscale, sign in with'
     Write-Output '     their OWN account, and accept it.'
-    Write-Output '  4. Run this script again.'
     exit 0
 }
 
