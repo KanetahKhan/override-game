@@ -3,6 +3,7 @@ package com.override.chapter1;
 import com.override.Main;
 import com.override.chapter1.CurfewNodeGames.NodeGame;
 import com.override.chapter1.CurfewNodeGames.Outcome;
+import com.override.game.minigames.ChiptuneAmbience;
 import com.override.game.minigames.ChiptuneMusic;
 import com.override.game.minigames.ChiptuneSfx;
 import com.override.net.AstraProtocol;
@@ -151,6 +152,10 @@ public class CurfewProtocolScreen {
     private boolean blackoutDone;
     private final Set<String> tokens = new HashSet<>();
     private boolean hiddenNow, sentinelSeen;
+    /** Audio tension: room-tone level, heartbeat pacing and the one-shot "noticed" sting. */
+    private long tensionNanos;
+    private double heartbeatT;
+    private boolean noticedCued;
     private double suspicion;
     private String alert = "PATROL", end, prompt, hideHint, activeNode;
     private int books, detections, astraUses, dependencyAdded, ledgersFound;
@@ -599,6 +604,7 @@ public class CurfewProtocolScreen {
         @Override public void onHide(boolean on, String label, String blocked) {
             if (blocked != null) { toast(blocked, "BLOCKED", "#ffb347"); return; }
             hiddenNow = on;
+            if (on) ChiptuneSfx.conceal(); else ChiptuneSfx.reveal();
             toast(on ? "Hidden — " + label : "Out in the open again",
                 on ? "CONCEALED" : "EXPOSED", on ? "#4dff9e" : "#ffb347");
             refreshHud();
@@ -627,9 +633,62 @@ public class CurfewProtocolScreen {
                 : "SEARCH".equals(alert) ? "SWEEPING" : noticing ? "NOTICING" : "PATROLLING");
             recolor(alertLabel, noticing ? "#ffb347" : alertColor);
             minimap.update(t);
+            updateTension();
             long dist = Math.round(t.dist());
             if (nodeGame != null) updateHackAlert(dist);
             refreshHud();
+        }
+    }
+
+    /**
+     * Drives the two continuous cues from the floor's own state, so pursuit is
+     * something you hear before the HUD spells it out.
+     *
+     * <p>Paced off the wall clock rather than a timeline: this rides the world's
+     * own tick, which already stops with the world, so a paused or finished run
+     * cannot leave a heartbeat running behind an overlay.</p>
+     */
+    private void updateTension() {
+        long now = System.nanoTime();
+        // Clamped: the first tick, and any tick after a long stall, must not
+        // dump a whole frame's worth of beats at once.
+        double dt = tensionNanos == 0 ? 0 : Math.min(0.25, (now - tensionNanos) / 1e9);
+        tensionNanos = now;
+
+        if (phase != Phase.PLAY) {
+            ChiptuneAmbience.setIntensity(0);
+            heartbeatT = 0;
+            return;
+        }
+
+        double tension = switch (alert) {
+            case "CHASE"  -> 1.0;
+            case "SEARCH" -> 0.6;
+            default       -> Math.min(0.5, suspicion);
+        };
+        if (lockdownOn) tension = Math.max(tension, 0.85);
+        if (hp <= 1) tension = Math.max(tension, 0.55);
+        // Cover is the one place the floor quietens down; that is the reward.
+        if (hiddenNow) tension *= 0.5;
+        ChiptuneAmbience.setIntensity(tension);
+
+        // One sting when the floor first takes an interest, re-armed only once
+        // suspicion has fallen well back, so it cannot chatter on the threshold.
+        boolean noticing = !hiddenNow && "PATROL".equals(alert) && suspicion > 0.35;
+        if (noticing && !noticedCued) {
+            ChiptuneSfx.noticed();
+            noticedCued = true;
+        } else if (suspicion < 0.15) {
+            noticedCued = false;
+        }
+
+        // Below this the floor is calm and silence is the point; above it the
+        // interval closes from about a beat a second to a hard sprinting pulse.
+        if (tension < 0.45) { heartbeatT = 0; return; }
+        heartbeatT -= dt;
+        if (heartbeatT <= 0) {
+            heartbeatT = 0.95 - 0.45 * tension;
+            ChiptuneSfx.heartbeat(tension);
         }
     }
 
@@ -1025,6 +1084,9 @@ public class CurfewProtocolScreen {
         world.setSecondUnit(difficulty.secondUnit);
         overlayLayer.getChildren().clear();
         world.setPaused(false);
+        tensionNanos = 0;
+        ChiptuneAmbience.setIntensity(0);
+        ChiptuneAmbience.start();
         clockTimer.play();
         lockMouse();
         refreshHud();
@@ -1056,6 +1118,9 @@ public class CurfewProtocolScreen {
         world.setPaused(true);
         world.setHacking(false);
         if (nodeGame != null) nodeGame.setPaused(true);
+        // A paused world stops emitting ticks, so updateTension() cannot relax the
+        // tone by itself; drop it here or the pause screen keeps the pursuit level.
+        ChiptuneAmbience.setIntensity(0);
         unlockMouse();
         showPause();
         refreshHud();
@@ -1065,6 +1130,8 @@ public class CurfewProtocolScreen {
         if (phase != Phase.PAUSED) return;
         closeSettings();
         phase = Phase.PLAY;
+        // Do not count the paused time as one frame's worth of heartbeat.
+        tensionNanos = 0;
         overlayLayer.getChildren().remove(pauseShade);
         pauseShade = null;
         if (nodeGame != null) {
@@ -1087,6 +1154,9 @@ public class CurfewProtocolScreen {
         phase = Phase.END;
         end = win ? "win" : why;
         toastQueue.clear();
+        // The floor goes quiet the moment the run is decided, so the win or
+        // game-over sting lands on silence instead of fighting the room tone.
+        ChiptuneAmbience.stop();
         if (win) {
             applyRewards();
             recordRun();
@@ -1484,6 +1554,8 @@ public class CurfewProtocolScreen {
         // fire declineEmp() at a screen that is already gone.
         closeEmpPrompt();
         closeNodeGameSilently();
+        // Leaving mid-run would otherwise leave the room tone humming under the menu.
+        ChiptuneAmbience.stop();
         if (settingsView != null) settings.save();
         unlockMouse();
         detach();
