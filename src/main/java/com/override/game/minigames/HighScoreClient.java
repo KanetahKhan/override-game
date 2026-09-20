@@ -1,5 +1,7 @@
 package com.override.game.minigames;
 
+import com.override.shared.service.PlayerProfiles;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -35,9 +37,13 @@ public final class HighScoreClient {
             .build();
 
     private final String gameType;
+    private final File localFile;
+    private final boolean namedPlayer;
 
     public HighScoreClient(String gameType) {
         this.gameType = gameType;
+        localFile = PlayerProfiles.dataFile(gameType + ".properties").toFile();
+        namedPlayer = PlayerProfiles.active() != null;
     }
 
     /** Immutable snapshot of a best (or current) run. */
@@ -67,6 +73,7 @@ public final class HighScoreClient {
      * local cache for next session. Returns immediately.
      */
     public void refreshFromBackendAsync() {
+        if (namedPlayer) return; // Named profiles use this computer's own scores, not anonymous server bests.
         runAsync(() -> {
             try {
                 HttpRequest req = HttpRequest.newBuilder()
@@ -90,7 +97,7 @@ public final class HighScoreClient {
      */
     public Best submit(Best run) {
         Best merged = mergeIntoLocal(run);
-        runAsync(() -> postToBackend(run));
+        if (!namedPlayer) runAsync(() -> postToBackend(run));
         return merged;
     }
 
@@ -147,8 +154,7 @@ public final class HighScoreClient {
     }
 
     private File file() {
-        File dir = new File(System.getProperty("user.home"), ".override");
-        return new File(dir, gameType + ".properties");
+        return localFile;
     }
 
     private static int intProp(Properties p, String key) {

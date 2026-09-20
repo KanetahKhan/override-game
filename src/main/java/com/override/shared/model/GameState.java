@@ -1,5 +1,7 @@
 package com.override.shared.model;
 
+import com.override.shared.service.PlayerProfiles;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -45,9 +47,11 @@ public class GameState {
 
     /** Best completed Silent Classroom run. Only improvements are recorded. */
     private int silentClassroomBestScore = 0;
+    private String campaignChapterOneGrade;
 
     private GameState() {
         this.player = new Player();
+        if (PlayerProfiles.active() != null) this.player.setDisplayName(PlayerProfiles.name());
         unlockedCharacters.add("ren"); // free default
     }
 
@@ -75,6 +79,7 @@ public class GameState {
         // Re-roll the player and apply persona bonuses
         this.player = new Player();
         c.applyTo(this.player);
+        if (PlayerProfiles.active() != null) this.player.setDisplayName(PlayerProfiles.name());
     }
 
     public Set<String> getUnlockedCharacters() { return unlockedCharacters; }
@@ -128,6 +133,10 @@ public class GameState {
     public void addIndependentXp(int n) { independentXp += n; }
 
     public int getSilentClassroomBestScore() { return silentClassroomBestScore; }
+    public String getCampaignChapterOneGrade() { return campaignChapterOneGrade; }
+    public void setCampaignChapterOneGrade(String grade) {
+        campaignChapterOneGrade = grade != null && Set.of("S", "A", "B", "C", "D", "F").contains(grade) ? grade : null;
+    }
 
     /**
      * Record a completed Silent Classroom score without allowing replays or

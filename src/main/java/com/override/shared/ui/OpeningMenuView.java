@@ -26,10 +26,14 @@ import java.util.Objects;
 
 /** Actual, keyboard-operable title menu; callbacks keep it independently testable. */
 final class OpeningMenuView extends StackPane {
-    record Actions(Runnable newGame, Runnable continueGame, Runnable shop, Runnable quit) {
+    record Actions(Runnable newGame, Runnable continueGame, Runnable shop, Runnable quit, Runnable scoreboard, Runnable switchPlayer) {
+        Actions(Runnable newGame, Runnable continueGame, Runnable shop, Runnable quit) {
+            this(newGame, continueGame, shop, quit, () -> {}, () -> {});
+        }
         Actions {
             Objects.requireNonNull(newGame); Objects.requireNonNull(continueGame);
             Objects.requireNonNull(shop); Objects.requireNonNull(quit);
+            Objects.requireNonNull(scoreboard); Objects.requireNonNull(switchPlayer);
         }
     }
     private final ClassroomPixelScene background = new ClassroomPixelScene();
@@ -64,6 +68,10 @@ final class OpeningMenuView extends StackPane {
         Label date = text("2556   /   HUMAN INPUT REQUIRED", 12, "#87a1ae");
         AnchorPane.setTopAnchor(date, 30.0); AnchorPane.setRightAnchor(date, 48.0);
         layout.getChildren().add(date);
+        Button change = GameControls.button("SWITCH PLAYER", 160, 34, false);
+        change.setId("switch-player"); change.setOnAction(e -> actions.switchPlayer().run());
+        HBox identity = new HBox(16, text("PLAYER / " + com.override.shared.service.PlayerProfiles.name(), 12, "#a8dace"), change);
+        identity.setAlignment(Pos.CENTER_LEFT); place(layout, identity, 70, 66);
 
         Label transmission = text("A SIGNAL THE SYSTEM COULDN'T ERASE", 11, "#6de6cc");
         Label title = text("OVERRIDE", 79, "#e6f5ee");
@@ -71,7 +79,7 @@ final class OpeningMenuView extends StackPane {
         Label sub = text("T H E   L A S T   R E A L   M I N D", 12, "#a8bebf");
         Label premise = text("It learned everything.\nWe forgot how to think.", 17, "#8fa5b4");
         VBox heading = new VBox(10, transmission, title, sub, premise);
-        VBox.setMargin(premise, new Insets(14, 0, 20, 0));
+        VBox.setMargin(premise, new Insets(14, 0, 12, 0));
         Button start = option("01   NEW GAME", true);
         start.setId("new-game"); start.setOnAction(e -> actions.newGame().run());
         Button resume = option("02   CONTINUE", false);
@@ -79,15 +87,20 @@ final class OpeningMenuView extends StackPane {
         resume.setOnAction(e -> actions.continueGame().run());
         Button shop = option("03   PERSONAS / SHOP", false);
         shop.setId("shop"); shop.setOnAction(e -> actions.shop().run());
-        Button settings = option("04   DISPLAY OPTIONS", false);
+        Button board = option("04   SCOREBOARD", false);
+        board.setId("scoreboard-menu"); board.setOnAction(e -> actions.scoreboard().run());
+        Button settings = option("05   DISPLAY OPTIONS", false);
         settings.setId("display-options"); settings.setOnAction(e -> showSettings(settings));
-        Button coop = option("05   ASTRA CO-OP", false);
+        Button coop = option("06   ASTRA CO-OP", false);
         coop.setId("astra-coop");
         coop.setOnAction(e -> showCoop(coop));
-        Button quit = option("06   QUIT", false);
+        Button quit = option("07   QUIT", false);
         quit.setId("quit"); quit.setOnAction(e -> actions.quit().run());
-        options = List.of(start, resume, shop, settings, coop, quit);
-        VBox choices = new VBox(7, start, resume, shop, settings, coop, quit);
+        options = List.of(start, resume, shop, board, settings, coop, quit);
+        // Seven rows at the old 7px gap ran the QUIT button past the footer at
+        // y=679. The gap absorbs the extra row rather than option(), whose 44px
+        // height is shared with the intro screens and the modals.
+        VBox choices = new VBox(3, start, resume, shop, board, settings, coop, quit);
         place(layout, new VBox(0, heading, choices), 70, 116);
         place(layout, text("CHAPTER 01 / THE SILENT CLASSROOM", 11, "#749a9f"), 768, 628);
         place(layout, text("KK IS STILL LISTENING.", 12, "#d9888f"), 768, 648);
@@ -99,7 +112,7 @@ final class OpeningMenuView extends StackPane {
         getChildren().addAll(background, layout, modal);
         addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, e -> {
             if (!modal.isVisible() && e.getCode() == KeyCode.ENTER && getScene() != null
-                    && getScene().getFocusOwner() instanceof Button focused && options.contains(focused)
+                    && getScene().getFocusOwner() instanceof Button focused
                     && !focused.isDisabled()) {
                 focused.fire(); e.consume();
             }
@@ -252,20 +265,7 @@ final class OpeningMenuView extends StackPane {
     }
 
     static Button option(String caption, boolean primary) {
-        Button button = new Button(caption);
-        button.setMinSize(338, 44); button.setPrefSize(338, 44); button.setMaxSize(338, 44);
-        button.setAlignment(Pos.CENTER_LEFT);
-        String base = "-fx-font-family: 'Monospaced'; -fx-font-size: 13px; -fx-font-weight: bold;"
-            + " -fx-padding: 0 18; -fx-background-radius: 0; -fx-border-radius: 0; -fx-cursor: hand;";
-        Runnable restyle = () -> {
-            boolean on = button.isHover() || button.isFocused();
-            button.setStyle(base + " -fx-background-color: " + (on ? "#20494d" : primary ? "#153d3e" : "rgba(10,23,35,0.92)")
-                + "; -fx-text-fill: " + (primary || on ? "#b9ffdf" : "#a2b8c6")
-                + "; -fx-border-color: " + (on ? "#b9ffdf" : primary ? "#4f9d8f" : "#233a49") + ";");
-        };
-        button.hoverProperty().addListener((o, a, b) -> restyle.run());
-        button.focusedProperty().addListener((o, a, b) -> restyle.run());
-        restyle.run(); return button;
+        return GameControls.button(caption, 338, 44, primary);
     }
 
     private static String percent(double value) {

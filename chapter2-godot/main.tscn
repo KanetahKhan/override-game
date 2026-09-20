@@ -18,7 +18,7 @@
 [ext_resource type="Texture2D" uid="uid://meqevltn68mi" path="res://assets/ren/dodge_west.png" id="15"]
 [ext_resource type="Texture2D" uid="uid://b8vqug4tyw44y" path="res://assets/bg/ground1.png" id="18"]
 [ext_resource type="Texture2D" uid="uid://b1dytu1yi6umk" path="res://assets/bg/tile_1.png" id="19"]
-[ext_resource type="Texture2D" uid="uid://bbsypd1wk3sa5" path="res://assets/bg/sky1.png" id="20"]
+[ext_resource type="Texture2D" uid="uid://b4n3gc7wdrmxs" path="res://assets/bg/sky2.png" id="20"]
 [ext_resource type="Material" uid="uid://do5u8jely7da0" path="res://crop_sway_material.tres" id="20_getpj"]
 [ext_resource type="Texture2D" uid="uid://dsfl1jeom0kaw" path="res://assets/bg/horizon.png" id="21"]
 [ext_resource type="PackedScene" path="res://drone.tscn" id="22_drone"]
@@ -616,14 +616,16 @@ crop_row_ground_global_y = Array[float]([550.0, 560.0, 570.0, 605.0, 615.0, 635.
 [node name="SkyLayer" type="ParallaxLayer" parent="ParallaxBackground" unique_id=287349822]
 motion_scale = Vector2(0.2, 1)
 
-[node name="sky1" type="Sprite2D" parent="ParallaxBackground/SkyLayer" unique_id=287361027]
+[node name="sky2" type="Sprite2D" parent="ParallaxBackground/SkyLayer" unique_id=287361027]
 position = Vector2(720, 216)
+scale = Vector2(0.8, 0.8)
 texture = ExtResource("20")
 
 [node name="HorizonLayer" type="ParallaxLayer" parent="ParallaxBackground" unique_id=228204510]
 motion_scale = Vector2(0.4, 1)
 
 [node name="horizon" type="Sprite2D" parent="ParallaxBackground/HorizonLayer" unique_id=552662757]
+modulate = Color(0.36, 0.3, 1, 1)
 position = Vector2(720, 424)
 scale = Vector2(0.953125, 0.6796875)
 texture = ExtResource("21")
@@ -748,6 +750,16 @@ centered = false
 region_enabled = true
 region_rect = Rect2(52.56198, 1003.75195, 1269.0708, 106.208496)
 region_filter_clip_enabled = true
+
+[node name="NightOverlay" type="CanvasLayer" parent="." unique_id=76729779]
+layer = 80
+
+[node name="NightTint" type="ColorRect" parent="NightOverlay" unique_id=1105145116]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+color = Color(0.1, 0.11, 0.34, 0.22)
 
 [node name="AlertOverlay" type="CanvasLayer" parent="." unique_id=76729778]
 layer = 100

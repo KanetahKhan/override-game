@@ -1,5 +1,7 @@
 package com.override.game.minigames;
 
+import com.override.shared.service.PlayerProfiles;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -32,6 +34,8 @@ public final class SnakeHighScoreClient {
     private static final String BACKEND = "http://localhost:8080";
     private static final String ENDPOINT = BACKEND + "/api/snake-highscore";
     private static final String LOCAL_FILE = "syntax-snake.properties";
+    private final File localFile = PlayerProfiles.dataFile(LOCAL_FILE).toFile();
+    private final boolean namedPlayer = PlayerProfiles.active() != null;
 
     private static final HttpClient HTTP = HttpClient.newBuilder()
             .connectTimeout(Duration.ofMillis(700))
@@ -60,6 +64,7 @@ public final class SnakeHighScoreClient {
      * local cache for next session. Returns immediately.
      */
     public void refreshFromBackendAsync() {
+        if (namedPlayer) return;
         runAsync(() -> {
             try {
                 HttpRequest req = HttpRequest.newBuilder()
@@ -83,7 +88,7 @@ public final class SnakeHighScoreClient {
     public Best submit(int score) {
         Best run = new Best(score, java.time.LocalDateTime.now().toString());
         Best merged = mergeIntoLocal(run);
-        runAsync(() -> postToBackend(score));
+        if (!namedPlayer) runAsync(() -> postToBackend(score));
         return merged;
     }
 
@@ -129,8 +134,7 @@ public final class SnakeHighScoreClient {
     }
 
     private File file() {
-        File dir = new File(System.getProperty("user.home"), ".override");
-        return new File(dir, LOCAL_FILE);
+        return localFile;
     }
 
     private static int intProp(Properties p, String key) {

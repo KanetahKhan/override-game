@@ -1,5 +1,7 @@
 package com.override.chapter1;
 
+import com.override.shared.service.PlayerProfiles;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -51,14 +53,15 @@ public final class CurfewRecords {
     private static final int TOP = 5;
 
     private final Properties props = new Properties();
+    private final File storageFile = PlayerProfiles.dataFile("curfew-records.properties").toFile();
 
     static CurfewRecords load() {
         CurfewRecords r = new CurfewRecords();
-        File f = file();
+        File f = r.storageFile;
         if (f.exists()) {
             try (InputStream in = new FileInputStream(f)) {
                 r.props.load(in);
-            } catch (IOException ignored) {
+            } catch (IOException | IllegalArgumentException ignored) {
                 // unreadable file: start fresh
             }
         }
@@ -117,6 +120,7 @@ public final class CurfewRecords {
 
     /** Adds an escape to the difficulty's top five; returns its rank (1-based), or 0 if it didn't place. */
     int addRun(CurfewDifficulty d, Run run) {
+        props.setProperty("latestRun", run.encode());
         List<Run> runs = topRuns(d);
         runs.add(run);
         runs.sort(Comparator.comparingInt(Run::score).reversed().thenComparingInt(Run::escapeSecs));
@@ -131,6 +135,8 @@ public final class CurfewRecords {
     /** The most recent recorded run across all difficulties, or null if none. */
     public static Run latestRun() {
         CurfewRecords r = load();
+        Run storedLatest = Run.decode(r.props.getProperty("latestRun", ""));
+        if (storedLatest != null) return storedLatest;
         Run latest = null;
         for (CurfewDifficulty d : CurfewDifficulty.values()) {
             for (Run run : r.topRuns(d)) {
@@ -156,16 +162,12 @@ public final class CurfewRecords {
     private static String runKey(CurfewDifficulty d, int i) { return "run." + d.name() + "." + i; }
 
     private void save() {
-        File f = file();
-        f.getParentFile().mkdirs();
-        try (OutputStream out = new FileOutputStream(f)) {
-            props.store(out, "Curfew Protocol records");
+        File f = storageFile;
+        try {
+            PlayerProfiles.write(f.toPath(), props);
         } catch (IOException e) {
             System.err.println("Could not save Curfew Protocol records: " + e.getMessage());
         }
     }
 
-    private static File file() {
-        return new File(new File(System.getProperty("user.home"), ".override"), "curfew-records.properties");
-    }
 }
