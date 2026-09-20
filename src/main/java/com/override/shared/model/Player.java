@@ -36,6 +36,22 @@ public class Player {
         }
     }
 
+    /**
+     * Restore persisted progression verbatim, used by {@code SaveService} on load.
+     *
+     * <p>Replaying {@link #addXp} cannot do this job: it spends XP as it levels,
+     * so the stored {@code xp} is only the remainder above the last threshold and
+     * feeding it back to a fresh level-1 player silently drops every level earned.
+     * Values are clamped so a hand-edited or truncated save cannot produce a
+     * level-0 player or an HP total above its own maximum.</p>
+     */
+    public void restoreProgress(int level, int xp, int hp, int maxHp) {
+        this.level = Math.max(1, level);
+        this.xp = Math.max(0, xp);
+        this.maxHp = Math.max(1, maxHp);
+        this.hp = Math.min(this.maxHp, Math.max(0, hp));
+    }
+
     public int getHp() { return hp; }
     public int getMaxHp() { return maxHp; }
     public void damage(int amount) { hp = Math.max(0, hp - amount); }

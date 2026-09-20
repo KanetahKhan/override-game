@@ -67,7 +67,10 @@ public final class RelayLink {
             String line;
             while ((line = in.readLine()) != null) {
                 String received = line;
-                Platform.runLater(() -> listener.onLine(received));
+                // Re-checked inside the lambda too: close() can land between the
+                // post and the FX thread running it.
+                if (closed) break;
+                Platform.runLater(() -> { if (!closed) listener.onLine(received); });
             }
             status("The relay closed the connection.", false);
         } catch (IOException e) {
@@ -101,7 +104,16 @@ public final class RelayLink {
         }
     }
 
+    /**
+     * Report a link change to the owner, unless {@link #close()} has already run.
+     *
+     * <p>Closing the socket unblocks the reader, which then reports the drop — but
+     * by then the screen that owns this link has torn itself down, so delivering it
+     * would push a toast into a dead scene graph and restart the very timers that
+     * dispose() just stopped. A deliberate close needs no announcement.</p>
+     */
     private void status(String message, boolean connected) {
-        Platform.runLater(() -> listener.onStatus(message, connected));
+        if (closed) return;
+        Platform.runLater(() -> { if (!closed) listener.onStatus(message, connected); });
     }
 }

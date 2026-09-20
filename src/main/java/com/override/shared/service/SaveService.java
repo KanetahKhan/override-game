@@ -76,8 +76,14 @@ public class SaveService {
 
         s.addCoins(parseInt(props, "coins", 0) - s.getCoins());
         s.increaseDependency(parseInt(props, "dependency", 0));
-        for (int i = 0; i < parseInt(props, "chapterCompleted", 0); i++)
+        int completed = parseInt(props, "chapterCompleted", 0);
+        for (int i = 0; i < completed; i++)
             s.completeChapter(i + 1);
+        // Restore the unlocked ceiling, but never above what the player has earned.
+        // Saves written while the dev default was 5 all carry chapterUnlocked=5;
+        // taking them at face value would hand a fresh player the whole map.
+        s.restoreChapterUnlocked(
+            Math.min(parseInt(props, "chapterUnlocked", 1), completed + 1));
         s.addIndependentXp(parseInt(props, "independentXp", 0));
         s.recordSilentClassroomScore(parseInt(props, "chapter1BestScore", 0));
 
@@ -110,8 +116,14 @@ public class SaveService {
         p.buffWillpower (parseInt(props, "p.willpower", 5) - p.getWillpower());
         p.buffCombat    (parseInt(props, "p.combat",    5) - p.getCombat());
         p.buffEmpathy   (parseInt(props, "p.empathy",   5) - p.getEmpathy());
-        // XP restoration is best-effort
-        p.addXp(parseInt(props, "p.xp", 0));
+        // Level, XP and HP are restored as stored. Replaying addXp() here would
+        // reset the player to level 1, because the saved xp is only the leftover
+        // above the last level-up threshold.
+        p.restoreProgress(
+            parseInt(props, "p.level", 1),
+            parseInt(props, "p.xp",    0),
+            parseInt(props, "p.hp",    100),
+            parseInt(props, "p.maxHp", 100));
 
         return true;
     }

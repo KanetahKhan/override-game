@@ -1471,6 +1471,9 @@ public class CurfewProtocolScreen {
         toastNext.stop();
         toastQueue.clear();
         flashPulse.stop();
+        // Quitting mid-offer would otherwise leave the EMP countdown running and
+        // fire declineEmp() at a screen that is already gone.
+        closeEmpPrompt();
         closeNodeGameSilently();
         if (settingsView != null) settings.save();
         unlockMouse();

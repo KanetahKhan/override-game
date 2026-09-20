@@ -30,8 +30,13 @@ public class GameState {
      */
     private int dependency = 0;
 
-    /** Highest chapter unlocked. Set to 5 for dev/testing, 1 for release. */
-    private int chapterUnlocked = 5;
+    /**
+     * Highest chapter unlocked. A new game starts on Chapter 1 and earns the
+     * rest through {@link #completeChapter(int)}; pass
+     * {@code -Doverride.unlockAllChapters=true} to open the whole map for testing.
+     */
+    private int chapterUnlocked =
+        Boolean.getBoolean("override.unlockAllChapters") ? 5 : 1;
     /** Highest chapter completed. */
     private int chapterCompleted = 0;
 
@@ -106,6 +111,14 @@ public class GameState {
 
     public int getChapterUnlocked() { return chapterUnlocked; }
     public int getChapterCompleted() { return chapterCompleted; }
+
+    /**
+     * Re-open the map as far as a save recorded. Only ever raises the ceiling, so
+     * a stale save cannot re-lock a chapter the player has since finished.
+     */
+    public void restoreChapterUnlocked(int chapter) {
+        if (chapter > chapterUnlocked) chapterUnlocked = chapter;
+    }
     public void completeChapter(int chapter) {
         if (chapter > chapterCompleted) chapterCompleted = chapter;
         if (chapter + 1 > chapterUnlocked) chapterUnlocked = chapter + 1;

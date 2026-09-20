@@ -39,7 +39,9 @@ import javafx.scene.transform.Rotate;
 import java.io.IOException;
 import java.io.InputStream;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -251,7 +253,6 @@ final class CurfewWorld {
     private String aiState = "PATROL";
     private int aiWp = 6;
     private int searchIndex = -1;
-    private double searchStall;
     private double aiYaw, aiLost, aiStun;
     private double lastSeenX, lastSeenZ;
     private double sx = WAYPOINTS[6][0], sz = WAYPOINTS[6][1];
@@ -272,13 +273,70 @@ final class CurfewWorld {
     private boolean twoUnits;
     private double ex = WAYPOINTS[0][0], ez = WAYPOINTS[0][1];
     private double eYaw, eStun, eCall;
+    /** The escort's own committed wall-follow direction. */
+    private double eSlideSign = 1, eSlideHold;
     private int eWp;
     private boolean eChasing;
 
     /** Where this unit has grabbed you, newest first: it patrols your habits. */
     private final List<double[]> caughtSpots = new ArrayList<>();
     private static final int MEMORY = 4;
-    private static final double MEMORY_PULL = 0.6;   // chance a patrol leg heads for a remembered spot
+    private static final double MEMORY_PULL = 0.55;  // chance a patrol leg heads for a remembered spot
+
+    /**
+     * The last few legs it walked, newest first, kept out of the next pick.
+     *
+     * <p>Without this a patrol collapses the moment it grabs you once: the pull
+     * toward a remembered spot only excluded the leg just finished, so it bounced
+     * between the two waypoints nearest that spot and never went anywhere else.
+     * That is the "it gets stuck after catching me" behaviour.</p>
+     */
+    private final Deque<Integer> recentWps = new ArrayDeque<>();
+    /** Legs to walk normally before a remembered spot may be chosen again. */
+    private int memoryCooldown;
+    /** Where the unit stood when the current progress window opened. */
+    private double stuckX, stuckZ, stuckTimer;
+    /** Committed wall-follow direction, and how long it stays committed. */
+    private double slideSign = 1, slideHold;
+
+    /** How long the unit gets to prove it is making progress. */
+    private static final double STUCK_WINDOW = 1.5;
+    /** Ground it must cover inside that window to count as moving. */
+    private static final double STUCK_NET = 0.7;
+    /** How long a wall-follow direction is held before it may flip. */
+    private static final double SLIDE_HOLD = 0.7;
+    /**
+     * How close counts as reaching a waypoint. The stuck check uses the same
+     * number, so the band between "arrived" and "trying to get there" is empty —
+     * a unit parked just outside the radius used to satisfy neither test and sat
+     * there for the rest of the run.
+     */
+    private static final double ARRIVE = 1.0;
+    /** How far a detour probes for open floor, and how long one lasts. */
+    private static final double DETOUR_REACH = 6.0, DETOUR_TIME = 4.0;
+    /** An interim target used to walk out of a pocket; overrides the current leg. */
+    private double detourX, detourZ, detourTime;
+
+    /**
+     * This run's patrol table: {@link #WAYPOINTS}, with any node that falls inside
+     * furniture nudged to the nearest spot the unit can actually stand on.
+     *
+     * <p>Two of the authored nodes — the ends of the central corridor — sit inside
+     * geometry in every layout. Walking legs merely failed there, but a grab
+     * <em>teleports</em> the unit onto a node, and a unit placed inside a collider
+     * has no legal move in any direction: it froze on the spot for the rest of the
+     * run. That is the "the robot stops after it catches me once" bug.</p>
+     */
+    private final double[][] wp = new double[WAYPOINTS.length][];
+
+    private static final int RECENT_WAYPOINTS = 4;
+    private static final int MEMORY_COOLDOWN_LEGS = 3;
+    /** Never pick a leg it is effectively already standing on. */
+    private static final double MIN_LEG = 3.5;
+    /** Chance a leg crosses the whole floor instead of staying in one wing. */
+    private static final double LONG_LEG_CHANCE = 0.3;
+    /** Grace after a grab: it reboots before it can see or move properly again. */
+    private static final double POST_CATCH_STUN = 2.8;
 
     // this run's layout: which almirahs hold a stash, which book on each shelf is a ledger (-1: none)
     private final boolean[] almirahLoot = new boolean[3];
@@ -328,9 +386,11 @@ final class CurfewWorld {
         rollLayout();
         buildRooms();
         buildSentinel();
+        // The rooms exist now, so the patrol table can be checked against them.
+        snapWaypoints();
         aiWp = startWaypoint();
-        sx = WAYPOINTS[aiWp][0];
-        sz = WAYPOINTS[aiWp][1];
+        sx = wp[aiWp][0];
+        sz = wp[aiWp][1];
 
         camera.setFieldOfView(74);
         camera.setNearClip(0.05);
@@ -392,9 +452,9 @@ final class CurfewWorld {
         }
         if (escort.getChildren().isEmpty()) buildEscort();
         escort.setVisible(true);
-        eWp = WAYPOINTS.length - 1;               // the east end, opposite the spawn
-        ex = WAYPOINTS[eWp][0];
-        ez = WAYPOINTS[eWp][1];
+        eWp = wp.length - 1;               // the east end, opposite the spawn
+        ex = wp[eWp][0];
+        ez = wp[eWp][1];
     }
 
     private void buildEscort() {
@@ -521,13 +581,29 @@ final class CurfewWorld {
 
     void stunSentinel(double seconds) { aiStun = seconds; }
 
+    /**
+     * You are dropped back at the west stairwell and the unit walks back onto the
+     * floor somewhere far from you.
+     *
+     * <p>It does not go back to an idle patrol, though. It reboots for
+     * {@link #POST_CATCH_STUN} seconds — half blind and at a quarter pace, which
+     * is the player's window — and then resumes <em>searching</em>, sweeping
+     * toward the stairwell it just dumped you at. It still has to cross the floor
+     * to get to you, so the pressure builds instead of vanishing the moment it
+     * lands a grab.</p>
+     */
     void resetPlayer() {
         px = SPAWN_X; pz = SPAWN_Z; yaw = -1.2;
         hidden = false; sitting = null; crouch = false;
         py = 0; vy = 0; grounded = true;
-        aiState = "PATROL"; aiStun = 3.2; aiWp = startWaypoint(); searchIndex = -1;
-        sx = WAYPOINTS[aiWp][0]; sz = WAYPOINTS[aiWp][1];
+        aiWp = startWaypoint(); searchIndex = -1;
+        sx = wp[aiWp][0]; sz = wp[aiWp][1];
+        aiState = "SEARCH"; aiStun = POST_CATCH_STUN; aiLost = 0;
+        lastSeenX = SPAWN_X; lastSeenZ = SPAWN_Z;
         suspicion = 0; seenHiding = null; huntTime = 0; sprinting = false;
+        // A fresh start on the floor: none of the previous route should bias it.
+        recentWps.clear(); memoryCooldown = 0; detourTime = 0; slideHold = 0;
+        stuckTimer = 0; stuckX = sx; stuckZ = sz;
     }
 
     /* ========================================================= world build */
@@ -961,11 +1037,55 @@ final class CurfewWorld {
         for (int i = 0; i < ledgerAt.length; i++) ledgerAt[i] = i == bareShelf ? -1 : rng.nextInt(12);
     }
 
+    /**
+     * Build {@link #wp} for this layout: every authored node, moved to the closest
+     * standable point if furniture covers it. Called once the rooms exist, so it
+     * sees the same colliders the unit will walk into.
+     */
+    private void snapWaypoints() {
+        for (int i = 0; i < WAYPOINTS.length; i++) {
+            wp[i] = nearestStandable(WAYPOINTS[i][0], WAYPOINTS[i][1]);
+        }
+    }
+
+    /**
+     * The closest point to (x, z) the unit can occupy, searched in widening rings.
+     * Returns the original point when everything within reach is solid — nothing
+     * else can be done there, and {@link #ejectSentinel()} is the backstop.
+     */
+    private double[] nearestStandable(double x, double z) {
+        if (!blocked(x, z)) return new double[] {x, z};
+        double pad = 0.55;
+        for (double r = 0.6; r <= 7; r += 0.4) {
+            for (int a = 0; a < 24; a++) {
+                double ang = a * Math.PI / 12;
+                double nx = x + Math.cos(ang) * r, nz = z + Math.sin(ang) * r;
+                if (nx > -HX + pad && nx < HX - pad && nz > -HZ + pad && nz < HZ - pad
+                        && !blocked(nx, nz)) {
+                    return new double[] {nx, nz};
+                }
+            }
+        }
+        return new double[] {x, z};
+    }
+
+    /**
+     * Backstop for a unit that is inside geometry anyway — a layout that boxed it
+     * in, or a spot no ring search could clear. Without this it has no legal move
+     * on any axis and simply stops for the rest of the run.
+     */
+    private void ejectSentinel() {
+        if (!blocked(sx, sz)) return;
+        double[] out = nearestStandable(sx, sz);
+        sx = out[0];
+        sz = out[1];
+    }
+
     /** A random patrol start, well away from the west stairwell spawn. */
     private int startWaypoint() {
         List<Integer> far = new ArrayList<>();
-        for (int i = 0; i < WAYPOINTS.length; i++) {
-            if (Math.hypot(WAYPOINTS[i][0] - SPAWN_X, WAYPOINTS[i][1] - SPAWN_Z) > 14) far.add(i);
+        for (int i = 0; i < wp.length; i++) {
+            if (Math.hypot(wp[i][0] - SPAWN_X, wp[i][1] - SPAWN_Z) > 14) far.add(i);
         }
         return far.get(rng.nextInt(far.size()));
     }
@@ -1138,7 +1258,6 @@ final class CurfewWorld {
         aiState = "SEARCH";
         aiLost = 0;
         searchIndex = -1;
-        searchStall = 0;
         lastSeenX = x;
         lastSeenZ = z;
         if (fresh) listener.onAlert("SEARCH");
@@ -1434,29 +1553,136 @@ final class CurfewWorld {
         double[] spot = caughtSpots.get(rng.nextInt(caughtSpots.size()));
         int best = -1;
         double bestDist = Double.MAX_VALUE;
-        for (int i = 0; i < WAYPOINTS.length; i++) {
+        for (int i = 0; i < wp.length; i++) {
             if (i == exclude) continue;
-            double d = Math.hypot(WAYPOINTS[i][0] - spot[0], WAYPOINTS[i][1] - spot[1]);
+            double d = Math.hypot(wp[i][0] - spot[0], wp[i][1] - spot[1]);
             if (d < bestDist) { bestDist = d; best = i; }
         }
         return best;
     }
 
+    /**
+     * Choose the next leg to walk.
+     *
+     * <p>It still learns — once it has grabbed you somewhere it keeps coming back
+     * — but a remembered spot now costs a cooldown, and anywhere it has been in
+     * the last few legs is off the table. Both guards exist because the pull was
+     * previously strong enough to trap the unit in a two-waypoint shuffle beside
+     * the place it caught you, which read in-game as the robot freezing.</p>
+     */
     private int pickNearWaypoint(int exclude) {
-        // It learns: once it has caught you somewhere, it keeps coming back.
-        if (!caughtSpots.isEmpty() && rng.nextDouble() < MEMORY_PULL) {
+        if (memoryCooldown > 0) {
+            memoryCooldown--;
+        } else if (!caughtSpots.isEmpty() && rng.nextDouble() < MEMORY_PULL) {
             int learned = rememberedWaypoint(exclude);
-            if (learned >= 0) return learned;
+            if (learned >= 0 && !recentWps.contains(learned)) {
+                memoryCooldown = MEMORY_COOLDOWN_LEGS;
+                return noteWaypoint(learned);
+            }
         }
-        List<Integer> near = new ArrayList<>();
-        for (int i = 0; i < WAYPOINTS.length; i++) {
-            double d = Math.hypot(WAYPOINTS[i][0] - sx, WAYPOINTS[i][1] - sz);
-            if (d > 1 && d < 11 && i != exclude) near.add(i);
+        // Most legs stay in one wing; now and then it walks the length of the
+        // floor, so no corner stays quiet for long.
+        double reach = rng.nextDouble() < LONG_LEG_CHANCE ? Double.MAX_VALUE : 11;
+        List<Integer> open = collectWaypoints(exclude, reach, true);
+        if (open.isEmpty()) open = collectWaypoints(exclude, Double.MAX_VALUE, true);
+        if (open.isEmpty()) open = collectWaypoints(exclude, Double.MAX_VALUE, false);
+        return noteWaypoint(open.isEmpty()
+            ? rng.nextInt(wp.length)
+            : open.get(rng.nextInt(open.size())));
+    }
+
+    /** Waypoints at least {@link #MIN_LEG} away and within {@code reach}. */
+    private List<Integer> collectWaypoints(int exclude, double reach, boolean skipRecent) {
+        List<Integer> out = new ArrayList<>();
+        for (int i = 0; i < wp.length; i++) {
+            if (i == exclude || (skipRecent && recentWps.contains(i))) continue;
+            double d = Math.hypot(wp[i][0] - sx, wp[i][1] - sz);
+            if (d > MIN_LEG && d < reach) out.add(i);
         }
-        return near.isEmpty() ? rng.nextInt(WAYPOINTS.length) : near.get(rng.nextInt(near.size()));
+        return out;
+    }
+
+    /**
+     * Break out of a spot the unit cannot walk out of: drop the current leg and
+     * head somewhere it can actually see, which is almost never back the way it
+     * just failed to go.
+     */
+    private void unwedge() {
+        slideHold = 0;
+        if ("SEARCH".equals(aiState)) searchIndex = pickReachableWaypoint(searchIndex);
+        else aiWp = pickReachableWaypoint(aiWp);
+    }
+
+    /**
+     * Can the unit <em>walk</em> straight from a to b?
+     *
+     * <p>Not the same question as {@link #segBlocked}, which answers about sight
+     * and therefore ignores anything under 1.2 m. Desks and benches stop the unit
+     * dead while it can see clean over them, so routing on the sight test kept
+     * handing it targets it could never reach.</p>
+     */
+    private boolean pathBlocked(double ax, double az, double bx, double bz) {
+        double dx = bx - ax, dz = bz - az;
+        double len = Math.hypot(dx, dz);
+        int steps = (int) Math.ceil(len / 0.25);
+        for (int i = 1; i <= steps; i++) {
+            double t = (double) i / steps;
+            if (blocked(ax + dx * t, az + dz * t)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * A waypoint the unit can actually walk to in a straight line. When it is
+     * boxed in so thoroughly that none qualifies, it takes a short detour into
+     * open floor first and tries again from there.
+     */
+    private int pickReachableWaypoint(int exclude) {
+        List<Integer> clear = new ArrayList<>();
+        for (int i = 0; i < wp.length; i++) {
+            if (i == exclude) continue;
+            double d = Math.hypot(wp[i][0] - sx, wp[i][1] - sz);
+            if (d > MIN_LEG && !pathBlocked(sx, sz, wp[i][0], wp[i][1])) clear.add(i);
+        }
+        if (!clear.isEmpty()) return noteWaypoint(clear.get(rng.nextInt(clear.size())));
+        startDetour();
+        return pickNearWaypoint(exclude);
+    }
+
+    /**
+     * Walk into whatever open floor there is, so the next leg is chosen from a
+     * spot that is not a dead end. Chosen by probing outward in every direction
+     * and keeping the longest clear run.
+     */
+    private void startDetour() {
+        double bestLen = 0, bestAng = 0;
+        for (int a = 0; a < 16; a++) {
+            double ang = a * Math.PI / 8;
+            double cos = Math.cos(ang), sin = Math.sin(ang);
+            double len = 0;
+            while (len < DETOUR_REACH) {
+                double nx = sx + cos * (len + 0.4), nz = sz + sin * (len + 0.4);
+                if (blocked(nx, nz) || nx < -HX + 0.55 || nx > HX - 0.55
+                        || nz < -HZ + 0.55 || nz > HZ - 0.55) break;
+                len += 0.4;
+            }
+            if (len > bestLen) { bestLen = len; bestAng = ang; }
+        }
+        if (bestLen < 1.0) return;   // truly walled in; ejectSentinel is the backstop
+        detourX = sx + Math.cos(bestAng) * bestLen;
+        detourZ = sz + Math.sin(bestAng) * bestLen;
+        detourTime = DETOUR_TIME;
+    }
+
+    /** Log a leg so the next few picks steer away from it. */
+    private int noteWaypoint(int wp) {
+        recentWps.addFirst(wp);
+        while (recentWps.size() > RECENT_WAYPOINTS) recentWps.removeLast();
+        return wp;
     }
 
     private void stepSentinel(double dt, double tt) {
+        ejectSentinel();
         double dToPlayer = Math.hypot(px - sx, pz - sz);
         double fxs = Math.sin(aiYaw), fzs = Math.cos(aiYaw);
         double tx = px - sx, tz = pz - sz, tl = Math.hypot(tx, tz);
@@ -1521,20 +1747,32 @@ final class CurfewWorld {
             // First sweep to where the player was last seen, then keep moving
             // to nearby waypoints so the sentinel never freezes in place.
             if (searchIndex < 0) { targetX = lastSeenX; targetZ = lastSeenZ; }
-            else { targetX = WAYPOINTS[searchIndex][0]; targetZ = WAYPOINTS[searchIndex][1]; }
-            if (Math.hypot(targetX - sx, targetZ - sz) < 1.0) {
-                searchStall = 0;
+            else { targetX = wp[searchIndex][0]; targetZ = wp[searchIndex][1]; }
+            if (Math.hypot(targetX - sx, targetZ - sz) < ARRIVE) {
                 searchIndex = pickNearWaypoint(searchIndex);
             }
         }
         else {
-            targetX = WAYPOINTS[aiWp][0]; targetZ = WAYPOINTS[aiWp][1];
-            if (Math.hypot(targetX - sx, targetZ - sz) < 1.0) {
+            // Re-route first, then aim: reading the target before advancing the
+            // leg spent the arrival frame walking to where it already stood.
+            if (Math.hypot(wp[aiWp][0] - sx, wp[aiWp][1] - sz) < ARRIVE) {
                 aiWp = pickNearWaypoint(aiWp);
             }
+            targetX = wp[aiWp][0]; targetZ = wp[aiWp][1];
         }
 
-        double spd = ("CHASE".equals(aiState) ? 3.45 : "SEARCH".equals(aiState) ? 2.5 : 1.95)
+        // A detour outranks the current leg: the leg is what it could not walk.
+        // Never during a chase — it should not lose you to go for a stroll.
+        if (detourTime > 0 && !"CHASE".equals(aiState)) {
+            detourTime -= dt;
+            targetX = detourX;
+            targetZ = detourZ;
+            if (Math.hypot(targetX - sx, targetZ - sz) < ARRIVE) detourTime = 0;
+        }
+
+        // A walking player does 2.9 and a sprint does 5.0, so a patrol still loses
+        // ground to you and only a CHASE can close — but nothing here idles.
+        double spd = ("CHASE".equals(aiState) ? 3.45 : "SEARCH".equals(aiState) ? 2.7 : 2.2)
             * difficulty * lockdownSpeed * (aiStun > 0 ? 0.25 : 1);
         double vx = targetX - sx, vz = targetZ - sz;
         double vl = Math.hypot(vx, vz);
@@ -1543,29 +1781,52 @@ final class CurfewWorld {
         vz = vz / vl * spd * dt;
         double step = spd * dt;
         double prevSx = sx, prevSz = sz;
-        double sgnZ = vz == 0 ? 1 : Math.signum(vz), sgnX = vx == 0 ? 1 : Math.signum(vx);
-        if (!blocked(sx + vx, sz)) sx += vx;
-        else if (!blocked(sx, sz + sgnZ * step)) sz += sgnZ * step;
-        if (!blocked(sx, sz + vz)) sz += vz;
-        else if (!blocked(sx + sgnX * step, sz)) sx += sgnX * step;
+        if (slideHold > 0) slideHold -= dt;
+
+        // Take each axis that is free on its own, so a wall only costs the
+        // component that runs into it.
+        boolean freeX = !blocked(sx + vx, sz);
+        boolean freeZ = !blocked(sx, sz + vz);
+        if (freeX) sx += vx;
+        if (freeZ) sz += vz;
+        if (!freeX && !freeZ) {
+            // Both axes are shut: slide along the obstacle. The direction is
+            // committed for SLIDE_HOLD seconds, because the old code re-derived
+            // it from the target every frame and so stepped one way, then back,
+            // then one way again — the unit "walked" on the spot for the rest of
+            // the run without ever tripping a movement check.
+            if (slideHold <= 0) {
+                slideSign = rng.nextBoolean() ? 1 : -1;
+                slideHold = SLIDE_HOLD;
+            }
+            double len = Math.max(1e-6, Math.hypot(vx, vz));
+            double nx = -vz / len * step * slideSign;
+            double nz = vx / len * step * slideSign;
+            if (!blocked(sx + nx, sz + nz)) { sx += nx; sz += nz; }
+            else slideHold = 0;   // that way is shut too — try the other next frame
+        }
         double pad = 0.55;
         sx = clamp(sx, -HX + pad, HX - pad);
         sz = clamp(sz, -HZ + pad, HZ - pad);
 
-        if ("SEARCH".equals(aiState)) {
-            // If the sentinel cannot make progress toward the current target
-            // (e.g. the player was last seen inside a room it cannot reach),
-            // sweep the nearest waypoints instead of pressing into the wall.
-            double made = Math.hypot(sx - prevSx, sz - prevSz);
-            if (vl > 1 && made < 0.005) {
-                searchStall += dt;
-                if (searchStall > 0.5) {
-                    searchStall = 0;
-                    searchIndex = pickNearWaypoint(searchIndex);
-                }
-            } else {
-                searchStall = Math.max(0, searchStall - dt);
+        // Progress is judged over a window, not per frame. A unit shuffling
+        // against furniture moves a little every frame while going nowhere, so
+        // the old per-frame test (made < 0.005) never once fired and the unit
+        // could spend an entire run pinned to one square metre of floor.
+        if (!"CHASE".equals(aiState)) {
+            stuckTimer += dt;
+            if (stuckTimer >= STUCK_WINDOW) {
+                double net = Math.hypot(sx - stuckX, sz - stuckZ);
+                boolean travelling = Math.hypot(targetX - sx, targetZ - sz) > ARRIVE;
+                if (travelling && net < STUCK_NET) unwedge();
+                stuckTimer = 0;
+                stuckX = sx;
+                stuckZ = sz;
             }
+        } else {
+            stuckTimer = 0;
+            stuckX = sx;
+            stuckZ = sz;
         }
 
         // servo steps get louder as it closes in (duller behind walls); a pulse while it chases
@@ -1642,8 +1903,8 @@ final class CurfewWorld {
             targetX = px;
             targetZ = pz;
         } else {
-            targetX = WAYPOINTS[eWp][0];
-            targetZ = WAYPOINTS[eWp][1];
+            targetX = wp[eWp][0];
+            targetZ = wp[eWp][1];
             if (Math.hypot(targetX - ex, targetZ - ez) < 1.0) eWp = pickEscortWaypoint();
         }
 
@@ -1654,10 +1915,24 @@ final class CurfewWorld {
         vx = vx / vl * spd * dt;
         vz = vz / vl * spd * dt;
         double step = spd * dt;
-        if (!blocked(ex + vx, ez)) ex += vx;
-        else if (!blocked(ex, ez + Math.signum(vz == 0 ? 1 : vz) * step)) ez += Math.signum(vz == 0 ? 1 : vz) * step;
-        if (!blocked(ex, ez + vz)) ez += vz;
-        else if (!blocked(ex + Math.signum(vx == 0 ? 1 : vx) * step, ez)) ex += Math.signum(vx == 0 ? 1 : vx) * step;
+        // Same committed wall-follow as the hunter: deriving the sidestep from the
+        // target every frame made this unit shuffle on the spot too.
+        if (eSlideHold > 0) eSlideHold -= dt;
+        boolean eFreeX = !blocked(ex + vx, ez);
+        boolean eFreeZ = !blocked(ex, ez + vz);
+        if (eFreeX) ex += vx;
+        if (eFreeZ) ez += vz;
+        if (!eFreeX && !eFreeZ) {
+            if (eSlideHold <= 0) {
+                eSlideSign = rng.nextBoolean() ? 1 : -1;
+                eSlideHold = SLIDE_HOLD;
+            }
+            double eLen = Math.max(1e-6, Math.hypot(vx, vz));
+            double nx = -vz / eLen * step * eSlideSign;
+            double nz = vx / eLen * step * eSlideSign;
+            if (!blocked(ex + nx, ez + nz)) { ex += nx; ez += nz; }
+            else eSlideHold = 0;
+        }
         ex = clamp(ex, -HX + 0.55, HX - 0.55);
         ez = clamp(ez, -HZ + 0.55, HZ - 0.55);
 
@@ -1685,11 +1960,11 @@ final class CurfewWorld {
     private int pickEscortWaypoint() {
         int best = eWp;
         double bestScore = -1;
-        for (int i = 0; i < WAYPOINTS.length; i++) {
+        for (int i = 0; i < wp.length; i++) {
             if (i == eWp) continue;
-            double toHere = Math.hypot(WAYPOINTS[i][0] - ex, WAYPOINTS[i][1] - ez);
+            double toHere = Math.hypot(wp[i][0] - ex, wp[i][1] - ez);
             if (toHere < 1 || toHere > 13) continue;
-            double fromHunter = Math.hypot(WAYPOINTS[i][0] - sx, WAYPOINTS[i][1] - sz);
+            double fromHunter = Math.hypot(wp[i][0] - sx, wp[i][1] - sz);
             double score = fromHunter + rng.nextDouble() * 6;
             if (score > bestScore) { bestScore = score; best = i; }
         }
