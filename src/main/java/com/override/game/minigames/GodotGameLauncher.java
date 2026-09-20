@@ -1,6 +1,7 @@
 package com.override.game.minigames;
 
 import com.override.Main;
+import com.override.shared.service.ChapterResultStore;
 import javafx.scene.control.Alert;
 import javafx.stage.Stage;
 
@@ -42,28 +43,24 @@ public final class GodotGameLauncher {
     private GodotGameLauncher() {}
 
     public static boolean hasResult() {
-        return Files.isRegularFile(RESULT);
+        return ChapterResultStore.has(RESULT);
     }
 
     public static String readResult() {
-        try {
-            return Files.readString(RESULT, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            return null;
-        }
+        return ChapterResultStore.read(RESULT);
     }
+
+    public static String resultEventId() { return ChapterResultStore.eventId(); }
 
     public static void clearResult() {
         try {
-            Files.deleteIfExists(RESULT);
+            ChapterResultStore.clear(RESULT);
         } catch (IOException ignored) {
         }
     }
 
     public static boolean launchGodotBackgroundStart() {
-        if (hasResult()) {
-            clearResult();
-        }
+        if (!prepareResult()) return false;
         Path exported = PROJECT.resolve("build").resolve("Chapter2.exe");
         if (Files.isRegularFile(exported)) {
             // Fullscreen so the game covers exactly the screen the JavaFX
@@ -102,6 +99,7 @@ public final class GodotGameLauncher {
     }
 
     public static void launchGodotAtWindowSize() {
+        if (!prepareResult()) return;
         List<String> cmd = new ArrayList<>();
         Path exported = PROJECT.resolve("build").resolve("Chapter2.exe");
         if (Files.isRegularFile(exported)) {
@@ -168,6 +166,11 @@ public final class GodotGameLauncher {
             show("Could not start Chapter 2: " + e.getMessage());
             return null;
         }
+    }
+
+    private static boolean prepareResult() {
+        try { ChapterResultStore.begin(RESULT); return true; }
+        catch (IOException e) { show("Could not prepare this player's Chapter 2 run: " + e.getMessage()); return false; }
     }
 
     /**

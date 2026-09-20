@@ -47,10 +47,10 @@ public class ChapterMapScreen {
 
         Button save = UIFactory.secondary("Save");
         save.setOnAction(e -> {
-            SaveService.save();
+            boolean saved = SaveService.save();
             new javafx.scene.control.Alert(
-                javafx.scene.control.Alert.AlertType.INFORMATION,
-                "Game saved."
+                saved ? javafx.scene.control.Alert.AlertType.INFORMATION : javafx.scene.control.Alert.AlertType.ERROR,
+                saved ? "Game saved." : "Your save could not be written. Please try again."
             ).showAndWait();
         });
         Button menu = UIFactory.secondary("Main Menu");

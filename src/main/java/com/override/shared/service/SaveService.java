@@ -10,7 +10,7 @@ import java.util.Properties;
 /**
  * Save / load using java.util.Properties — no external JSON lib needed.
  *
- * File location: ~/.override/save.properties
+ * File location: ~/.override/players/<profile-id>/save.properties
  *
  * For the final project you can swap this to a Spring Boot REST call
  * (see README.md "Backend hook-up" section) without touching the screens.
@@ -18,16 +18,14 @@ import java.util.Properties;
 public class SaveService {
 
     private static File saveFile() {
-        File dir = new File(System.getProperty("user.home"), ".override");
-        if (!dir.exists()) dir.mkdirs();
-        return new File(dir, "save.properties");
+        return PlayerProfiles.dataFile("save.properties").toFile();
     }
 
     public static boolean saveExists() {
         return saveFile().exists();
     }
 
-    public static void save() {
+    public static boolean save() {
         GameState s = GameState.get();
         Player p = s.getPlayer();
 
@@ -38,6 +36,7 @@ public class SaveService {
         props.setProperty("chapterCompleted",String.valueOf(s.getChapterCompleted()));
         props.setProperty("independentXp",  String.valueOf(s.getIndependentXp()));
         props.setProperty("chapter1BestScore", String.valueOf(s.getSilentClassroomBestScore()));
+        props.setProperty("campaign.chapter1Grade", s.getCampaignChapterOneGrade() == null ? "" : s.getCampaignChapterOneGrade());
         props.setProperty("unlocked",       String.join(",", s.getUnlockedCharacters()));
 
         if (s.getSelectedCharacter() != null)
@@ -54,10 +53,12 @@ public class SaveService {
         props.setProperty("p.combat",    String.valueOf(p.getCombat()));
         props.setProperty("p.empathy",   String.valueOf(p.getEmpathy()));
 
-        try (OutputStream os = new FileOutputStream(saveFile())) {
-            props.store(os, "Override save data");
+        try {
+            PlayerProfiles.write(saveFile().toPath(), props);
+            return true;
         } catch (IOException e) {
             System.err.println("Could not save: " + e.getMessage());
+            return false;
         }
     }
 
@@ -67,7 +68,7 @@ public class SaveService {
         Properties props = new Properties();
         try (InputStream is = new FileInputStream(saveFile())) {
             props.load(is);
-        } catch (IOException e) {
+        } catch (IOException | IllegalArgumentException e) {
             return false;
         }
 
@@ -80,6 +81,11 @@ public class SaveService {
             s.completeChapter(i + 1);
         s.addIndependentXp(parseInt(props, "independentXp", 0));
         s.recordSilentClassroomScore(parseInt(props, "chapter1BestScore", 0));
+        s.setCampaignChapterOneGrade(props.getProperty("campaign.chapter1Grade"));
+        if (!props.containsKey("campaign.chapter1Grade") && s.getChapterCompleted() >= 1) {
+            var previous = com.override.chapter1.CurfewRecords.latestRun();
+            if (previous != null) s.setCampaignChapterOneGrade(previous.grade());
+        }
 
         // Restore unlocked characters
         String unlocked = props.getProperty("unlocked", "ren");
@@ -103,7 +109,7 @@ public class SaveService {
 
         // Then overlay saved player numbers
         Player p = s.getPlayer();
-        p.setDisplayName(props.getProperty("p.name", "REN"));
+        p.setDisplayName(PlayerProfiles.active() == null ? props.getProperty("p.name", "REN") : PlayerProfiles.name());
         // simple way to re-apply numbers: cumulative buffs from base 5
         p.buffLogic     (parseInt(props, "p.logic",     5) - p.getLogic());
         p.buffAwareness (parseInt(props, "p.awareness", 5) - p.getAwareness());

@@ -1,11 +1,13 @@
 package com.override.chapter2;
 
 import com.override.Main;
-import com.override.chapter1.CurfewRecords;
+import com.override.shared.service.ChapterResultStore;
 import com.override.game.minigames.GodotGameLauncher;
 import com.override.shared.model.GameState;
 import com.override.shared.service.SaveService;
-import com.override.shared.service.ScoreboardService;
+import com.override.shared.service.ScoreArchive;
+import com.override.shared.service.PlayerProfiles;
+import com.override.shared.ui.GameControls;
 import com.override.shared.ui.ScoreboardScreen;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -43,9 +45,13 @@ public class ChapterTwoResultScreen {
     private static final String NEON_AMBER = "#ffd24a";
 
     private Pane staticOverlay;
+    private Timeline glitchCycle;
 
     public Parent build() {
         String json = GodotGameLauncher.readResult();
+        String rawScore = extract(json, "\"final_score_percent\"");
+        if (json == null || rawScore.isBlank() || !Double.isFinite(parseDouble(rawScore))) return new ScoreboardScreen().build();
+        String ch1 = ChapterResultStore.chapterOneGrade();
 
         boolean win          = "true".equals(extract(json, "\"win\""));
         double  score        = parseDouble(extract(json, "\"final_score_percent\""));
@@ -90,16 +96,13 @@ public class ChapterTwoResultScreen {
         // ── Actions: see the scoreboard, or replay the whole campaign ──
         // Replay is a full restart (Chapter 1 → 2); Chapter 2 can only be
         // reached by playing the campaign again, never standalone.
-        Button boardBtn = new Button("SEE SCOREBOARD");
-        boardBtn.getStyleClass().add("asset-button");
+        Button boardBtn = GameControls.button("SEE SCOREBOARD", 240, 44, true);
         boardBtn.setOnAction(e -> {
             GodotGameLauncher.clearResult();
             Main.switchScene(new ScoreboardScreen().build());
         });
 
-        Button replayBtn = new Button("REPLAY");
-        replayBtn.getStyleClass().add("asset-button");
-        replayBtn.getStyleClass().add("secondary");
+        Button replayBtn = GameControls.button("REPLAY", 180, 44, false);
         replayBtn.setOnAction(e -> {
             GodotGameLauncher.clearResult();
             GameState.reset();
@@ -110,7 +113,7 @@ public class ChapterTwoResultScreen {
         });
 
         // ── Chapter 1 latest run (for the combined campaign verdict) ─
-        CurfewRecords.Run ch1 = CurfewRecords.latestRun();
+
 
         // ── Combined campaign score: 50% chapter 1 + 50% chapter 2 ──
         double ch1Pct = chapterOnePercent(ch1);
@@ -118,21 +121,22 @@ public class ChapterTwoResultScreen {
         double finalPct = (ch1Pct + ch2Pct) / 2.0;
         boolean resistance = finalPct >= 50.0;
 
-        // Record this finished run on the campaign scoreboard (local until
-        // the login system lands; signature dedupes repeat viewings).
-        ScoreboardService.load().record(
-            new ScoreboardService.CampaignRun(
-                GameState.get().getPlayer().getDisplayName(),
-                finalPct,
-                resistance ? "RESISTANCE" : "OVERRIDDEN",
-                System.currentTimeMillis()),
-            json);
+        String event = GodotGameLauncher.resultEventId();
+        boolean harvestSaved = ScoreArchive.record(event, ScoreArchive.Mode.HARVEST, ch2Pct, win ? "CLEARED" : "FAILED", false);
+        boolean campaignSaved = ScoreArchive.record(event, ScoreArchive.Mode.CAMPAIGN, finalPct, resistance ? "RESISTANCE" : "OVERRIDDEN", false);
+        Label playerName = statRow("PLAYER / " + PlayerProfiles.name(), NEON_CYAN);
+        if (!harvestSaved || !campaignSaved) {
+            playerName.setText("Score could not be saved. Reopen this result to retry.");
+            boardBtn.setOnAction(e -> Main.switchScene(new ScoreboardScreen().build()));
+            replayBtn.setText("RETRY SAVE");
+            replayBtn.setOnAction(e -> Main.switchScene(new ChapterTwoResultScreen().build()));
+        }
 
         Label ch1Row = ch1 == null
             ? statRow("CHAPTER 1 · CURFEW PROTOCOL — NOT PLAYED · 0.0%", NEON_AMBER)
             : statRow(String.format(
                     "CHAPTER 1 · CURFEW PROTOCOL — GRADE %s · %.1f%% (50%% OF CAMPAIGN)",
-                    ch1.grade(), ch1Pct),
+                    ch1, ch1Pct),
                 NEON_CYAN);
 
         Label ch2Row = statRow(String.format(
@@ -201,7 +205,7 @@ public class ChapterTwoResultScreen {
         actions.setAlignment(Pos.CENTER);
 
         // ── Assemble card ──────────────────────────────────────────
-        VBox card = new VBox(10, header, verdict, mainResult, mainSub, stats, finalScore, actions);
+        VBox card = new VBox(10, playerName, header, verdict, mainResult, mainSub, stats, finalScore, actions);
         card.setAlignment(Pos.CENTER);
         card.setPadding(new Insets(24, 48, 24, 48));
         card.setMaxWidth(860);
@@ -230,16 +234,19 @@ public class ChapterTwoResultScreen {
         page.getChildren().add(staticOverlay);
 
         startGlitchCycle();
+        page.sceneProperty().addListener((o, old, scene) -> {
+            if (scene == null && glitchCycle != null) glitchCycle.stop();
+        });
         return page;
     }
 
     // ── Jitter engine (same as briefing/loading) ───────────────────
 
     private void startGlitchCycle() {
-        Timeline cycle = new Timeline(
+        glitchCycle = new Timeline(
             new KeyFrame(Duration.seconds(5), e -> triggerIntenseGlitchTransition()));
-        cycle.setCycleCount(Timeline.INDEFINITE);
-        cycle.play();
+        glitchCycle.setCycleCount(Timeline.INDEFINITE);
+        glitchCycle.play();
     }
 
     private void triggerIntenseGlitchTransition() {
@@ -287,9 +294,9 @@ public class ChapterTwoResultScreen {
     }
 
     /** Maps the latest Chapter 1 grade onto a 0-100 scale (50% of the campaign). */
-    private double chapterOnePercent(CurfewRecords.Run ch1) {
+    private double chapterOnePercent(String ch1) {
         if (ch1 == null) return 0.0;
-        return switch (ch1.grade()) {
+        return switch (ch1) {
             case "S" -> 100.0;
             case "A" -> 80.0;
             case "B" -> 60.0;
@@ -318,6 +325,6 @@ public class ChapterTwoResultScreen {
 
     private double parseDouble(String s) {
         try { return Double.parseDouble(s.trim()); }
-        catch (Exception e) { return 0; }
+        catch (Exception e) { return Double.NaN; }
     }
 }

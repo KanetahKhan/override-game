@@ -106,7 +106,9 @@ public final class OpeningVisualSmoke {
         BufferedImage png = new BufferedImage(1280, 720, BufferedImage.TYPE_INT_ARGB_PRE);
         int[] data = ((DataBufferInt) png.getRaster().getDataBuffer()).getData();
         image.getPixelReader().getPixels(0, 0, 1280, 720, PixelFormat.getIntArgbPreInstance(), data, 0, 1280);
-        ImageIO.write(png, "png", path.toFile());
+        try (var bytes = new java.io.ByteArrayOutputStream()) {
+            ImageIO.write(png, "png", bytes); Files.write(path, bytes.toByteArray());
+        }
     }
 
     private static void exportFilm(ClassroomPixelScene canvas, Path path) throws Exception {

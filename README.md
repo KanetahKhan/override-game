@@ -35,6 +35,10 @@ This v0.1 build ships a **playable end-to-end vertical slice** of Chapter 1 plus
 
 ---
 
+## Named players and scores
+
+The game opens on a name-only login screen. Each player has a separate local save, and the main menu links to a shared scoreboard with every chapter/campaign attempt and a top-five leaderboard of distinct players. Enter the same name to return to a profile. Scores and profiles are stored on this computer; no backend is required. See [player profiles, previews and testing](docs/PLAYER_PROFILES.md).
+
 ## Running the game
 
 > **Full setup lives in [`setup.md`](setup.md)** — prerequisites, install, run,

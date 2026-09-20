@@ -8,6 +8,7 @@ import com.override.game.minigames.ChiptuneSfx;
 import com.override.game.minigames.HighScoreClient;
 import com.override.shared.model.GameState;
 import com.override.shared.service.SaveService;
+import com.override.shared.service.ScoreArchive;
 import com.override.shared.ui.ChapterMapScreen;
 import com.override.shared.ui.EndingScreen;
 import javafx.animation.Animation;
@@ -122,6 +123,7 @@ public class CurfewProtocolScreen {
 
     // run state
     private Phase phase = Phase.INTRO;
+    private final String scoreEventId = java.util.UUID.randomUUID().toString();
     private int hp = 3, credits, secs;
     /** Seconds to reach the exit once the floor goes into lockdown. */
     private static final int LOCKDOWN_SECONDS = 60;
@@ -992,6 +994,7 @@ public class CurfewProtocolScreen {
     }
 
     private void finish(boolean win, String why) {
+        if (phase == Phase.END) return;
         clockTimer.stop();
         closeNodeGameSilently();
         world.setHacking(false);
@@ -1010,6 +1013,8 @@ public class CurfewProtocolScreen {
             // Astra's help counts even on a failed run.
             if (astraUses > 0) SaveService.save();
         }
+        ScoreArchive.record(scoreEventId, ScoreArchive.Mode.valueOf("CLASSROOM_" + difficulty.name()),
+            runScore(), win ? "CLEARED" : "FAILED", astraUses > 0);
         showEnd();
         refreshHud();
     }
@@ -1340,6 +1345,7 @@ public class CurfewProtocolScreen {
             state.addIndependentXp(indepAwarded);
         }
         finalGrade = grade();
+        state.setCampaignChapterOneGrade(finalGrade);
         newBest = state.recordSilentClassroomScore(scoreForGrade(finalGrade));
         state.completeChapter(1);
         SaveService.save();
