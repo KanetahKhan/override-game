@@ -125,6 +125,60 @@ public final class ChiptuneSfx {
                 tone(Wave.SQUARE, 220, 0.105, 0.19)));
     }
 
+    /*
+     * The cues below sit deliberately under the alert cues above. The sentinel's
+     * servoStep() is the one sound the stealth actually depends on hearing, so
+     * footfalls, heartbeat and cover noise are mixed low enough never to mask it.
+     */
+
+    /** Gain ceiling for the continuous cues, so they stay under the alerts. */
+    private static final double UNDERLAY_GAIN = 0.5;
+
+    /** The player's own footfall. Crouching is quieter and duller than a sprint. */
+    public static void footstep(boolean sprinting, boolean crouching) {
+        double amp = crouching ? 0.05 : sprinting ? 0.11 : 0.08;
+        double f0  = crouching ? 118 : sprinting ? 188 : 152;
+        play(mix(
+                sweep(Wave.TRIANGLE, f0, f0 * 0.55, 0.055, amp),
+                tone(Wave.NOISE, 1, crouching ? 0.012 : 0.02, amp * 0.35)),
+            crouching ? UNDERLAY_GAIN * 0.7 : UNDERLAY_GAIN);
+    }
+
+    /** Rising sting for the moment the floor first takes an interest in you. */
+    public static void noticed() {
+        play(concat(
+                tone(Wave.SQUARE, 330, 0.05, 0.13),
+                sweep(Wave.SQUARE, 440, 620, 0.12, 0.15)), 0.55);
+    }
+
+    /**
+     * One lub-dub. {@code intensity} in {@code 0..1} lifts the pitch and level a
+     * little, so a closing pursuit reads as a harder beat and not just a faster one.
+     */
+    public static void heartbeat(double intensity) {
+        double k = Double.isFinite(intensity) ? Math.max(0.0, Math.min(1.0, intensity)) : 0.0;
+        double f = 62 + 16 * k;
+        play(concat(
+                sweep(Wave.SINE, f, f * 0.70, 0.085, 0.22 + 0.12 * k),
+                silence(0.055),
+                sweep(Wave.SINE, f * 0.92, f * 0.62, 0.100, 0.16 + 0.10 * k)),
+            UNDERLAY_GAIN);
+    }
+
+    /** Cloth-and-breath whoosh on slipping into cover. */
+    public static void conceal() {
+        play(mix(
+                tone(Wave.NOISE, 1, 0.16, 0.05),
+                sweep(Wave.SINE, 300, 140, 0.18, 0.07)), UNDERLAY_GAIN);
+    }
+
+    /** The reverse of {@link #conceal()}: stepping back out into the open. */
+    public static void reveal() {
+        play(mix(
+                tone(Wave.NOISE, 1, 0.12, 0.045),
+                sweep(Wave.SINE, 150, 320, 0.14, 0.07)), UNDERLAY_GAIN);
+    }
+
     // ----- Synthesis ----------------------------------------------------------
 
     private static byte[] tone(Wave wave, double freq, double seconds, double amp) {
@@ -153,6 +207,11 @@ public final class ChiptuneSfx {
             out[i * 2 + 1] = (byte) ((v >> 8) & 0xff);
         }
         return out;
+    }
+
+    /** A gap, so a two-part cue like {@link #heartbeat(double)} can have a pause in it. */
+    private static byte[] silence(double seconds) {
+        return new byte[(int) (seconds * SAMPLE_RATE) * 2];
     }
 
     private static byte[] concat(byte[]... parts) {

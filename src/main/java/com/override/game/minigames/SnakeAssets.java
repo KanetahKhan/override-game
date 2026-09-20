@@ -37,10 +37,81 @@ public final class SnakeAssets {
     );
 
     private static final Map<String, Image> cache = new HashMap<>();
+    private static final Map<String, Image> tintCache = new HashMap<>();
+
+    /**
+     * The snake's colour ramp, darkest to brightest.
+     *
+     * <p>The shipped sprites are near-black teal — {@code body.png}'s opaque
+     * pixels average RGB(19, 47, 52) — which all but disappears against the dark
+     * playfield. Recolouring onto this ramp both moves the hue to purple and
+     * lifts the sprite out of the background.</p>
+     */
+    private static final Color SNAKE_DARK  = Color.rgb(74, 22, 120);
+    private static final Color SNAKE_LIGHT = Color.rgb(206, 140, 255);
 
     /** Preload every asset. Safe to call multiple times. */
     public static void preload() {
         for (String k : LAYOUTS.keySet()) get(k);
+        // Build the recoloured snake up front: it is a per-pixel pass over a
+        // 500x500 sprite, and doing it on the first frame would show as a hitch.
+        tinted("body");
+        tinted("cursor");
+    }
+
+    /**
+     * Returns a purple, tightly cropped copy of a sprite, cached.
+     *
+     * <p>Two things are wrong with the sources for our purposes, and both are
+     * fixed here. The art sits in a mostly empty 500x500 frame — {@code body.png}
+     * fills only 182 of those 500 columns — so drawing the whole frame into a
+     * 20px cell leaves a thin sliver with gaps around it. Cropping to the opaque
+     * bounds lets the art fill its cell instead. And the pixels are so dark that
+     * a flat hue rotation would still vanish against the playfield, so luminance
+     * is expanded and gamma-lifted as well as recoloured.</p>
+     */
+    private static Image tinted(String key) {
+        return tintCache.computeIfAbsent(key, k -> {
+            Image src = get(k);
+            PixelReader in = src.getPixelReader();
+            if (in == null) return src;
+            int w = (int) src.getWidth(), h = (int) src.getHeight();
+
+            int minX = w, minY = h, maxX = -1, maxY = -1;
+            for (int y = 0; y < h; y++) {
+                for (int x = 0; x < w; x++) {
+                    if (in.getColor(x, y).getOpacity() <= 0.02) continue;
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                }
+            }
+            if (maxX < minX || maxY < minY) return src; // nothing opaque to crop to
+
+            int cw = maxX - minX + 1, ch = maxY - minY + 1;
+            WritableImage out = new WritableImage(cw, ch);
+            var write = out.getPixelWriter();
+            for (int y = 0; y < ch; y++) {
+                for (int x = 0; x < cw; x++) {
+                    Color c = in.getColor(minX + x, minY + y);
+                    if (c.getOpacity() <= 0.02) { write.setColor(x, y, Color.TRANSPARENT); continue; }
+                    double l = 0.2126 * c.getRed() + 0.7152 * c.getGreen() + 0.0722 * c.getBlue();
+                    // Expand the sprite's narrow dark range, then gamma-lift it.
+                    double t = Math.pow(Math.min(1.0, l * 2.2), 0.65);
+                    write.setColor(x, y, Color.color(
+                        ramp(SNAKE_DARK.getRed(),   SNAKE_LIGHT.getRed(),   t),
+                        ramp(SNAKE_DARK.getGreen(), SNAKE_LIGHT.getGreen(), t),
+                        ramp(SNAKE_DARK.getBlue(),  SNAKE_LIGHT.getBlue(),  t),
+                        c.getOpacity()));
+                }
+            }
+            return out;
+        });
+    }
+
+    private static double ramp(double from, double to, double t) {
+        return Math.max(0.0, Math.min(1.0, from + (to - from) * t));
     }
 
     /** Load (or return cached) full image for the given asset key. */
@@ -87,16 +158,25 @@ public final class SnakeAssets {
         g.drawImage(get("playground"), 0, 0, w, h);
     }
 
+    /*
+     * Both insets are negative, so each segment is drawn slightly larger than its
+     * 20px cell. Segments then overlap their neighbours instead of leaving a gap,
+     * which reads as one continuous thick snake rather than a dotted line.
+     */
+
+    /** The head overhangs its cell a little more than the body, so it leads clearly. */
+    private static final double HEAD_INSET = -2.5;
+    private static final double BODY_INSET = -1.5;
+
     /** Draw a single snake segment at grid cell (cx, cy) with cell size. */
     public static void drawHead(GraphicsContext g, double cx, double cy,
                                 double cellSize, boolean blinkOn) {
-        double inset = 1;
         if (blinkOn) {
             g.setGlobalAlpha(0.85);
         }
-        g.drawImage(get("cursor"),
-                cx * cellSize + inset, cy * cellSize + inset,
-                cellSize - 2 * inset, cellSize - 2 * inset);
+        g.drawImage(tinted("cursor"),
+                cx * cellSize + HEAD_INSET, cy * cellSize + HEAD_INSET,
+                cellSize - 2 * HEAD_INSET, cellSize - 2 * HEAD_INSET);
         g.setGlobalAlpha(1);
     }
 
@@ -104,10 +184,9 @@ public final class SnakeAssets {
     public static void drawBody(GraphicsContext g, double cx, double cy,
                                 double cellSize, double alpha) {
         g.setGlobalAlpha(alpha);
-        double inset = 2;
-        g.drawImage(get("body"),
-                cx * cellSize + inset, cy * cellSize + inset,
-                cellSize - 2 * inset, cellSize - 2 * inset);
+        g.drawImage(tinted("body"),
+                cx * cellSize + BODY_INSET, cy * cellSize + BODY_INSET,
+                cellSize - 2 * BODY_INSET, cellSize - 2 * BODY_INSET);
         g.setGlobalAlpha(1);
     }
 

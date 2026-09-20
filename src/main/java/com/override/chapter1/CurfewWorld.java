@@ -261,6 +261,7 @@ final class CurfewWorld {
     private HideSpot seenHiding;         // the spot it watched you climb into
     private double huntTime;             // time spent walking to that spot
     private double stepDist, chaseBeatT; // sound pacing
+    private double playerStepDist;       // the player's own footfalls, paced the same way
     private boolean lockdown;
     /** Extra sentinel pace once the floor is hunting. */
     private double lockdownSpeed = 1.0;
@@ -1466,6 +1467,7 @@ final class CurfewWorld {
         // movement
         sprinting = false;
         boolean moving = false;
+        double fromX = px, fromZ = pz;
         if (!hidden && sitting == null) {
             sprinting = keys.contains(KeyCode.SHIFT) && stamina > 0.05 && !crouch;
             double sp = (sprinting ? 5.0 : crouch ? 1.45 : 2.9) * dt;
@@ -1490,6 +1492,24 @@ final class CurfewWorld {
         }
         // running is loud: every few strides the unit may hear it
         sprinting &= moving;
+
+        // Footfalls are paced off the distance actually covered, not off time, so
+        // they stay in step when a wall stops you short or the frame rate dips.
+        // The stride lengthens with the gait, but a sprint still covers it sooner.
+        // Airborne travel still counts toward the stride, but nothing sounds until
+        // you are back on the floor: the jump already has its own landing noise.
+        if (moving) {
+            playerStepDist += Math.hypot(px - fromX, pz - fromZ);
+            double stride = crouch ? 1.05 : sprinting ? 1.50 : 1.25;
+            if (grounded && py <= 0 && playerStepDist >= stride) {
+                playerStepDist = 0;
+                ChiptuneSfx.footstep(sprinting, crouch);
+            }
+        } else {
+            // Land the next step promptly on moving off again, rather than
+            // carrying a nearly-full stride across a long pause.
+            playerStepDist = Math.min(playerStepDist, 0.35);
+        }
         noiseT -= dt;
         if (sprinting && noiseT <= 0) {
             noiseT = 0.35;
