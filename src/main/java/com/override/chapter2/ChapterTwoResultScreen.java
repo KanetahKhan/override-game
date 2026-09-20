@@ -1,11 +1,11 @@
 package com.override.chapter2;
 
 import com.override.Main;
-import com.override.chapter1.CurfewRecords;
 import com.override.game.minigames.GodotGameLauncher;
 import com.override.shared.model.GameState;
+import com.override.shared.service.ChapterResultStore;
 import com.override.shared.service.SaveService;
-import com.override.shared.service.ScoreboardService;
+import com.override.shared.service.ScoreArchive;
 import com.override.shared.ui.ScoreboardScreen;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -43,9 +43,14 @@ public class ChapterTwoResultScreen {
     private static final String NEON_AMBER = "#ffd24a";
 
     private Pane staticOverlay;
+    private Timeline glitchCycle;
 
     public Parent build() {
         String json = GodotGameLauncher.readResult();
+        String rawScore = extract(json, "\"final_score_percent\"");
+        if (json == null || rawScore.isBlank() || !Double.isFinite(parseDouble(rawScore)))
+            return new ScoreboardScreen().build();
+        String ch1 = ChapterResultStore.chapterOneGrade();
 
         boolean win          = "true".equals(extract(json, "\"win\""));
         double  score        = parseDouble(extract(json, "\"final_score_percent\""));
@@ -109,8 +114,7 @@ public class ChapterTwoResultScreen {
             ).build());
         });
 
-        // ── Chapter 1 latest run (for the combined campaign verdict) ─
-        CurfewRecords.Run ch1 = CurfewRecords.latestRun();
+        // ── Chapter 1's frozen grade (captured when Harvest launched) ─
 
         // ── Combined campaign score: 50% chapter 1 + 50% chapter 2 ──
         double ch1Pct = chapterOnePercent(ch1);
@@ -118,21 +122,17 @@ public class ChapterTwoResultScreen {
         double finalPct = (ch1Pct + ch2Pct) / 2.0;
         boolean resistance = finalPct >= 50.0;
 
-        // Record this finished run on the campaign scoreboard (local until
-        // the login system lands; signature dedupes repeat viewings).
-        ScoreboardService.load().record(
-            new ScoreboardService.CampaignRun(
-                GameState.get().getPlayer().getDisplayName(),
-                finalPct,
-                resistance ? "RESISTANCE" : "OVERRIDDEN",
-                System.currentTimeMillis()),
-            json);
+        // Record this finished run on the campaign scoreboard (fresh rows in the
+        // profile-linked archive; the frozen event id dedupes repeat viewings).
+        String event = GodotGameLauncher.resultEventId();
+        ScoreArchive.record(event, ScoreArchive.Mode.HARVEST, ch2Pct, win ? "CLEARED" : "FAILED", false);
+        ScoreArchive.record(event, ScoreArchive.Mode.CAMPAIGN, finalPct, resistance ? "RESISTANCE" : "OVERRIDDEN", false);
 
         Label ch1Row = ch1 == null
             ? statRow("CHAPTER 1 · CURFEW PROTOCOL — NOT PLAYED · 0.0%", NEON_AMBER)
             : statRow(String.format(
                     "CHAPTER 1 · CURFEW PROTOCOL — GRADE %s · %.1f%% (50%% OF CAMPAIGN)",
-                    ch1.grade(), ch1Pct),
+                    ch1, ch1Pct),
                 NEON_CYAN);
 
         Label ch2Row = statRow(String.format(
@@ -230,16 +230,19 @@ public class ChapterTwoResultScreen {
         page.getChildren().add(staticOverlay);
 
         startGlitchCycle();
+        page.sceneProperty().addListener((o, old, scene) -> {
+            if (scene == null && glitchCycle != null) glitchCycle.stop();
+        });
         return page;
     }
 
     // ── Jitter engine (same as briefing/loading) ───────────────────
 
     private void startGlitchCycle() {
-        Timeline cycle = new Timeline(
+        glitchCycle = new Timeline(
             new KeyFrame(Duration.seconds(5), e -> triggerIntenseGlitchTransition()));
-        cycle.setCycleCount(Timeline.INDEFINITE);
-        cycle.play();
+        glitchCycle.setCycleCount(Timeline.INDEFINITE);
+        glitchCycle.play();
     }
 
     private void triggerIntenseGlitchTransition() {
@@ -286,10 +289,10 @@ public class ChapterTwoResultScreen {
         return lbl;
     }
 
-    /** Maps the latest Chapter 1 grade onto a 0-100 scale (50% of the campaign). */
-    private double chapterOnePercent(CurfewRecords.Run ch1) {
+    /** Maps the Chapter 1 grade frozen at launch onto a 0-100 scale (50% of the campaign). */
+    private double chapterOnePercent(String ch1) {
         if (ch1 == null) return 0.0;
-        return switch (ch1.grade()) {
+        return switch (ch1) {
             case "S" -> 100.0;
             case "A" -> 80.0;
             case "B" -> 60.0;
@@ -318,6 +321,6 @@ public class ChapterTwoResultScreen {
 
     private double parseDouble(String s) {
         try { return Double.parseDouble(s.trim()); }
-        catch (Exception e) { return 0; }
+        catch (Exception e) { return Double.NaN; }
     }
 }
