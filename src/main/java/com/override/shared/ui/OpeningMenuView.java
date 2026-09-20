@@ -1,6 +1,11 @@
 package com.override.shared.ui;
 
+import com.override.Main;
+import com.override.chapter1.AstraConsoleScreen;
+import com.override.chapter1.CurfewProtocolScreen;
 import com.override.game.minigames.ChiptuneSfx;
+import com.override.net.CoopConfig;
+import com.override.net.CoopRelayHost;
 import javafx.animation.AnimationTimer;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -8,6 +13,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
+import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.HBox;
@@ -20,10 +26,14 @@ import java.util.Objects;
 
 /** Actual, keyboard-operable title menu; callbacks keep it independently testable. */
 final class OpeningMenuView extends StackPane {
-    record Actions(Runnable newGame, Runnable continueGame, Runnable shop, Runnable quit) {
+    record Actions(Runnable newGame, Runnable continueGame, Runnable shop, Runnable quit, Runnable scoreboard, Runnable switchPlayer) {
+        Actions(Runnable newGame, Runnable continueGame, Runnable shop, Runnable quit) {
+            this(newGame, continueGame, shop, quit, () -> {}, () -> {});
+        }
         Actions {
             Objects.requireNonNull(newGame); Objects.requireNonNull(continueGame);
             Objects.requireNonNull(shop); Objects.requireNonNull(quit);
+            Objects.requireNonNull(scoreboard); Objects.requireNonNull(switchPlayer);
         }
     }
     private final ClassroomPixelScene background = new ClassroomPixelScene();
@@ -58,6 +68,10 @@ final class OpeningMenuView extends StackPane {
         Label date = text("2556   /   HUMAN INPUT REQUIRED", 12, "#87a1ae");
         AnchorPane.setTopAnchor(date, 30.0); AnchorPane.setRightAnchor(date, 48.0);
         layout.getChildren().add(date);
+        Button change = GameControls.button("SWITCH PLAYER", 160, 34, false);
+        change.setId("switch-player"); change.setOnAction(e -> actions.switchPlayer().run());
+        HBox identity = new HBox(16, text("PLAYER / " + com.override.shared.service.PlayerProfiles.name(), 12, "#a8dace"), change);
+        identity.setAlignment(Pos.CENTER_LEFT); place(layout, identity, 70, 66);
 
         Label transmission = text("A SIGNAL THE SYSTEM COULDN'T ERASE", 11, "#6de6cc");
         Label title = text("OVERRIDE", 79, "#e6f5ee");
@@ -65,7 +79,7 @@ final class OpeningMenuView extends StackPane {
         Label sub = text("T H E   L A S T   R E A L   M I N D", 12, "#a8bebf");
         Label premise = text("It learned everything.\nWe forgot how to think.", 17, "#8fa5b4");
         VBox heading = new VBox(10, transmission, title, sub, premise);
-        VBox.setMargin(premise, new Insets(14, 0, 20, 0));
+        VBox.setMargin(premise, new Insets(14, 0, 12, 0));
         Button start = option("01   NEW GAME", true);
         start.setId("new-game"); start.setOnAction(e -> actions.newGame().run());
         Button resume = option("02   CONTINUE", false);
@@ -73,12 +87,20 @@ final class OpeningMenuView extends StackPane {
         resume.setOnAction(e -> actions.continueGame().run());
         Button shop = option("03   PERSONAS / SHOP", false);
         shop.setId("shop"); shop.setOnAction(e -> actions.shop().run());
-        Button settings = option("04   DISPLAY OPTIONS", false);
+        Button board = option("04   SCOREBOARD", false);
+        board.setId("scoreboard-menu"); board.setOnAction(e -> actions.scoreboard().run());
+        Button settings = option("05   DISPLAY OPTIONS", false);
         settings.setId("display-options"); settings.setOnAction(e -> showSettings(settings));
-        Button quit = option("05   QUIT", false);
+        Button coop = option("06   ASTRA CO-OP", false);
+        coop.setId("astra-coop");
+        coop.setOnAction(e -> showCoop(coop));
+        Button quit = option("07   QUIT", false);
         quit.setId("quit"); quit.setOnAction(e -> actions.quit().run());
-        options = List.of(start, resume, shop, settings, quit);
-        VBox choices = new VBox(7, start, resume, shop, settings, quit);
+        options = List.of(start, resume, shop, board, settings, coop, quit);
+        // Seven rows at the old 7px gap ran the QUIT button past the footer at
+        // y=679. The gap absorbs the extra row rather than option(), whose 44px
+        // height is shared with the intro screens and the modals.
+        VBox choices = new VBox(3, start, resume, shop, board, settings, coop, quit);
         place(layout, new VBox(0, heading, choices), 70, 116);
         place(layout, text("CHAPTER 01 / THE SILENT CLASSROOM", 11, "#749a9f"), 768, 628);
         place(layout, text("KK IS STILL LISTENING.", 12, "#d9888f"), 768, 648);
@@ -90,7 +112,7 @@ final class OpeningMenuView extends StackPane {
         getChildren().addAll(background, layout, modal);
         addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, e -> {
             if (!modal.isVisible() && e.getCode() == KeyCode.ENTER && getScene() != null
-                    && getScene().getFocusOwner() instanceof Button focused && options.contains(focused)
+                    && getScene().getFocusOwner() instanceof Button focused
                     && !focused.isDisabled()) {
                 focused.fire(); e.consume();
             }
@@ -109,6 +131,91 @@ final class OpeningMenuView extends StackPane {
             timer.stop(); previous = 0;
             if (scene != null) { start.requestFocus(); if (animate) timer.start(); }
         });
+    }
+
+    /**
+     * Two seats, one floor: one player runs the chapter while the other plays
+     * Astra from anywhere that can reach the relay.
+     */
+    private void showCoop(Button source) {
+        TextField host = coopField(CoopConfig.host(), 210);
+        host.setId("coop-host");
+        TextField port = coopField(String.valueOf(CoopConfig.port()), 80);
+        TextField room = coopField(CoopConfig.room(), 110);
+        Label relayNote = text("", 12, "#9bb1bd");
+
+        Runnable remember = () -> {
+            int chosen = CoopConfig.port();
+            try {
+                chosen = Integer.parseInt(port.getText().trim());
+            } catch (NumberFormatException ignored) {
+                // keep the previous port when the box holds nonsense
+            }
+            CoopConfig.set(host.getText(), chosen, room.getText());
+        };
+
+        Button relay = option("RUN THE RELAY HERE", false);
+        relay.setId("coop-relay");
+        relay.setOnAction(e -> {
+            remember.run();
+            relayNote.setText(CoopRelayHost.start(CoopConfig.port()));
+        });
+        Button asAyan = option("PLAY AS AYAN  (CHAPTER 1)", true);
+        asAyan.setId("coop-ayan");
+        asAyan.setOnAction(e -> {
+            remember.run();
+            CoopConfig.setLinked(true);
+            Main.switchScene(new CurfewProtocolScreen().build());
+        });
+        Button asAstra = option("PLAY AS ASTRA  (CONSOLE)", false);
+        asAstra.setId("coop-astra");
+        asAstra.setOnAction(e -> {
+            remember.run();
+            Main.switchScene(new AstraConsoleScreen().build());
+        });
+        Button close = option("BACK", false);
+        close.setId("close-coop");
+        Runnable dismiss = () -> {
+            modal.getChildren().clear();
+            modal.setVisible(false);
+            modal.setManaged(false);
+            source.requestFocus();
+        };
+        close.setOnAction(e -> dismiss.run());
+
+        HBox fields = new HBox(10, text("RELAY", 12, "#87a1ae"), host,
+            text("PORT", 12, "#87a1ae"), port, text("ROOM", 12, "#87a1ae"), room);
+        fields.setAlignment(Pos.CENTER_LEFT);
+        VBox help = new VBox(3,
+            text("Same Wi-Fi: one of you runs the relay and reads out the address.", 13, "#9bb1bd"),
+            text("Different cities: run the relay on a cloud box, or join a Tailscale", 13, "#9bb1bd"),
+            text("network and use that address. Both sides dial out - no router setup.", 13, "#9bb1bd"));
+
+        VBox panel = new VBox(16, text("ASTRA CO-OP", 25, "#e6f5ee"), fields, help,
+            relay, relayNote, asAyan, asAstra, close);
+        panel.setMaxSize(660, VBox.USE_PREF_SIZE);
+        panel.setPadding(new Insets(30));
+        panel.setStyle("-fx-background-color: #0d1a27; -fx-border-color: #416b75; -fx-border-width: 1;");
+        modal.setStyle("-fx-background-color: rgba(3,8,15,0.9);");
+        modal.getChildren().setAll(panel);
+        modal.setVisible(true);
+        modal.setManaged(true);
+        modal.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.ESCAPE) {
+                dismiss.run();
+                e.consume();
+            }
+        });
+        host.requestFocus();
+    }
+
+    private static TextField coopField(String value, double width) {
+        TextField f = new TextField(value);
+        f.setPrefWidth(width);
+        f.setStyle("-fx-background-color: #081722; -fx-text-fill: #d6e8e8;"
+            + " -fx-border-color: #2c5563; -fx-background-radius: 0; -fx-border-radius: 0;"
+            + " -fx-font-family: 'Monospaced';");
+        return f;
     }
 
     private void showSettings(Button source) {
@@ -158,20 +265,7 @@ final class OpeningMenuView extends StackPane {
     }
 
     static Button option(String caption, boolean primary) {
-        Button button = new Button(caption);
-        button.setMinSize(338, 44); button.setPrefSize(338, 44); button.setMaxSize(338, 44);
-        button.setAlignment(Pos.CENTER_LEFT);
-        String base = "-fx-font-family: 'Monospaced'; -fx-font-size: 13px; -fx-font-weight: bold;"
-            + " -fx-padding: 0 18; -fx-background-radius: 0; -fx-border-radius: 0; -fx-cursor: hand;";
-        Runnable restyle = () -> {
-            boolean on = button.isHover() || button.isFocused();
-            button.setStyle(base + " -fx-background-color: " + (on ? "#20494d" : primary ? "#153d3e" : "rgba(10,23,35,0.92)")
-                + "; -fx-text-fill: " + (primary || on ? "#b9ffdf" : "#a2b8c6")
-                + "; -fx-border-color: " + (on ? "#b9ffdf" : primary ? "#4f9d8f" : "#233a49") + ";");
-        };
-        button.hoverProperty().addListener((o, a, b) -> restyle.run());
-        button.focusedProperty().addListener((o, a, b) -> restyle.run());
-        restyle.run(); return button;
+        return GameControls.button(caption, 338, 44, primary);
     }
 
     private static String percent(double value) {

@@ -2,8 +2,11 @@ package com.override.shared.ui;
 
 import javafx.application.Platform;
 import javafx.event.Event;
+import javafx.geometry.Bounds;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.SnapshotParameters;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.image.PixelFormat;
@@ -101,12 +104,25 @@ public final class OpeningVisualSmoke {
     }
 
     private static void snapshot(Parent root, Path path) throws Exception {
-        WritableImage image = root.snapshot(null, null);
-        check(image.getWidth() == 1280 && image.getHeight() == 720, "Preview must fit the design space");
+        // The viewport pins the raster to the design space, and the fit check reads
+        // the layout rather than the raster. Sizing the image from the node's own
+        // bounds made this fail on a HiDPI display: JavaFX snaps layout to device
+        // pixels, so at 150% an edge can land on a third of a pixel (the intro's
+        // 3px progress bar at y=717.333) and the snapshot rounds 720 up to 721.
+        // That is a rounding artifact, not overflow, so only a whole pixel counts.
+        SnapshotParameters viewport = new SnapshotParameters();
+        viewport.setViewport(new Rectangle2D(0, 0, 1280, 720));
+        WritableImage image = root.snapshot(viewport, null);
+        Bounds bounds = root.getBoundsInLocal();
+        check(bounds.getMinX() > -1 && bounds.getMinY() > -1
+                && bounds.getMaxX() < 1281 && bounds.getMaxY() < 721,
+            "Preview must fit the design space");
         BufferedImage png = new BufferedImage(1280, 720, BufferedImage.TYPE_INT_ARGB_PRE);
         int[] data = ((DataBufferInt) png.getRaster().getDataBuffer()).getData();
         image.getPixelReader().getPixels(0, 0, 1280, 720, PixelFormat.getIntArgbPreInstance(), data, 0, 1280);
-        ImageIO.write(png, "png", path.toFile());
+        try (var bytes = new java.io.ByteArrayOutputStream()) {
+            ImageIO.write(png, "png", bytes); Files.write(path, bytes.toByteArray());
+        }
     }
 
     private static void exportFilm(ClassroomPixelScene canvas, Path path) throws Exception {

@@ -1,6 +1,7 @@
 package com.override.game.minigames;
 
 import com.override.Main;
+import com.override.shared.service.ChapterResultStore;
 import javafx.scene.control.Alert;
 import javafx.stage.Stage;
 
@@ -42,28 +43,24 @@ public final class GodotGameLauncher {
     private GodotGameLauncher() {}
 
     public static boolean hasResult() {
-        return Files.isRegularFile(RESULT);
+        return ChapterResultStore.has(RESULT);
     }
 
     public static String readResult() {
-        try {
-            return Files.readString(RESULT, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            return null;
-        }
+        return ChapterResultStore.read(RESULT);
     }
+
+    public static String resultEventId() { return ChapterResultStore.eventId(); }
 
     public static void clearResult() {
         try {
-            Files.deleteIfExists(RESULT);
+            ChapterResultStore.clear(RESULT);
         } catch (IOException ignored) {
         }
     }
 
     public static boolean launchGodotBackgroundStart() {
-        if (hasResult()) {
-            clearResult();
-        }
+        if (!prepareResult()) return false;
         Path exported = PROJECT.resolve("build").resolve("Chapter2.exe");
         if (Files.isRegularFile(exported)) {
             // Fullscreen so the game covers exactly the screen the JavaFX
@@ -79,29 +76,28 @@ public final class GodotGameLauncher {
             godotProcess = spawn(godot, "--path", PROJECT.toAbsolutePath().toString(), "--fullscreen");
         }
         if (godotProcess != null) {
-            new Thread(() -> {
+            Process started = godotProcess;
+            Thread watcher = new Thread(() -> {
                 try {
-                    godotProcess.waitFor();
-                    if (processExitHook != null) {
-                        Platform.runLater(processExitHook);
+                    started.waitFor();
+                    Runnable hook = processExitHook;
+                    if (hook != null) {
+                        processExitHook = null;
+                        Platform.runLater(hook);
                     }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
-            }, "chapter2-process-watcher").setDaemon(true);
-            new Thread(() -> {
-                try {
-                    godotProcess.waitFor();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }, "chapter2-exit-watcher").setDaemon(true);
+            }, "chapter2-process-watcher");
+            watcher.setDaemon(true);
+            watcher.start();
             return true;
         }
         return false;
     }
 
     public static void launchGodotAtWindowSize() {
+        if (!prepareResult()) return;
         List<String> cmd = new ArrayList<>();
         Path exported = PROJECT.resolve("build").resolve("Chapter2.exe");
         if (Files.isRegularFile(exported)) {
@@ -159,15 +155,32 @@ public final class GodotGameLauncher {
         );
     }
 
+    /**
+     * Start Godot with its output going somewhere that cannot fill up.
+     *
+     * <p>The default {@code ProcessBuilder} pipes are the trap here: nothing on
+     * this side reads them, so once Godot has printed a few kilobytes (it is
+     * chatty — shader warnings, {@code print()} calls) the OS buffer fills, the
+     * child blocks on its next write and never reaches {@code get_tree().quit()}.
+     * The loading screen then polls a process that is alive but frozen and never
+     * writes a result, so the player is stranded behind the game window. Sending
+     * both streams to the null device removes the buffer entirely.</p>
+     */
     private static Process spawn(String... cmd) {
         try {
             ProcessBuilder pb = new ProcessBuilder(cmd);
             pb.redirectErrorStream(true);
+            pb.redirectOutput(ProcessBuilder.Redirect.DISCARD);
             return pb.start();
         } catch (IOException e) {
             show("Could not start Chapter 2: " + e.getMessage());
             return null;
         }
+    }
+
+    private static boolean prepareResult() {
+        try { ChapterResultStore.begin(RESULT); return true; }
+        catch (IOException e) { show("Could not prepare this player's Chapter 2 run: " + e.getMessage()); return false; }
     }
 
     /**

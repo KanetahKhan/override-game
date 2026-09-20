@@ -17,7 +17,7 @@ This v0.1 build ships a **playable end-to-end vertical slice** of Chapter 1 plus
 | **Mock bKash payment flow** | ✅ | `BkashMockService.java` |
 | Cinematic intro (typewriter dialogue) | ✅ | `IntroStoryScreen.java` |
 | Chapter map with progression | ✅ | `ChapterMapScreen.java` |
-| **Chapter 1 — The Silent Classroom** | ✅ playable | `ChapterOneScreen.java` |
+| **Chapter 1 — Curfew Protocol** | ✅ playable | `chapter1/CurfewProtocolScreen.java` + `CurfewWorld.java` |
 | Reusable dialogue overlay with choices | ✅ | `DialogueOverlay.java` |
 | Chapter 1 mini-games (rebuilding on the new framework) | 🟡 in progress | Kernel Panic done; more to follow |
 | Dependency Meter + Independent XP | ✅ | `GameState.java` |
@@ -34,6 +34,10 @@ This v0.1 build ships a **playable end-to-end vertical slice** of Chapter 1 plus
 > The build compiles **clean** against JavaFX 26.0.1 on JDK 26.
 
 ---
+
+## Named players and scores
+
+The game opens on a name-only login screen. Each player has a separate local save, and the main menu links to a shared scoreboard with every chapter/campaign attempt and a top-five leaderboard of distinct players. Enter the same name to return to a profile. Scores and profiles are stored on this computer; no backend is required. See [player profiles, previews and testing](docs/PLAYER_PROFILES.md).
 
 ## Running the game
 
@@ -74,7 +78,7 @@ override-game/
 │   │   │   ├── model/               ← Player, GameCharacter, GameState
 │   │   │   ├── service/             ← SaveService, BkashMockService
 │   │   │   └── ui/                  ← menus, dialogue overlay, HUD, shared screens
-│   │   ├── chapter1/                ← ChapterOne + Puzzle / Stealth / Combat screens
+│   │   ├── chapter1/                ← Curfew Protocol: 3D world, HUD, node mini-games
 │   └── resources/
 │       └── styles/main.css          ← entire dark cyber theme
 └── backend/                         ← Spring Boot backend
@@ -140,10 +144,14 @@ Mapped 1-to-1 with the design doc. Buffed by:
 ## Chapter structure
 
 The two chapters are implemented and wired up — `ChapterMapScreen.java` routes
-each tile straight to its chapter screen (`ChapterOneScreen`, and Chapter 2 launches
-the Godot runner). Chapter 1 lives in `chapter1/` and reuses the shared engine
-pieces in `shared/ui` (`DialogueOverlay`, HUD, typewriter) plus its own puzzle /
-stealth / boss screens.
+each tile straight to its chapter screen. Chapter 1 goes through `IntroStoryScreen`
+and `ChapterOneBriefingController` into `CurfewProtocolScreen`; Chapter 2 launches
+the Godot runner. Chapter 1 lives in `chapter1/` — the 3D floor in `CurfewWorld`,
+the HUD and run state in `CurfewProtocolScreen`, the hacking mini-games in
+`CurfewNodeGames` — and reuses the shared pieces in `shared/ui`.
+
+The map only ever offers the chapters the player has earned. Run with
+`-Doverride.unlockAllChapters=true` to open every tile while testing.
 
 To add a new chapter or a new puzzle type, model it on an existing
 `chapter*/` package and add a route in `ChapterMapScreen`.

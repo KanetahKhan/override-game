@@ -64,10 +64,13 @@ public class Main extends Application {
         );
         stage.setScene(scene);
 
-        // ESC must always leave full-screen, no matter which screen is up.
-        // JavaFX's built-in full-screen exit needs focus; a scene-level key
-        // handler makes it work regardless of screen or playing state.
-        scene.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+        // ESC leaves full-screen on any screen that does not want the key itself.
+        // This is deliberately a handler, not a filter: a filter here runs in the
+        // capturing phase alongside the screens' own filters, and JavaFX invokes
+        // every filter registered on a node regardless of consume() — so pausing
+        // Chapter 1 also dropped the window out of full-screen. As a handler it
+        // fires during bubbling, which a screen that consumed ESC never reaches.
+        scene.addEventHandler(KeyEvent.KEY_PRESSED, e -> {
             if (e.getCode() == KeyCode.ESCAPE && stage.isFullScreen()) {
                 stage.setFullScreen(false);
                 e.consume();

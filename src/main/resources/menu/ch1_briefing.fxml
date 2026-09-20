@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+
+<AnchorPane fx:id="rootPane" prefWidth="1280.0" prefHeight="720.0"
+            styleClass="alley-backdrop"
+            stylesheets="@ch2_briefing.css"
+            xmlns="http://javafx.com/javafx/17"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.override.chapter1.ChapterOneBriefingController">
+
+    <!-- ── TOP HEADER ───────────────────────────────────────────────── -->
+    <Label fx:id="playerHeader" text="AYAN // SYS.WATCHING"
+           styleClass="header-text"
+           AnchorPane.leftAnchor="40" AnchorPane.topAnchor="30"/>
+    <Label fx:id="creditLabel" text="CREDITS // 0"
+           styleClass="header-text,credits-text"
+           AnchorPane.rightAnchor="40" AnchorPane.topAnchor="30"/>
+
+    <!-- ── TITLE ────────────────────────────────────────────────────── -->
+    <VBox alignment="CENTER" spacing="5"
+          AnchorPane.topAnchor="70" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0">
+        <Label fx:id="mainTitle" text="CURFEW PROTOCOL" styleClass="main-title"/>
+        <Label fx:id="subTitle" text="FIELD BRIEFING  //  CHAPTER 1" styleClass="sub-title"/>
+    </VBox>
+
+    <!-- ── LEFT PANEL: CONTROLS ─────────────────────────────────────── -->
+    <VBox prefWidth="520" prefHeight="445" minWidth="520" maxWidth="520"
+          minHeight="445" maxHeight="445" spacing="8"
+          styleClass="hologram-panel"
+          AnchorPane.leftAnchor="80" AnchorPane.topAnchor="185">
+        <Label text="CONTROLS" styleClass="panel-title"/>
+        <HBox spacing="15" styleClass="entry-row">
+            <Label text="WASD" styleClass="keybind-box"/>
+            <VBox maxWidth="360" prefWidth="360">
+                <Label text="MOVE" styleClass="entry-title"/>
+                <Label text="Mouse looks around. SPACE jumps." styleClass="entry-desc" wrapText="true"/>
+            </VBox>
+        </HBox>
+        <HBox spacing="15" styleClass="entry-row">
+            <Label text="SHIFT" styleClass="keybind-box"/>
+            <VBox maxWidth="360" prefWidth="360">
+                <Label text="RUN" styleClass="entry-title"/>
+                <Label text="Fast, and loud. Stamina runs out." styleClass="entry-desc" wrapText="true"/>
+            </VBox>
+        </HBox>
+        <HBox spacing="15" styleClass="entry-row">
+            <Label text="C" styleClass="keybind-box"/>
+            <VBox maxWidth="360" prefWidth="360">
+                <Label text="CROUCH" styleClass="entry-title"/>
+                <Label text="Slower — and it sees you from half as far." styleClass="entry-desc" wrapText="true"/>
+            </VBox>
+        </HBox>
+        <HBox spacing="15" styleClass="entry-row">
+            <Label text="E" styleClass="keybind-box"/>
+            <VBox maxWidth="360" prefWidth="360">
+                <Label text="INTERACT" styleClass="entry-title"/>
+                <Label text="Nodes, almirahs, drawers, chairs." styleClass="entry-desc" wrapText="true"/>
+            </VBox>
+        </HBox>
+        <HBox spacing="15" styleClass="entry-row">
+            <Label text="F" styleClass="keybind-box"/>
+            <VBox maxWidth="360" prefWidth="360">
+                <Label text="HIDE" styleClass="entry-title"/>
+                <Label text="Climb into an OPEN almirah, or under a desk." styleClass="entry-desc" wrapText="true"/>
+            </VBox>
+        </HBox>
+        <HBox spacing="15" styleClass="entry-row">
+            <Label text="G" styleClass="keybind-box"/>
+            <VBox maxWidth="360" prefWidth="360">
+                <Label text="THROW BOOK" styleClass="entry-title"/>
+                <Label text="Noise pulls the unit to where it lands." styleClass="entry-desc" wrapText="true"/>
+            </VBox>
+        </HBox>
+        <HBox spacing="15" styleClass="entry-row">
+            <Label text="Q" styleClass="keybind-box"/>
+            <VBox maxWidth="360" prefWidth="360">
+                <Label text="ASTRA SCAN" styleClass="entry-title-score"/>
+                <Label text="She shows you the unit. Dependency rises." styleClass="entry-desc" wrapText="true"/>
+            </VBox>
+        </HBox>
+    </VBox>
+
+    <!-- ── RIGHT PANEL: THE FLOOR ───────────────────────────────────── -->
+    <VBox prefWidth="520" prefHeight="445" minWidth="520" maxWidth="520"
+          minHeight="445" maxHeight="445" spacing="16"
+          styleClass="hologram-panel"
+          AnchorPane.rightAnchor="80" AnchorPane.topAnchor="185">
+        <Label text="THE FLOOR" styleClass="panel-title" alignment="CENTER_RIGHT"
+               prefWidth="Infinity"/>
+
+        <HBox spacing="18" alignment="CENTER_LEFT" styleClass="entry-row">
+            <Label text="UNIT" styleClass="keybind-box"/>
+            <VBox maxWidth="370" prefWidth="370">
+                <Label text="THE SENTINEL — it does not get tired." styleClass="entry-title-bad"/>
+                <Label text="Cyan: patrolling. Amber: sweeping. Red: it has you. It learns where it caught you."
+                       styleClass="entry-desc" wrapText="true"/>
+            </VBox>
+        </HBox>
+
+        <HBox spacing="18" alignment="CENTER_LEFT" styleClass="entry-row">
+            <Label text="NODE" styleClass="keybind-box"/>
+            <VBox maxWidth="370" prefWidth="370">
+                <Label text="THREE HACKING NODES." styleClass="entry-title-good"/>
+                <Label text="Clear all three to open the exit bay. Credits hide inside the furniture."
+                       styleClass="entry-desc" wrapText="true"/>
+            </VBox>
+        </HBox>
+
+        <HBox spacing="18" alignment="CENTER_LEFT" styleClass="entry-row">
+            <Label text="EMP" styleClass="keybind-box"/>
+            <VBox maxWidth="370" prefWidth="370">
+                <Label text="LAST-CHANCE ROUND — 40 CR." styleClass="entry-title-guard"/>
+                <Label text="Grabbed? Press F within two seconds to blow it off you. Twice a run."
+                       styleClass="entry-desc" wrapText="true"/>
+            </VBox>
+        </HBox>
+
+        <HBox spacing="18" alignment="CENTER_LEFT" styleClass="entry-row">
+            <Label text="LOCK" styleClass="keybind-box"/>
+            <VBox maxWidth="370" prefWidth="370">
+                <Label text="LOCKDOWN — 60 seconds." styleClass="entry-title-timer"/>
+                <Label text="The last node turns the floor red. Run for the EXIT BAY, south-east."
+                       styleClass="entry-desc" wrapText="true"/>
+            </VBox>
+        </HBox>
+
+        <HBox spacing="18" alignment="CENTER_LEFT" styleClass="entry-row">
+            <Label text="⏱" styleClass="keybind-box"/>
+            <VBox maxWidth="370" prefWidth="370">
+                <Label fx:id="curfewLabel" text="CURFEW — 9 minutes." styleClass="entry-title-timer"/>
+                <Label text="Be out of the building before it closes." styleClass="entry-desc" wrapText="true"/>
+            </VBox>
+        </HBox>
+    </VBox>
+
+    <!-- ── LAST RUN STRIP (filled from the controller when a record exists) ── -->
+    <HBox fx:id="lastRunBox" alignment="CENTER" spacing="18" managed="false"
+          visible="false" styleClass="last-run"
+          AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="110">
+        <Label fx:id="lastRunTag" styleClass="last-run-tag"/>
+        <Label fx:id="lastRunDetail" styleClass="last-run-detail"/>
+    </HBox>
+
+    <!-- ── BOTTOM ACTION BUTTONS ────────────────────────────────────── -->
+    <Button text="BACK" styleClass="asset-button,secondary" onAction="#handleBack"
+            prefWidth="220" prefHeight="66"
+            AnchorPane.leftAnchor="230" AnchorPane.bottomAnchor="15"/>
+    <Button text="READY" styleClass="asset-button" onAction="#handleStartGame"
+            prefWidth="220" prefHeight="66"
+            AnchorPane.rightAnchor="230" AnchorPane.bottomAnchor="15"/>
+
+</AnchorPane>

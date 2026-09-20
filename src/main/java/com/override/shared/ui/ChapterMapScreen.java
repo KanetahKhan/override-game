@@ -3,7 +3,7 @@ package com.override.shared.ui;
 import com.override.Main;
 import com.override.shared.model.GameState;
 import com.override.shared.service.SaveService;
-import com.override.chapter1.CurfewProtocolScreen;
+import com.override.chapter1.ChapterOneBriefingController;
 import com.override.chapter2.ChapterTwoResultScreen;
 import com.override.chapter2.ChapterTwoTutorialScreen;
 import com.override.game.minigames.GodotGameLauncher;
@@ -47,10 +47,10 @@ public class ChapterMapScreen {
 
         Button save = UIFactory.secondary("Save");
         save.setOnAction(e -> {
-            SaveService.save();
+            boolean saved = SaveService.save();
             new javafx.scene.control.Alert(
-                javafx.scene.control.Alert.AlertType.INFORMATION,
-                "Game saved."
+                saved ? javafx.scene.control.Alert.AlertType.INFORMATION : javafx.scene.control.Alert.AlertType.ERROR,
+                saved ? "Game saved." : "Your save could not be written. Please try again."
             ).showAndWait();
         });
         Button menu = UIFactory.secondary("Main Menu");
@@ -93,7 +93,7 @@ public class ChapterMapScreen {
             switch (chNum) {
                 // Each chapter opens on its own narrated film before its briefing.
                 case 1 -> Main.switchScene(new IntroStoryScreen(
-                    () -> Main.switchScene(new CurfewProtocolScreen().build())
+                    () -> Main.switchScene(ChapterOneBriefingController.build())
                 ).build());
                 case 2 -> {
                     if (GodotGameLauncher.hasResult()) {

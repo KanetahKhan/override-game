@@ -1,0 +1,25 @@
+name: Player profiles and scoreboard
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  player-pages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '26'
+          cache: maven
+      - name: Test player storage and render actual pages
+        run: xvfb-run -a bash scripts/test-player-pages.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: player-previews
+          path: target/player-previews/
+          if-no-files-found: warn

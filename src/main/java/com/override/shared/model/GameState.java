@@ -1,5 +1,7 @@
 package com.override.shared.model;
 
+import com.override.shared.service.PlayerProfiles;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -30,8 +32,13 @@ public class GameState {
      */
     private int dependency = 0;
 
-    /** Highest chapter unlocked. Set to 5 for dev/testing, 1 for release. */
-    private int chapterUnlocked = 5;
+    /**
+     * Highest chapter unlocked. A new game starts on Chapter 1 and earns the
+     * rest through {@link #completeChapter(int)}; pass
+     * {@code -Doverride.unlockAllChapters=true} to open the whole map for testing.
+     */
+    private int chapterUnlocked =
+        Boolean.getBoolean("override.unlockAllChapters") ? 5 : 1;
     /** Highest chapter completed. */
     private int chapterCompleted = 0;
 
@@ -40,9 +47,11 @@ public class GameState {
 
     /** Best completed Silent Classroom run. Only improvements are recorded. */
     private int silentClassroomBestScore = 0;
+    private String campaignChapterOneGrade;
 
     private GameState() {
         this.player = new Player();
+        if (PlayerProfiles.active() != null) this.player.setDisplayName(PlayerProfiles.name());
         unlockedCharacters.add("ren"); // free default
     }
 
@@ -70,6 +79,7 @@ public class GameState {
         // Re-roll the player and apply persona bonuses
         this.player = new Player();
         c.applyTo(this.player);
+        if (PlayerProfiles.active() != null) this.player.setDisplayName(PlayerProfiles.name());
     }
 
     public Set<String> getUnlockedCharacters() { return unlockedCharacters; }
@@ -106,6 +116,14 @@ public class GameState {
 
     public int getChapterUnlocked() { return chapterUnlocked; }
     public int getChapterCompleted() { return chapterCompleted; }
+
+    /**
+     * Re-open the map as far as a save recorded. Only ever raises the ceiling, so
+     * a stale save cannot re-lock a chapter the player has since finished.
+     */
+    public void restoreChapterUnlocked(int chapter) {
+        if (chapter > chapterUnlocked) chapterUnlocked = chapter;
+    }
     public void completeChapter(int chapter) {
         if (chapter > chapterCompleted) chapterCompleted = chapter;
         if (chapter + 1 > chapterUnlocked) chapterUnlocked = chapter + 1;
@@ -115,6 +133,10 @@ public class GameState {
     public void addIndependentXp(int n) { independentXp += n; }
 
     public int getSilentClassroomBestScore() { return silentClassroomBestScore; }
+    public String getCampaignChapterOneGrade() { return campaignChapterOneGrade; }
+    public void setCampaignChapterOneGrade(String grade) {
+        campaignChapterOneGrade = grade != null && Set.of("S", "A", "B", "C", "D", "F").contains(grade) ? grade : null;
+    }
 
     /**
      * Record a completed Silent Classroom score without allowing replays or
