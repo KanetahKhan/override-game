@@ -1,104 +1,288 @@
 # OVERRIDE — *The Last Real Mind*
 
-A JavaFX prototype for a story-based educational game on the dark future of AI dependence. Built as a final-year visual programming project. **SDG 4 — Quality Education** is the primary alignment.
+A story-based educational game about the dark future of AI dependence, built as a
+final-year visual programming project in **JavaFX**. **SDG 4 — Quality Education**
+is the primary alignment.
 
-> *Year 2048. A mega-AI named KK has become the invisible backbone of civilization. You are REN, a final-year CSE student. Today, for the first time in years, you are about to think for yourself.*
+> *Year 2048. A mega-AI named KK has become the invisible backbone of civilization.
+> You are REN, a final-year CSE student. Today, for the first time in years, you
+> are about to think for yourself.*
 
 ---
 
-## What's in the prototype
+## 📹 Presentation video
 
-This v0.1 build ships a **playable end-to-end vertical slice** of Chapter 1 plus all the menu / metagame systems wired up:
+**[Watch the final project presentation](https://drive.google.com/drive/folders/1hi_IMawelC7ngKrzKyyRECpzILzMedRh?usp=sharing)**
 
-| System | Status | File(s) |
+The video covers the project overview and objectives, a demonstration of the
+working game and its promised features, the implementation and technologies used,
+and the breakdown of each member's contribution.
+
+**Repository:** <https://github.com/KanetahKhan/override-game>
+
+---
+
+## What the project does
+
+| System | Status | Where |
 |---|---|---|
-| Main menu (New / Continue / Shop / Quit) | ✅ | `MainMenuScreen.java` |
-| Coin shop | ✅ | `ShopScreen.java` |
-| **Mock bKash payment flow** | ✅ | `BkashMockService.java` |
+| Name-only login, per-player saves | ✅ | `shared/ui/LoginScreen.java`, `shared/service/PlayerProfiles.java` |
+| Scoreboard + top-five leaderboard | ✅ | `shared/ui/ScoreboardScreen.java`, `shared/service/ScoreArchive.java` |
+| Main menu, coin shop, mock bKash payment | ✅ | `MainMenuScreen`, `ShopScreen`, `BkashMockService` |
 | Cinematic intro (typewriter dialogue) | ✅ | `IntroStoryScreen.java` |
 | Chapter map with progression | ✅ | `ChapterMapScreen.java` |
-| **Chapter 1 — Curfew Protocol** | ✅ playable | `chapter1/CurfewProtocolScreen.java` + `CurfewWorld.java` |
-| Reusable dialogue overlay with choices | ✅ | `DialogueOverlay.java` |
-| Chapter 1 mini-games (rebuilding on the new framework) | 🟡 in progress | Kernel Panic done; more to follow |
-| Dependency Meter + Independent XP | ✅ | `GameState.java` |
-| KK Assist (EMP) with a dependency cost | ✅ | inside `KernelPanicGame.java` |
-| Save / Load (Properties file) | ✅ | `SaveService.java` |
-| Chapter ending screen | ✅ | `EndingScreen.java` |
-| HUD (HP / Dependency / Coins) | ✅ | `UIFactory.hud()` |
-| Chapter 2 — Harvest Protocol | 🟡 in progress | Godot endless runner (`chapter2-godot/`) |
-| **Kernel Panic** reflex mini-game (Chapter 1) | ✅ playable | `game/minigames/KernelPanicGame.java` |
-| Mini-game framework (Canvas + AnimationTimer) | ✅ | `game/minigames/MiniGame.java` |
-| Persisted mini-game high scores | ✅ | `HighScore` entity + `/api/highscore` |
-| Spring Boot backend | ✅ | `backend/` directory |
-
-> The build compiles **clean** against JavaFX 26.0.1 on JDK 26.
+| **Chapter 1 — Curfew Protocol** (3D stealth) | ✅ playable | `chapter1/CurfewProtocolScreen.java`, `CurfewWorld.java` |
+| **Chapter 2 — Harvest Protocol** (endless runner) | ✅ playable | `chapter2-godot/`, `chapter2/` |
+| **Two-player online co-op** (KK vs REN) | ✅ | `net/`, `chapter1/KKConsoleScreen.java` |
+| Mini-games (Kernel Panic, Syntax Snake, Circuit Breaker) | ✅ | `game/minigames/` |
+| Procedural sound effects and music | ✅ | `game/minigames/ChiptuneSfx.java`, `ChiptuneAmbience.java` |
+| Dependency Meter + Independent XP | ✅ | `shared/model/GameState.java` |
+| Save / load per player profile | ✅ | `shared/service/SaveService.java` |
+| Spring Boot backend (JWT, saves, leaderboard) | ✅ | `backend/` |
 
 ---
 
-## Named players and scores
+## Quick start — running the game
 
-The game opens on a name-only login screen. Each player has a separate local save, and the main menu links to a shared scoreboard with every chapter/campaign attempt and a top-five leaderboard of distinct players. Enter the same name to return to a profile. Scores and profiles are stored on this computer; no backend is required. See [player profiles, previews and testing](docs/PLAYER_PROFILES.md).
+**Prerequisites**
 
-## Running the game
+| Tool | Version | Notes |
+|---|---|---|
+| JDK | **26** | <https://adoptium.net> |
+| Maven | **3.9+** | <https://maven.apache.org/download.cgi> |
 
-> **Full setup lives in [`setup.md`](setup.md)** — prerequisites, install, run,
-> tests, and troubleshooting. Quick version below.
+JavaFX is downloaded automatically by Maven — no separate SDK needed.
 
-**Prerequisites:** JDK 26 and Maven 3.9+ (JavaFX is downloaded by Maven; no
-separate SDK needed).
+**Run it**
 
 ```bash
 git clone https://github.com/KanetahKhan/override-game.git
 cd override-game
-mvn javafx:run          # launches the game
+mvn javafx:run
 ```
 
-The Spring Boot backend (optional — accounts, cloud saves, leaderboard) runs in
-a separate terminal:
+That is the whole setup. The game opens full-screen on the login screen; type any
+name to create or resume a profile.
+
+> **Full setup, troubleshooting and the Godot toolchain:** see [`setup.md`](setup.md).
+
+### Useful flags
 
 ```bash
-cd backend
-mvn spring-boot:run     # starts http://localhost:8080
+mvn javafx:run -Doverride.unlockAllChapters=true   # open the whole chapter map for testing
+mvn javafx:run -Dprism.order=sw                    # software rendering, if the GPU misbehaves
+mvn javafx:run -Doverride.mouseLock=false          # drag-to-look instead of captured mouse
 ```
+
+> On **PowerShell**, quote any `-D` flag that contains `=`:
+> `mvn javafx:run "-Doverride.unlockAllChapters=true"`
+
+### Chapter 1 controls
+
+| Key | Action |
+|---|---|
+| `W` `A` `S` `D` | Move |
+| Mouse / arrow keys | Look around |
+| `Shift` | Sprint (drains stamina) |
+| `C` or `Ctrl` | Crouch — harder to spot, slower |
+| `Space` | Jump |
+| `E` | Use / interact / close a note |
+| `F` | Enter or leave a hiding spot |
+| `G` | Throw a book to make noise elsewhere |
+| `Q` | KK Assist scan — costs dependency |
+| `Esc` | Pause, and leave full-screen |
 
 ---
 
-## Project structure
+## Two-player online co-op
 
+Chapter 1 can be played by **two people on different computers, in different
+cities**. It is asymmetric:
+
+- **REN** plays the normal Chapter 1 stealth run.
+- **KK** gets a console showing REN's live position and spends power against her.
+
+| KK's command | Effect | Cooldown |
+|---|---|---|
+| CUT THE POWER | Blacks out the floor for 20s | 35 |
+| SWEEP HER ROOM | Sends the unit to REN's exact position | 20 |
+| WAKE SECOND UNIT | Puts a second hunter on the floor | 45 |
+| SEAL THE FLOOR | Lockdown — 60s to reach the exit | 60 |
+| SPEAK | Sends a typed message to REN's screen | 5 |
+
+KK can also **click the floor map** to sweep the unit anywhere, or **steer the
+unit directly with `WASD`**. Releasing the keys hands it back to its own AI.
+REN replies from her pause screen (`Esc` → type → `Enter`).
+
+### How the networking works
+
+Both players **dial out** to a small relay server. Neither router needs port
+forwarding, which matters because most home ISPs use CGNAT where accepting an
+incoming connection is impossible. One machine hosts the relay; both connect to it.
+
+### Step 1 — start the relay (host only, one person)
+
+In its own terminal, left open for the whole session:
+
+```bash
+cd override-game
+java -cp target/classes com.override.net.OverrideRelay 5001
 ```
-override-game/
-├── pom.xml                          ← JavaFX frontend build
-├── README.md
-├── docs/
-│   └── PROJECT_BRIEF.md             ← full project specification
-├── src/main/                        ← JavaFX frontend
-│   ├── java/com/override/
-│   │   ├── Main.java                ← entry point + scene manager
-│   │   ├── shared/
-│   │   │   ├── model/               ← Player, GameCharacter, GameState
-│   │   │   ├── service/             ← SaveService, BkashMockService
-│   │   │   └── ui/                  ← menus, dialogue overlay, HUD, shared screens
-│   │   ├── chapter1/                ← Curfew Protocol: 3D world, HUD, node mini-games
-│   └── resources/
-│       └── styles/main.css          ← entire dark cyber theme
-└── backend/                         ← Spring Boot backend
-    ├── pom.xml
-    └── src/main/
-        ├── java/com/override/backend/
-        │   ├── OverrideBackendApplication.java
-        │   ├── config/               ← SecurityConfig, GlobalExceptionHandler
-        │   ├── security/             ← JwtUtils, JwtAuthFilter, AppUserDetailsService
-        │   ├── dto/                  ← request/response objects
-        │   ├── entity/               ← User, PlayerProfile, GameSave, ChapterProgress, Achievement, LeaderboardEntry
-        │   ├── repository/           ← Spring Data JPA repositories
-        │   ├── shared/
-        │   │   ├── controller/       ← Auth, Player, Save, Leaderboard controllers
-        │   │   └── service/          ← Auth, Player, Save, Leaderboard services
-        │   └── chapter1..5/          ← Chapter{N}ProgressController + Chapter{N}ProgressService
-        └── resources/
-            ├── application.properties
-            └── db/schema.sql
+
+It prints `[relay] listening on port 5001` and then logs every join, so you can
+see both players arrive and with which role.
+
+> Run `mvn compile` first if `target/classes` does not exist yet.
+> There is also a **RUN THE RELAY HERE** button in the game's co-op menu, but the
+> standalone command above is better while testing: it survives game restarts and
+> shows the join log.
+
+### Step 2 — put both machines on the same network
+
+On the same Wi-Fi, the host's LAN address is enough. **For different cities, use
+[Tailscale](https://tailscale.com/download)** — a free private network:
+
+1. Both players install Tailscale and **sign in** (`tailscale up` if the tray app
+   does not prompt).
+2. Either sign in to the **same account**, or share the host machine from
+   <https://login.tailscale.com/admin/machines> → `...` → **Share**.
+3. The host finds their address:
+
+```powershell
+& "C:\Program Files\Tailscale\tailscale.exe" ip -4
 ```
+
+That prints a `100.x.x.x` address — this is the RELAY address both players type.
+
+**Verify before launching the game.** On the *joining* player's machine:
+
+```powershell
+Test-NetConnection 100.x.x.x -Port 5001
+```
+
+| Result | Meaning |
+|---|---|
+| `TcpTestSucceeded : True` | Network is fine — go play |
+| `TcpTestSucceeded : False`, `InterfaceAlias : Wi-Fi` | Not routing through Tailscale — sign in / accept the share |
+| `Connection refused` | Network fine, but the relay is not running — do Step 1 |
+
+A helper script does all of these checks at once, with no arguments to edit:
+
+```powershell
+cd override-game
+.\scripts\coop-check.ps1
+```
+
+### Step 3 — connect in game
+
+Both players: main menu → **06 KK CO-OP** → fill in the **same** three values:
+
+| Field | Value |
+|---|---|
+| RELAY | the host's address (`100.x.x.x`, or `127.0.0.1` for the host themselves) |
+| PORT | `5001` |
+| ROOM | any shared word, e.g. `IUT` |
+
+Then **one player picks `PLAY AS REN`, the other picks `PLAY AS KK`.** Never both
+the same — two consoles with no player is the most common mistake, and it looks
+exactly like a broken connection.
+
+REN should start the run; the KK console stays at `UNIT OFFLINE` until REN is
+actually moving on the floor.
+
+---
+
+## Spring Boot backend (optional)
+
+The game is fully playable without it — profiles and scores are stored locally in
+`~/.override/players/`. The backend adds accounts, cloud saves and a shared
+leaderboard.
+
+```bash
+cd backend
+mvn spring-boot:run      # starts http://localhost:8080
+```
+
+It uses an embedded H2 database with zero setup; the console is at
+`http://localhost:8080/h2`.
+
+### REST API
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/auth/register` | No | Register (username, email, password) |
+| POST | `/api/auth/login` | No | Login, returns a JWT |
+| GET | `/api/player/me` | Yes | Player profile and stats |
+| PUT | `/api/player/update` | Yes | Update profile / stats |
+| POST | `/api/save` | Yes | Save game state |
+| GET | `/api/save` | Yes | Load saves for the current user |
+| POST | `/api/chapter{1..5}/progress/update` | Yes | Per-chapter progress |
+| GET | `/api/leaderboard` | No | Top 20 leaderboard |
+| GET | `/api/highscore/{gameType}` | No | Best mini-game run |
+| POST | `/api/highscore` | No | Submit a mini-game run |
+
+> **Secrets:** the JWT key and DB credentials come from environment variables
+> (`APP_JWT_SECRET`, `MYSQL_*`) with dev-only defaults for local runs. Copy
+> `.env.example` to `.env` for any shared deployment.
+
+---
+
+## Running the tests
+
+```bash
+bash scripts/test-player-pages.sh
+```
+
+Compiles the project and runs three checks: player storage and profile isolation,
+the login/scoreboard pages rendered as real screenshots, and the opening-menu
+smoke test. Works from Git Bash on Windows and from a shell on Linux/macOS.
+
+---
+
+## Technologies used
+
+| Area | Technology |
+|---|---|
+| Language | Java 26 |
+| UI and 3D | JavaFX 26 (`Canvas`, `AnimationTimer`, JavaFX 3D `Group`/`PerspectiveCamera`) |
+| Build | Maven 3.9 |
+| Chapter 2 | Godot 4 (exported executable, launched from the JavaFX app) |
+| Backend | Spring Boot 3.4, Spring Security, Spring Data JPA |
+| Database | H2 (development), MySQL (production) |
+| Auth | JWT (jjwt) |
+| Networking | Plain TCP sockets (`java.net`), custom line protocol |
+| Audio | `javax.sound.sampled` (procedurally synthesised), JavaFX Media |
+| Persistence | `java.util.Properties`, per-profile directories |
+
+---
+
+## Team contributions
+
+Derived from the repository's commit history (183 commits from Kanetah, 72 from Jeba).
+
+### Kanetah Khan — [@KanetahKhan](https://github.com/KanetahKhan)
+
+- **Chapter 1 — Curfew Protocol**: the entire 3D stealth chapter, ported to JavaFX
+  3D — level geometry, the sentinel AI (patrol / search / chase, suspicion, hiding,
+  line of sight), lockdown, blackout, EMP, grading and scoring.
+- **Two-player co-op**: the relay server, the line protocol, the KK console, live
+  telemetry, KK's commands, WASD steering and in-game chat.
+- **Spring Boot backend**: JWT auth, saves, chapter progress, leaderboard, REST API.
+- **Mini-games**: Kernel Panic, Syntax Snake, Circuit Breaker and the mini-game
+  framework.
+- **Audio**: the procedural chiptune sound engine, Chapter 1's footsteps, tension
+  layer and room tone.
+
+### Jeba Shajida — [@detectivepanda40307](https://github.com/KanetahKhan/override-game/commits?author=detectivepanda40307)
+
+- **Chapter 2 — Harvest Protocol**: the whole Godot endless runner, its art, level
+  and export, plus the JavaFX launcher, loading screen and result screen.
+- **Player accounts and scores**: name-only login, per-player save isolation, the
+  searchable scoreboard and the top-five leaderboard.
+- **Shared UI**: the opening menu, chapter map, dialogue overlay, HUD, pixel scenes
+  and the sci-fi control styling.
+- **Campaign scoring**: combining Chapter 1's grade and Chapter 2's score into the
+  final campaign verdict.
 
 ---
 
@@ -106,9 +290,9 @@ override-game/
 
 ### The Dependency Meter
 
-The single most important mechanic. At every help-prompt the player chooses one of:
+The central mechanic. At every help prompt the player chooses:
 
-1. **Solve manually** → full reward, +XP, +Independent XP, sometimes +stat
+1. **Solve manually** → full reward, +XP, +Independent XP
 2. **Buy a hint** → 20 coins, smaller reward, *no* dependency increase
 3. **Ask KK** → free, smaller reward, **+10 dependency**
 
@@ -121,113 +305,46 @@ Endings tier off `dependency` and `independentXp`:
 | Resistance | default | the human path |
 | Symbiosis | dependency ≤ 15 + indepXP ≥ 50 | hardest, best ending |
 
-### Coins & character unlock
+### Campaign score
 
-* Earned from chapter completions, puzzles, stealth, combat
-* Spent on: persona unlock, hints, future cosmetics
-* Topped up via the **mock bKash dialog** (3-step phone → OTP → PIN flow)
+The final verdict is **50% Chapter 1 + 50% Chapter 2**. Chapter 1 contributes as a
+grade (S=100, A=80, B=60, otherwise 40) and Chapter 2 as its run percentage. A
+combined score of 50% or more ends in RESISTANCE, below it in OVERRIDDEN.
 
-> ⚠ The bKash flow is a **simulation only**. No real money moves. Real integration requires the bKash PGW merchant credentials and a server-side webhook — see "Backend hook-up" below.
+### Coins, stats and the shop
 
-### Player stats (Logic / Awareness / Willpower / Combat / Empathy)
+Coins are earned from chapters, puzzles and stealth, and spent on persona unlocks
+and hints. Five stats — Logic, Awareness, Willpower, Combat, Empathy — are buffed
+by solving things independently, clean stealth runs, refusing KK, boss fights and
+dialogue choices. Coins can be topped up through a **simulated** bKash dialog.
 
-Mapped 1-to-1 with the design doc. Buffed by:
-
-* completing puzzles independently (Logic)
-* clean stealth runs (Awareness)
-* refusing KK (Willpower)
-* boss fights (Combat)
-* dialogue choices (Empathy)
+> ⚠ The bKash flow is a **simulation only**. No real money moves.
 
 ---
 
-## Chapter structure
+## Project structure
 
-The two chapters are implemented and wired up — `ChapterMapScreen.java` routes
-each tile straight to its chapter screen. Chapter 1 goes through `IntroStoryScreen`
-and `ChapterOneBriefingController` into `CurfewProtocolScreen`; Chapter 2 launches
-the Godot runner. Chapter 1 lives in `chapter1/` — the 3D floor in `CurfewWorld`,
-the HUD and run state in `CurfewProtocolScreen`, the hacking mini-games in
-`CurfewNodeGames` — and reuses the shared pieces in `shared/ui`.
-
-The map only ever offers the chapters the player has earned. Run with
-`-Doverride.unlockAllChapters=true` to open every tile while testing.
-
-To add a new chapter or a new puzzle type, model it on an existing
-`chapter*/` package and add a route in `ChapterMapScreen`.
-
----
-
-## Spring Boot Backend
-
-The backend lives in the `backend/` directory. It provides user authentication (JWT), game save/load, chapter progress tracking, and a leaderboard.
-
-### Running the backend
-
-Open a **separate terminal** from the game (full details in [`setup.md`](setup.md#6-run)):
-
-```bash
-cd backend
-mvn spring-boot:run
 ```
-
-The backend starts on `http://localhost:8080` with an embedded H2 database (zero setup needed). The H2 console is available at `http://localhost:8080/h2`.
-
-To switch to MySQL for production, edit `backend/src/main/resources/application.properties` and uncomment the MySQL section.
-
-> **Secrets:** the JWT signing key and DB credentials are read from environment
-> variables (`APP_JWT_SECRET`, `MYSQL_*`) with dev-only defaults baked in for
-> local runs. For any shared/production deployment, copy `.env.example` to `.env`
-> and set real values — see [`setup.md` § Environment](setup.md#3-environment).
-
-### REST API
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/auth/register` | No | Register (username, email, password) |
-| POST | `/api/auth/login` | No | Login, returns JWT token |
-| GET | `/api/player/me` | Yes | Get player profile + stats |
-| PUT | `/api/player/update` | Yes | Update profile / stats |
-| POST | `/api/save` | Yes | Save game state |
-| GET | `/api/save` | Yes | Load all saves for current user |
-| POST | `/api/chapter{1..5}/progress/update` | Yes | Update per-chapter progress |
-| GET | `/api/leaderboard` | No | Top 20 leaderboard |
-| GET | `/api/highscore/{gameType}` | No | Best mini-game run (e.g. `kernel-panic`) |
-| POST | `/api/highscore` | No | Submit a mini-game run (raises stored best) |
-
-### Database
-
-Uses H2 (file-based) for development, MySQL for production. Schema auto-created by JPA. Full SQL schema available at `backend/src/main/resources/db/schema.sql`.
-
-**Tables:** users, player_profiles, game_saves, chapter_progress, achievements, leaderboard_entries
-
-### Connecting the game to the backend
-
-The JavaFX frontend currently saves locally to `~/.override/save.properties`. To connect it to the backend, update `SaveService.java` to make HTTP calls:
-
-```java
-// Example: save game to backend
-String json = serializeState();
-HttpRequest req = HttpRequest.newBuilder()
-    .uri(URI.create("http://localhost:8080/api/save"))
-    .header("Authorization", "Bearer " + token)
-    .header("Content-Type", "application/json")
-    .POST(BodyPublishers.ofString(json))
-    .build();
-HttpClient.newHttpClient().send(req, BodyHandlers.discarding());
+override-game/
+├── pom.xml                       ← JavaFX frontend build
+├── setup.md                      ← full setup and troubleshooting
+├── scripts/
+│   ├── test-player-pages.sh      ← the test suite
+│   └── coop-check.ps1            ← co-op network diagnostics
+├── docs/                         ← project brief, player profiles, previews
+├── src/main/java/com/override/
+│   ├── Main.java                 ← entry point + scene manager
+│   ├── shared/
+│   │   ├── model/                ← Player, GameCharacter, GameState
+│   │   ├── service/              ← PlayerProfiles, SaveService, ScoreArchive
+│   │   └── ui/                   ← login, menus, scoreboard, dialogue, HUD
+│   ├── chapter1/                 ← Curfew Protocol: 3D world, AI, KK console
+│   ├── chapter2/                 ← Harvest Protocol launcher and results
+│   ├── game/minigames/           ← mini-games, audio engine
+│   └── net/                      ← relay server, link, co-op protocol
+├── chapter2-godot/               ← Godot 4 endless runner
+└── backend/                      ← Spring Boot backend
 ```
-
----
-
-## Splitting the work
-
-For a 2–3 person team:
-
-| Person | Owns |
-|---|---|
-| **Frontend / UI** | `ui/*Screen.java`, `main.css`, animations, JavaFX scene wiring |
-| **Game systems** | `model/*`, `service/SaveService`, dependency mechanic, combat balance, content for chapter 2 |
-| **Backend / Integration** | Spring Boot project, JWT auth, real bKash PGW (sandbox), DB, leaderboard |
 
 ---
 
@@ -235,6 +352,8 @@ For a 2–3 person team:
 
 > The villain is not just KK. The real villain is unchecked dependence.
 
-Each room, each chapter, each dialogue is built around one idea: **convenience can become control, and a society that stops thinking eventually loses the ability to choose.** The Dependency Meter exists so the player *feels* this in the gameplay loop, not just reads it in a cutscene.
-
-That's the educational payload. Everything else is scaffolding.
+Every room, chapter and dialogue is built around one idea: **convenience can become
+control, and a society that stops thinking eventually loses the ability to choose.**
+The Dependency Meter exists so the player *feels* this in the gameplay loop rather
+than reading it in a cutscene. That is the educational payload; everything else is
+scaffolding.
