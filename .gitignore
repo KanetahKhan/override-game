@@ -53,3 +53,7 @@ Thumbs.db
 /oro/
 /system/
 /xml-apis/
+
+# Local editor/tool configuration, never part of the project
+.claude/
+
