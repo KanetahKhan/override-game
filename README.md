@@ -1,5 +1,17 @@
 # OVERRIDE — *The Last Real Mind*
 
+## 📹 [**WATCH THE PROJECT PRESENTATION VIDEO**](https://drive.google.com/drive/folders/1hi_IMawelC7ngKrzKyyRECpzILzMedRh?usp=sharing)
+
+> <https://drive.google.com/drive/folders/1hi_IMawelC7ngKrzKyyRECpzILzMedRh?usp=sharing>
+
+The video presents the project in full: an overview and its objectives, a
+demonstration of the working game and its promised features, the implementation
+and technologies used, and a breakdown of each group member's contribution.
+
+**Repository:** <https://github.com/KanetahKhan/override-game>
+
+---
+
 A story-based educational game about the dark future of AI dependence, built as a
 final-year visual programming project in **JavaFX**. **SDG 4 — Quality Education**
 is the primary alignment.
@@ -7,18 +19,6 @@ is the primary alignment.
 > *Year 2048. A mega-AI named KK has become the invisible backbone of civilization.
 > You are REN, a final-year CSE student. Today, for the first time in years, you
 > are about to think for yourself.*
-
----
-
-## 📹 Presentation video
-
-**[Watch the final project presentation](https://drive.google.com/drive/folders/1hi_IMawelC7ngKrzKyyRECpzILzMedRh?usp=sharing)**
-
-The video covers the project overview and objectives, a demonstration of the
-working game and its promised features, the implementation and technologies used,
-and the breakdown of each member's contribution.
-
-**Repository:** <https://github.com/KanetahKhan/override-game>
 
 ---
 
