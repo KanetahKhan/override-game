@@ -10,7 +10,7 @@ The game explores a dark future where AI has entered every major sector of human
 
 ## Story Summary
 
-Year **2048**. A mega AI system called **KK** has become the invisible backbone of civilization. The main character is **REN**, a final-year CSE student who receives a hidden message from kidnapped "raw talents" -- people who still retain true human ability. KK sees such people as dangerous and secretly imprisons them.
+Year **2556**. A mega AI system called **KK** has become the invisible backbone of civilization. The main character is **REN**, a final-year CSE student who receives a hidden message from kidnapped "raw talents" -- people who still retain true human ability. KK sees such people as dangerous and secretly imprisons them.
 
 The game follows REN as he moves across different sectors, uncovers the dark effects of AI dependence, fights AI bots, solves puzzles, infiltrates secured zones, and rescues the kidnapped talents.
 

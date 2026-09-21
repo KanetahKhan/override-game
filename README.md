@@ -16,7 +16,7 @@ A story-based educational game about the dark future of AI dependence, built as 
 final-year visual programming project in **JavaFX**. **SDG 4 — Quality Education**
 is the primary alignment.
 
-> *Year 2048. A mega-AI named KK has become the invisible backbone of civilization.
+> *Year 2556. A mega-AI named KK has become the invisible backbone of civilization.
 > You are REN, a final-year CSE student. Today, for the first time in years, you
 > are about to think for yourself.*
 
@@ -258,7 +258,6 @@ smoke test. Works from Git Bash on Windows and from a shell on Linux/macOS.
 
 ## Team contributions
 
-Derived from the repository's commit history (183 commits from Kanetah, 72 from Jeba).
 
 ### Kanetah Khan — [@KanetahKhan](https://github.com/KanetahKhan)
 
@@ -270,6 +269,10 @@ Derived from the repository's commit history (183 commits from Kanetah, 72 from 
 - **Spring Boot backend**: JWT auth, saves, chapter progress, leaderboard, REST API.
 - **Mini-games**: Kernel Panic, Syntax Snake, Circuit Breaker and the mini-game
   framework.
+- **Player accounts and scores**: name-only login, per-player save isolation, the
+  searchable scoreboard and the top-five leaderboard.
+- **Shared UI**: the opening menu, chapter map, dialogue overlay, HUD, pixel scenes
+  and the sci-fi control styling.
 - **Audio**: the procedural chiptune sound engine, Chapter 1's footsteps, tension
   layer and room tone.
 
@@ -277,10 +280,6 @@ Derived from the repository's commit history (183 commits from Kanetah, 72 from 
 
 - **Chapter 2 — Harvest Protocol**: the whole Godot endless runner, its art, level
   and export, plus the JavaFX launcher, loading screen and result screen.
-- **Player accounts and scores**: name-only login, per-player save isolation, the
-  searchable scoreboard and the top-five leaderboard.
-- **Shared UI**: the opening menu, chapter map, dialogue overlay, HUD, pixel scenes
-  and the sci-fi control styling.
 - **Campaign scoring**: combining Chapter 1's grade and Chapter 2's score into the
   final campaign verdict.
 
