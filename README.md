@@ -256,34 +256,7 @@ smoke test. Works from Git Bash on Windows and from a shell on Linux/macOS.
 
 ---
 
-## Team contributions
 
-
-### Kanetah Khan — [@KanetahKhan](https://github.com/KanetahKhan)
-
-- **Chapter 1 — Curfew Protocol**: the entire 3D stealth chapter, ported to JavaFX
-  3D — level geometry, the sentinel AI (patrol / search / chase, suspicion, hiding,
-  line of sight), lockdown, blackout, EMP, grading and scoring.
-- **Two-player co-op**: the relay server, the line protocol, the KK console, live
-  telemetry, KK's commands, WASD steering and in-game chat.
-- **Spring Boot backend**: JWT auth, saves, chapter progress, leaderboard, REST API.
-- **Mini-games**: Kernel Panic, Syntax Snake, Circuit Breaker and the mini-game
-  framework.
-- **Player accounts and scores**: name-only login, per-player save isolation, the
-  searchable scoreboard and the top-five leaderboard.
-- **Shared UI**: the opening menu, chapter map, dialogue overlay, HUD, pixel scenes
-  and the sci-fi control styling.
-- **Audio**: the procedural chiptune sound engine, Chapter 1's footsteps, tension
-  layer and room tone.
-
-### Jeba Shajida — [@detectivepanda40307](https://github.com/KanetahKhan/override-game/commits?author=detectivepanda40307)
-
-- **Chapter 2 — Harvest Protocol**: the whole Godot endless runner, its art, level
-  and export, plus the JavaFX launcher, loading screen and result screen.
-- **Campaign scoring**: combining Chapter 1's grade and Chapter 2's score into the
-  final campaign verdict.
-
----
 
 ## Core mechanics
 
